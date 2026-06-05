@@ -288,6 +288,12 @@ class _Dashboard extends ConsumerWidget {
             lastDay: DateTime(DateTime.now().year + 5, 12, 31),
             focusedDay: focusedDay,
             calendarFormat: calendarFormat,
+            // Always render six week-rows so the calendar's height stays
+            // constant across months. Without this, months that span only
+            // five weeks are shorter, and paging between a 5-row and a 6-row
+            // month resizes the calendar — shoving everything below it up and
+            // down (the "flickering" the user sees).
+            sixWeekMonthsEnforced: true,
             onFormatChanged: onFormatChanged,
             onPageChanged: onPageChanged,
             selectedDayPredicate: (_) => false,
