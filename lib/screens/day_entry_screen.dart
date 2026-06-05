@@ -13,7 +13,7 @@ import '../services/database_service.dart';
 
 /// The single status a day can hold. Attendance and special days are mutually
 /// exclusive, so picking one here replaces whatever was previously recorded.
-enum DayStatus { attended, holiday, sickLeave }
+enum DayStatus { attended, holiday, sickLeave, notAttended }
 
 /// Unified screen for marking a day. For any past date or today the user picks
 /// one of Attended / Holiday / Sick Leave, optionally adds a comment, and saves
@@ -78,9 +78,11 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
         _status = DayStatus.attended;
         _commentController.text = record.reason ?? '';
       } else if (special != null) {
-        _status = special.type == DayType.holiday
-            ? DayStatus.holiday
-            : DayStatus.sickLeave;
+        _status = switch (special.type) {
+          DayType.holiday => DayStatus.holiday,
+          DayType.sickLeave => DayStatus.sickLeave,
+          DayType.notAttended => DayStatus.notAttended,
+        };
         _commentController.text = special.note ?? '';
       } else {
         _status = widget.initialStatus ?? DayStatus.attended;
@@ -131,9 +133,12 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
           SpecialDay(
             id: _existingSpecialDay?.id,
             date: dateStr,
-            type: _status == DayStatus.holiday
-                ? DayType.holiday
-                : DayType.sickLeave,
+            type: switch (_status) {
+              DayStatus.holiday => DayType.holiday,
+              DayStatus.sickLeave => DayType.sickLeave,
+              DayStatus.notAttended => DayType.notAttended,
+              DayStatus.attended => DayType.notAttended, // unreachable
+            },
             note: note,
           ),
         );
@@ -311,6 +316,17 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
                       color: AppColors.sickLeave,
                       selected: _status == DayStatus.sickLeave,
                       onTap: () => setState(() => _status = DayStatus.sickLeave),
+                    ),
+                    const SizedBox(height: 8),
+                    _StatusOption(
+                      label: 'Not Attended',
+                      description:
+                          'A working day you did not attend the office',
+                      icon: Icons.cancel_outlined,
+                      color: AppColors.notAttended,
+                      selected: _status == DayStatus.notAttended,
+                      onTap: () =>
+                          setState(() => _status = DayStatus.notAttended),
                     ),
 
                     const SizedBox(height: 24),

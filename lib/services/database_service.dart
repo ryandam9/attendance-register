@@ -265,6 +265,11 @@ class DatabaseService {
     return rows.map(SpecialDay.fromMap).toList();
   }
 
+  /// Counts special days in [from]..[to]. Only weekdays (Mon–Fri) are counted:
+  /// the attendance percentage denominator is built from weekdays, so a holiday
+  /// or sick day that falls on a weekend must not be subtracted from it (doing
+  /// so would shrink the denominator below the real number of working days).
+  /// SQLite's strftime('%w') returns 0 for Sunday and 6 for Saturday.
   Future<int> getSpecialDayCount(
     DateTime from,
     DateTime to, {
@@ -274,7 +279,8 @@ class DatabaseService {
     String fmt(DateTime d) =>
         '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-    String where = 'date >= ? AND date <= ?';
+    String where =
+        "date >= ? AND date <= ? AND strftime('%w', date) NOT IN ('0', '6')";
     final args = <dynamic>[fmt(from), fmt(to)];
 
     if (type != null) {
@@ -287,6 +293,26 @@ class DatabaseService {
       args,
     );
     return (result.first['cnt'] as int?) ?? 0;
+  }
+
+  /// Every attendance record for an office, newest first — used by the history
+  /// list view.
+  Future<List<AttendanceRecord>> getAllAttendanceRecords(int officeId) async {
+    final db = await database;
+    final rows = await db.query(
+      'attendance_records',
+      where: 'office_location_id = ?',
+      whereArgs: [officeId],
+      orderBy: 'date DESC',
+    );
+    return rows.map(AttendanceRecord.fromMap).toList();
+  }
+
+  /// Every special day (holiday / sick leave / not attended), newest first.
+  Future<List<SpecialDay>> getAllSpecialDays() async {
+    final db = await database;
+    final rows = await db.query('special_days', orderBy: 'date DESC');
+    return rows.map(SpecialDay.fromMap).toList();
   }
 
   Future<void> deleteSpecialDay(String date) async {
