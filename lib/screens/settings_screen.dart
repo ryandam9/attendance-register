@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
@@ -39,6 +42,11 @@ class SettingsScreen extends ConsumerWidget {
               MaterialPageRoute(builder: (_) => const SetupScreen()),
             ).then((_) => notifier.load()),
           ),
+
+          const Divider(height: 32),
+
+          const _SectionLabel('Permissions'),
+          const _PermissionsSection(),
 
           const Divider(height: 32),
 
@@ -184,6 +192,156 @@ class _SectionLabel extends StatelessWidget {
     );
   }
 }
+
+// ── Permissions section ───────────────────────────────────────────────────────
+
+enum _PermStatus { granted, denied }
+
+class _PermissionsSection extends StatefulWidget {
+  const _PermissionsSection();
+
+  @override
+  State<_PermissionsSection> createState() => _PermissionsSectionState();
+}
+
+class _PermissionsSectionState extends State<_PermissionsSection>
+    with WidgetsBindingObserver {
+  _PermStatus? _location;
+  _PermStatus? _notifications;
+  _PermStatus? _battery; // Android only
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final loc = await Permission.locationAlways.status;
+    final notif = await Permission.notification.status;
+    _PermStatus? bat;
+    if (Platform.isAndroid) {
+      bat = (await Permission.ignoreBatteryOptimizations.isGranted)
+          ? _PermStatus.granted
+          : _PermStatus.denied;
+    }
+    if (!mounted) return;
+    setState(() {
+      _location = loc.isGranted ? _PermStatus.granted : _PermStatus.denied;
+      _notifications = notif.isGranted ? _PermStatus.granted : _PermStatus.denied;
+      _battery = bat;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_location == null) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return Column(
+      children: [
+        _PermRow(
+          label: 'Location — Always Allow',
+          status: _location!,
+          reason:
+              'The app checks your GPS every 15 minutes while running in the '
+              'background. Without "Always Allow" automatic check-in will not work.',
+        ),
+        _PermRow(
+          label: 'Notifications',
+          status: _notifications!,
+          reason: 'Needed to alert you when attendance is automatically recorded.',
+        ),
+        if (Platform.isAndroid && _battery != null)
+          _PermRow(
+            label: 'Battery Optimisation — Disabled',
+            status: _battery!,
+            reason:
+                'Prevents Android from killing the background scan. Without this '
+                'the 15-minute location check may stop firing.',
+          ),
+      ],
+    );
+  }
+}
+
+class _PermRow extends StatelessWidget {
+  final String label;
+  final _PermStatus status;
+  final String reason;
+
+  const _PermRow({
+    required this.label,
+    required this.status,
+    required this.reason,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final granted = status == _PermStatus.granted;
+    final iconColor =
+        granted ? Colors.green : Theme.of(context).colorScheme.error;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                granted ? Icons.check_circle : Icons.cancel,
+                color: iconColor,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (!granted)
+                TextButton(
+                  onPressed: openAppSettings,
+                  child: const Text('Open Settings'),
+                ),
+            ],
+          ),
+          if (!granted)
+            Padding(
+              padding: const EdgeInsets.only(left: 30, top: 2),
+              child: Text(
+                reason,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _OfficeTile extends StatelessWidget {
   final OfficeLocation office;
