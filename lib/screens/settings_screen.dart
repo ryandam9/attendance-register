@@ -8,6 +8,7 @@ import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/special_day_provider.dart';
+import '../services/app_settings_service.dart';
 import '../services/database_service.dart';
 import 'setup_screen.dart';
 
@@ -261,11 +262,13 @@ class _PermissionsSectionState extends State<_PermissionsSection>
           reason:
               'The app checks your GPS every 15 minutes while running in the '
               'background. Without "Always Allow" automatic check-in will not work.',
+          onOpenSettings: AppSettingsService.openLocation,
         ),
         _PermRow(
           label: 'Notifications',
           status: _notifications!,
           reason: 'Needed to alert you when attendance is automatically recorded.',
+          onOpenSettings: AppSettingsService.openNotifications,
         ),
         if (Platform.isAndroid && _battery != null)
           _PermRow(
@@ -274,6 +277,7 @@ class _PermissionsSectionState extends State<_PermissionsSection>
             reason:
                 'Prevents Android from killing the background scan. Without this '
                 'the 15-minute location check may stop firing.',
+            onOpenSettings: AppSettingsService.openBatteryOptimization,
           ),
       ],
     );
@@ -284,11 +288,13 @@ class _PermRow extends StatelessWidget {
   final String label;
   final _PermStatus status;
   final String reason;
+  final VoidCallback onOpenSettings;
 
   const _PermRow({
     required this.label,
     required this.status,
     required this.reason,
+    required this.onOpenSettings,
   });
 
   @override
@@ -320,7 +326,7 @@ class _PermRow extends StatelessWidget {
               ),
               if (!granted)
                 TextButton(
-                  onPressed: openAppSettings,
+                  onPressed: onOpenSettings,
                   child: const Text('Open Settings'),
                 ),
             ],

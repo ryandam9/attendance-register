@@ -73,7 +73,7 @@ lib/
 │   └── attendance_provider.dart # ChangeNotifier for attendance
 └── screens/
     ├── home_screen.dart             # Dashboard + calendar
-    ├── manual_attendance_screen.dart # Pick date, set present/absent, enter reason
+    ├── day_entry_screen.dart        # Pick a day → Attendance / Holiday / Sick Leave + comment
     ├── setup_screen.dart            # Add / edit office
     └── settings_screen.dart         # Manage offices
 ```
