@@ -6,6 +6,7 @@ import 'package:table_calendar/table_calendar.dart';
 import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
+import 'manual_attendance_screen.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
 
@@ -95,17 +96,15 @@ class _HomeScreenState extends State<HomeScreen> {
             onFormatChanged: (f) => setState(() => _calendarFormat = f),
             onPageChanged: _onPageChanged,
             onManualCheckIn: () async {
-              await context.read<AttendanceProvider>().manualCheckIn(
-                officeProvider.selectedOffice!.id!,
-              );
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Attendance recorded for today!'),
-                    behavior: SnackBarBehavior.floating,
+              final refreshed = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ManualAttendanceScreen(
+                    office: officeProvider.selectedOffice!,
                   ),
-                );
-              }
+                ),
+              );
+              if (refreshed == true) _refreshAttendance();
             },
           );
         },
@@ -276,8 +275,8 @@ class _Dashboard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: OutlinedButton.icon(
                 onPressed: onManualCheckIn,
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Manual Check-In for Today'),
+                icon: const Icon(Icons.edit_calendar_outlined),
+                label: const Text('Update Attendance'),
               ),
             ),
           ],

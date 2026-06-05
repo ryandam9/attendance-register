@@ -55,6 +55,40 @@ class AttendanceProvider extends ChangeNotifier {
     await loadForMonth(officeId, now.year, now.month);
   }
 
+  /// Inserts a new record or updates the reason on an existing one.
+  Future<void> saveRecord(
+    int officeId,
+    String date, {
+    String? reason,
+  }) async {
+    final existing = await DatabaseService.instance.getAttendanceForDate(
+      date,
+      officeId,
+    );
+    if (existing == null) {
+      await DatabaseService.instance.insertAttendanceRecord(
+        AttendanceRecord(
+          date: date,
+          officeLocationId: officeId,
+          timestamp: DateTime.now(),
+          reason: reason,
+        ),
+      );
+    } else {
+      await DatabaseService.instance.updateAttendanceRecord(
+        AttendanceRecord(
+          id: existing.id,
+          date: existing.date,
+          officeLocationId: existing.officeLocationId,
+          timestamp: existing.timestamp,
+          reason: reason,
+        ),
+      );
+    }
+    final target = DateTime.parse(date);
+    await loadForMonth(officeId, target.year, target.month);
+  }
+
   Future<void> deleteRecord(String date, int officeId) async {
     await DatabaseService.instance.deleteAttendanceRecord(date, officeId);
     _records.removeWhere((r) => r.date == date);
