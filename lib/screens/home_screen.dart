@@ -6,6 +6,7 @@ import 'package:table_calendar/table_calendar.dart';
 import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
+import 'manual_attendance_screen.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
 
@@ -50,6 +51,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       day.year,
       day.month,
     );
+  }
+
+  Future<void> _openManualAttendance({DateTime? initialDate}) async {
+    final office = ref.read(officeProvider).selectedOffice;
+    if (office == null) return;
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ManualAttendanceScreen(
+          office: office,
+          initialDate: initialDate,
+        ),
+      ),
+    );
+    if (changed == true && mounted) _refreshAttendance();
   }
 
   @override
@@ -105,6 +121,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               );
             }
           },
+          onPastDateCheckIn: () => _openManualAttendance(),
+          onDayTapped: (day) => _openManualAttendance(initialDate: day),
         );
       }(),
     );
@@ -164,6 +182,8 @@ class _Dashboard extends ConsumerWidget {
   final ValueChanged<CalendarFormat> onFormatChanged;
   final ValueChanged<DateTime> onPageChanged;
   final VoidCallback onManualCheckIn;
+  final VoidCallback onPastDateCheckIn;
+  final ValueChanged<DateTime> onDayTapped;
 
   const _Dashboard({
     required this.offices,
@@ -174,6 +194,8 @@ class _Dashboard extends ConsumerWidget {
     required this.onFormatChanged,
     required this.onPageChanged,
     required this.onManualCheckIn,
+    required this.onPastDateCheckIn,
+    required this.onDayTapped,
   });
 
   @override
@@ -223,8 +245,20 @@ class _Dashboard extends ConsumerWidget {
             calendarFormat: calendarFormat,
             onFormatChanged: onFormatChanged,
             onPageChanged: onPageChanged,
+            selectedDayPredicate: (_) => false,
+            onDaySelected: (selectedDay, _) {
+              if (!selectedDay.isAfter(DateTime.now())) {
+                onDayTapped(selectedDay);
+              }
+            },
             calendarBuilders: CalendarBuilders(
               defaultBuilder: (context, day, _) {
+                if (attended.any((d) => isSameDay(d, day))) {
+                  return _AttendanceDot(day: day);
+                }
+                return null;
+              },
+              todayBuilder: (context, day, _) {
                 if (attended.any((d) => isSameDay(d, day))) {
                   return _AttendanceDot(day: day);
                 }
@@ -275,7 +309,18 @@ class _Dashboard extends ConsumerWidget {
           child: OutlinedButton.icon(
             onPressed: onManualCheckIn,
             icon: const Icon(Icons.check_circle_outline),
-            label: const Text('Manual Check-In for Today'),
+            label: const Text('Check-In for Today'),
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: OutlinedButton.icon(
+            onPressed: onPastDateCheckIn,
+            icon: const Icon(Icons.history),
+            label: const Text('Check-In for Past Date'),
           ),
         ),
       ],
@@ -386,15 +431,14 @@ class _AttendanceDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: cs.primary, shape: BoxShape.circle),
+      decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
       alignment: Alignment.center,
       child: Text(
         '${day.day}',
-        style: TextStyle(
-          color: cs.onPrimary,
+        style: const TextStyle(
+          color: Colors.white,
           fontWeight: FontWeight.bold,
           fontSize: 13,
         ),
