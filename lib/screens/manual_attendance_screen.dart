@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../models/attendance_record.dart';
@@ -8,16 +8,18 @@ import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
 import '../services/database_service.dart';
 
-class ManualAttendanceScreen extends StatefulWidget {
+class ManualAttendanceScreen extends ConsumerStatefulWidget {
   final OfficeLocation office;
 
   const ManualAttendanceScreen({super.key, required this.office});
 
   @override
-  State<ManualAttendanceScreen> createState() => _ManualAttendanceScreenState();
+  ConsumerState<ManualAttendanceScreen> createState() =>
+      _ManualAttendanceScreenState();
 }
 
-class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
+class _ManualAttendanceScreenState
+    extends ConsumerState<ManualAttendanceScreen> {
   DateTime _selectedDate = DateTime.now();
   final _reasonController = TextEditingController();
   AttendanceRecord? _existingRecord;
@@ -73,13 +75,13 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
     final reason = _reasonController.text.trim();
 
     if (_isPresent) {
-      await context.read<AttendanceProvider>().saveRecord(
+      await ref.read(attendanceProvider.notifier).saveRecord(
         widget.office.id!,
         dateStr,
         reason: reason.isEmpty ? null : reason,
       );
     } else if (_existingRecord != null) {
-      await context.read<AttendanceProvider>().deleteRecord(
+      await ref.read(attendanceProvider.notifier).deleteRecord(
         dateStr,
         widget.office.id!,
       );
@@ -114,7 +116,7 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
       ),
     );
     if (confirmed == true && mounted) {
-      await context.read<AttendanceProvider>().deleteRecord(
+      await ref.read(attendanceProvider.notifier).deleteRecord(
         _keyFmt.format(_selectedDate),
         widget.office.id!,
       );
