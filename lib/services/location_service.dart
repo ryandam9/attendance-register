@@ -100,14 +100,22 @@ class LocationService {
       );
 
       if (distance <= office.radius) {
-        await db.insertAttendanceRecord(
+        // insertAttendanceRecord uses ConflictAlgorithm.ignore: it returns the
+        // new row id on a real insert, 0 when a record for today already exists
+        // (duplicate ignored), or null on error. Only notify when a row was
+        // actually written, so the user never sees "attendance recorded" twice
+        // for the same day — even if two background runs race past the
+        // hasAttendanceForDate guard above.
+        final id = await db.insertAttendanceRecord(
           AttendanceRecord(
             date: today,
             officeLocationId: office.id!,
             timestamp: DateTime.now(),
           ),
         );
-        await NotificationService.instance.showAttendanceRecorded(office.name);
+        if (id != null && id > 0) {
+          await NotificationService.instance.showAttendanceRecorded(office.name);
+        }
       }
     }
   }
