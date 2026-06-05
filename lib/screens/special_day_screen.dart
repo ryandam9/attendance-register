@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../app_colors.dart';
 import '../models/special_day.dart';
 import '../providers/special_day_provider.dart';
 import '../services/database_service.dart';
@@ -98,18 +99,23 @@ class _SpecialDayScreenState extends ConsumerState<SpecialDayScreen> {
     }
 
     setState(() => _loading = true);
-    final day = SpecialDay(
-      id: _existing?.id,
-      date: _fmt(_selectedDate),
-      type: _dayType,
-      note: _noteController.text.trim().isEmpty
-          ? null
-          : _noteController.text.trim(),
-    );
-    await ref.read(specialDayProvider.notifier).saveDay(day);
-    if (mounted) {
+    try {
+      final day = SpecialDay(
+        id: _existing?.id,
+        date: _fmt(_selectedDate),
+        type: _dayType,
+        note: _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim(),
+      );
+      await ref.read(specialDayProvider.notifier).saveDay(day);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
       setState(() => _loading = false);
-      Navigator.of(context).pop(true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save: $e'), behavior: SnackBarBehavior.floating),
+      );
     }
   }
 
@@ -136,12 +142,15 @@ class _SpecialDayScreenState extends ConsumerState<SpecialDayScreen> {
     );
     if (confirmed != true) return;
     setState(() => _loading = true);
-    await ref
-        .read(specialDayProvider.notifier)
-        .deleteDay(_fmt(_selectedDate));
-    if (mounted) {
+    try {
+      await ref.read(specialDayProvider.notifier).deleteDay(_fmt(_selectedDate));
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
       setState(() => _loading = false);
-      Navigator.of(context).pop(true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete: $e'), behavior: SnackBarBehavior.floating),
+      );
     }
   }
 
@@ -234,8 +243,8 @@ class _SpecialDayScreenState extends ConsumerState<SpecialDayScreen> {
                             children: [
                               Chip(
                                 backgroundColor: _dayType == DayType.holiday
-                                    ? Colors.blue
-                                    : Colors.orange,
+                                    ? AppColors.holiday
+                                    : AppColors.sickLeave,
                                 label: Text(
                                   _dayType == DayType.holiday
                                       ? 'Shown in blue'
