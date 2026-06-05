@@ -6,6 +6,7 @@ import 'package:table_calendar/table_calendar.dart';
 import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
+import 'manual_attendance_screen.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
 

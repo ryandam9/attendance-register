@@ -19,7 +19,7 @@ class DatabaseService {
     final dbPath = await getDatabasesPath();
     return openDatabase(
       join(dbPath, 'attendance.db'),
-      version: 1,
+      version: 2,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE office_locations (
@@ -38,6 +38,7 @@ class DatabaseService {
             date               TEXT    NOT NULL,
             office_location_id INTEGER NOT NULL,
             timestamp          TEXT    NOT NULL,
+            reason             TEXT,
             FOREIGN KEY (office_location_id) REFERENCES office_locations(id)
           )
         ''');
@@ -47,6 +48,13 @@ class DatabaseService {
           'CREATE UNIQUE INDEX idx_attendance_date '
           'ON attendance_records(date, office_location_id)',
         );
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute(
+            'ALTER TABLE attendance_records ADD COLUMN reason TEXT',
+          );
+        }
       },
     );
   }
@@ -107,6 +115,19 @@ class DatabaseService {
     return rows.isNotEmpty;
   }
 
+  Future<AttendanceRecord?> getAttendanceForDate(
+    String date,
+    int officeId,
+  ) async {
+    final db = await database;
+    final rows = await db.query(
+      'attendance_records',
+      where: 'date = ? AND office_location_id = ?',
+      whereArgs: [date, officeId],
+    );
+    return rows.isEmpty ? null : AttendanceRecord.fromMap(rows.first);
+  }
+
   Future<int?> insertAttendanceRecord(AttendanceRecord record) async {
     final db = await database;
     try {
@@ -119,6 +140,16 @@ class DatabaseService {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<void> updateAttendanceRecord(AttendanceRecord record) async {
+    final db = await database;
+    await db.update(
+      'attendance_records',
+      record.toMap()..remove('id'),
+      where: 'date = ? AND office_location_id = ?',
+      whereArgs: [record.date, record.officeLocationId],
+    );
   }
 
   Future<List<AttendanceRecord>> getAttendanceForMonth(
