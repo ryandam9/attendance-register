@@ -293,4 +293,10 @@ class DatabaseService {
     final db = await database;
     await db.delete('special_days', where: 'date = ?', whereArgs: [date]);
   }
+
+  Future<void> deleteAllRecords() async {
+    final db = await database;
+    await db.delete('attendance_records');
+    await db.delete('special_days');
+  }
 }

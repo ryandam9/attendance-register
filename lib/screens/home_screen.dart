@@ -408,35 +408,40 @@ class _Dashboard extends ConsumerWidget {
 
         const SizedBox(height: 12),
 
-        // Manual check-in
+        // Primary action
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: OutlinedButton.icon(
+          child: FilledButton.icon(
             onPressed: onManualCheckIn,
             icon: const Icon(Icons.check_circle_outline),
             label: const Text('Check-In for Today'),
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           ),
         ),
 
         const SizedBox(height: 8),
 
+        // Secondary actions side-by-side
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: OutlinedButton.icon(
-            onPressed: onPastDateCheckIn,
-            icon: const Icon(Icons.history),
-            label: const Text('Check-In for Past Date'),
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: OutlinedButton.icon(
-            onPressed: onSpecialDay,
-            icon: const Icon(Icons.event_outlined),
-            label: const Text('Mark Holiday / Sick Leave'),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onPastDateCheckIn,
+                  icon: const Icon(Icons.history),
+                  label: const Text('Past Date'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onSpecialDay,
+                  icon: const Icon(Icons.event_outlined),
+                  label: const Text('Holiday / Sick'),
+                ),
+              ),
+            ],
           ),
         ),
 

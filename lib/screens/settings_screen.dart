@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/office_location.dart';
+import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
+import '../providers/special_day_provider.dart';
+import '../services/database_service.dart';
 import 'setup_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -69,9 +72,67 @@ class SettingsScreen extends ConsumerWidget {
             ),
             isThreeLine: true,
           ),
+
+          const Divider(height: 32),
+
+          const _SectionLabel('Developer'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: OutlinedButton.icon(
+              onPressed: () => _confirmDeleteAll(context, ref),
+              icon: Icon(
+                Icons.delete_sweep_outlined,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              label: Text(
+                'Delete All Records',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: Theme.of(context).colorScheme.error),
+                minimumSize: const Size.fromHeight(48),
+              ),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDeleteAll(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete All Records?'),
+        content: const Text(
+          'This will permanently delete all attendance records and special days '
+          '(holidays/sick leave). Office locations are kept.\n\n'
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await DatabaseService.instance.deleteAllRecords();
+    ref.invalidate(attendanceProvider);
+    ref.invalidate(specialDayProvider);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('All records deleted.')),
+      );
+    }
   }
 
   Future<void> _confirmDelete(
