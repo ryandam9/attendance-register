@@ -1,4 +1,10 @@
-enum DayType { holiday, sickLeave }
+/// A day that is explicitly not an office-attendance day.
+///
+/// [holiday] and [sickLeave] are excluded from the attendance percentage
+/// denominator (they are not working days you were expected to attend).
+/// [notAttended] is a normal working day you simply did not attend — it stays
+/// in the denominator and therefore lowers your percentage.
+enum DayType { holiday, sickLeave, notAttended }
 
 class SpecialDay {
   final int? id;

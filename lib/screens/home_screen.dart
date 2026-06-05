@@ -9,6 +9,7 @@ import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/special_day_provider.dart';
 import 'day_entry_screen.dart';
+import 'history_screen.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
 
@@ -79,6 +80,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: AppBar(
         title: const Text('Office Attendance'),
         actions: [
+          if (officeState.hasOffice)
+            IconButton(
+              icon: const Icon(Icons.history),
+              tooltip: 'History',
+              onPressed: () => Navigator.push(
+                context,
+                _slideRoute(
+                  HistoryScreen(office: officeState.selectedOffice!),
+                ),
+              ).then((_) => _refreshAttendance()),
+            ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',
@@ -123,7 +135,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         CheckInResult.recorded => 'Attendance recorded for today!',
                         CheckInResult.alreadyRecorded => 'Already checked in for today.',
                         CheckInResult.specialDayConflict =>
-                          'Today is marked as a holiday or sick leave — remove that first.',
+                          'Today is already marked (holiday, sick leave or not attended) — change it first.',
                       };
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -232,6 +244,7 @@ class _Dashboard extends ConsumerWidget {
     final sp = ref.watch(specialDayProvider);
     final holidays = sp.holidayDates;
     final sickLeaves = sp.sickLeaveDates;
+    final notAttended = sp.notAttendedDates;
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 32),
@@ -293,6 +306,9 @@ class _Dashboard extends ConsumerWidget {
                 if (sickLeaves.any((d) => isSameDay(d, day))) {
                   return _DayDot(day: day, color: AppColors.sickLeave);
                 }
+                if (notAttended.any((d) => isSameDay(d, day))) {
+                  return _DayDot(day: day, color: AppColors.notAttended);
+                }
                 return null;
               },
               todayBuilder: (context, day, _) {
@@ -304,6 +320,9 @@ class _Dashboard extends ConsumerWidget {
                 }
                 if (sickLeaves.any((d) => isSameDay(d, day))) {
                   return _DayDot(day: day, color: AppColors.sickLeave, isToday: true);
+                }
+                if (notAttended.any((d) => isSameDay(d, day))) {
+                  return _DayDot(day: day, color: AppColors.notAttended, isToday: true);
                 }
                 return null;
               },
@@ -375,16 +394,18 @@ class _Dashboard extends ConsumerWidget {
 
         const SizedBox(height: 16),
 
-        // Calendar legend
+        // Calendar legend — centered.
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: const Wrap(
+            alignment: WrapAlignment.center,
             spacing: 12,
             runSpacing: 4,
             children: [
               _LegendChip(color: AppColors.attendance, label: 'Attended'),
               _LegendChip(color: AppColors.holiday, label: 'Public Holiday'),
               _LegendChip(color: AppColors.sickLeave, label: 'Sick Leave'),
+              _LegendChip(color: AppColors.notAttended, label: 'Not Attended'),
             ],
           ),
         ),

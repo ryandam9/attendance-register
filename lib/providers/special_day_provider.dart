@@ -18,6 +18,11 @@ class SpecialDayState {
       .where((d) => d.type == DayType.sickLeave)
       .map((d) => DateTime.parse(d.date))
       .toSet();
+
+  Set<DateTime> get notAttendedDates => days
+      .where((d) => d.type == DayType.notAttended)
+      .map((d) => DateTime.parse(d.date))
+      .toSet();
 }
 
 class SpecialDayNotifier extends Notifier<SpecialDayState> {
