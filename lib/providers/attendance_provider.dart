@@ -1,45 +1,54 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../models/attendance_record.dart';
 import '../services/database_service.dart';
 
-class AttendanceProvider extends ChangeNotifier {
-  List<AttendanceRecord> _records = [];
-  int _monthlyCount = 0;
-  int _yearlyCount = 0;
-  bool _loading = false;
+class AttendanceState {
+  final List<AttendanceRecord> records;
+  final int monthlyCount;
+  final int yearlyCount;
+  final bool loading;
 
-  List<AttendanceRecord> get records => List.unmodifiable(_records);
-  int get monthlyCount => _monthlyCount;
-  int get yearlyCount => _yearlyCount;
-  bool get loading => _loading;
+  const AttendanceState({
+    this.records = const [],
+    this.monthlyCount = 0,
+    this.yearlyCount = 0,
+    this.loading = false,
+  });
 
   Set<DateTime> get attendanceDates =>
-      _records.map((r) => DateTime.parse(r.date)).toSet();
+      records.map((r) => DateTime.parse(r.date)).toSet();
+}
+
+class AttendanceNotifier extends StateNotifier<AttendanceState> {
+  AttendanceNotifier() : super(const AttendanceState());
 
   Future<void> loadForMonth(int officeId, int year, int month) async {
-    _loading = true;
-    notifyListeners();
-
-    _records = await DatabaseService.instance.getAttendanceForMonth(
-      year,
-      month,
-      officeId,
+    state = AttendanceState(
+      records: state.records,
+      monthlyCount: state.monthlyCount,
+      yearlyCount: state.yearlyCount,
+      loading: true,
     );
-    _monthlyCount = await DatabaseService.instance.getAttendanceCount(
+
+    final records = await DatabaseService.instance.getAttendanceForMonth(year, month, officeId);
+    final monthlyCount = await DatabaseService.instance.getAttendanceCount(
       officeId,
       from: DateTime(year, month, 1),
       to: DateTime(year, month + 1, 0),
     );
-    _yearlyCount = await DatabaseService.instance.getAttendanceCount(
+    final yearlyCount = await DatabaseService.instance.getAttendanceCount(
       officeId,
       from: DateTime(year, 1, 1),
       to: DateTime(year, 12, 31),
     );
 
-    _loading = false;
-    notifyListeners();
+    state = AttendanceState(
+      records: records,
+      monthlyCount: monthlyCount,
+      yearlyCount: yearlyCount,
+    );
   }
 
   Future<void> manualCheckIn(int officeId) async {
@@ -57,7 +66,14 @@ class AttendanceProvider extends ChangeNotifier {
 
   Future<void> deleteRecord(String date, int officeId) async {
     await DatabaseService.instance.deleteAttendanceRecord(date, officeId);
-    _records.removeWhere((r) => r.date == date);
-    notifyListeners();
+    state = AttendanceState(
+      records: state.records.where((r) => r.date != date).toList(),
+      monthlyCount: state.monthlyCount,
+      yearlyCount: state.yearlyCount,
+    );
   }
 }
+
+final attendanceProvider = StateNotifierProvider<AttendanceNotifier, AttendanceState>(
+  (_) => AttendanceNotifier(),
+);
