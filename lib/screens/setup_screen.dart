@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/office_location.dart';
 import '../providers/office_provider.dart';
 import '../services/location_service.dart';
 
-class SetupScreen extends StatefulWidget {
+class SetupScreen extends ConsumerStatefulWidget {
   /// Pass an existing office to edit it; null means add new.
   final OfficeLocation? office;
   const SetupScreen({super.key, this.office});
 
   @override
-  State<SetupScreen> createState() => _SetupScreenState();
+  ConsumerState<SetupScreen> createState() => _SetupScreenState();
 }
 
-class _SetupScreenState extends State<SetupScreen> {
+class _SetupScreenState extends ConsumerState<SetupScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _addressCtrl;
@@ -115,11 +115,11 @@ class _SetupScreenState extends State<SetupScreen> {
       radius: _radius,
     );
 
-    final provider = context.read<OfficeProvider>();
+    final notifier = ref.read(officeProvider.notifier);
     if (_isEditing) {
-      await provider.updateOffice(office);
+      await notifier.updateOffice(office);
     } else {
-      await provider.addOffice(office);
+      await notifier.addOffice(office);
     }
 
     if (mounted) {
