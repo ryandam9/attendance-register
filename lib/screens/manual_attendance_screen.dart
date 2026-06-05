@@ -5,6 +5,7 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../models/attendance_record.dart';
 import '../models/office_location.dart';
+import '../models/special_day.dart';
 import '../providers/attendance_provider.dart';
 import '../services/database_service.dart';
 
@@ -24,6 +25,7 @@ class _ManualAttendanceScreenState
   late DateTime _selectedDate;
   final _reasonController = TextEditingController();
   AttendanceRecord? _existingRecord;
+  SpecialDay? _existingSpecialDay;
   bool _isPresent = false;
   bool _loading = false;
 
@@ -45,12 +47,15 @@ class _ManualAttendanceScreenState
 
   Future<void> _loadExistingRecord() async {
     setState(() => _loading = true);
+    final dateStr = _keyFmt.format(_selectedDate);
     final record = await DatabaseService.instance.getAttendanceForDate(
-      _keyFmt.format(_selectedDate),
+      dateStr,
       widget.office.id!,
     );
+    final special = await DatabaseService.instance.getSpecialDayForDate(dateStr);
     setState(() {
       _existingRecord = record;
+      _existingSpecialDay = special;
       _isPresent = record != null;
       _reasonController.text = record?.reason ?? '';
       _loading = false;
@@ -72,6 +77,21 @@ class _ManualAttendanceScreenState
   }
 
   Future<void> _save() async {
+    if (_isPresent && _existingSpecialDay != null) {
+      final typeLabel = _existingSpecialDay!.type == DayType.holiday
+          ? 'a public holiday'
+          : 'a sick leave day';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'This date is already marked as $typeLabel. '
+            'Remove that entry first before marking attendance.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     setState(() => _loading = true);
     final dateStr = _keyFmt.format(_selectedDate);
     final reason = _reasonController.text.trim();
@@ -211,6 +231,31 @@ class _ManualAttendanceScreenState
 
                   const SizedBox(height: 24),
 
+                  // Special day conflict warning
+                  if (_existingSpecialDay != null) ...[
+                    Card(
+                      color: cs.errorContainer,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            Icon(Icons.warning_outlined, color: cs.onErrorContainer),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'This date is already marked as a '
+                                '${_existingSpecialDay!.type == DayType.holiday ? 'public holiday' : 'sick leave day'}. '
+                                'Remove that entry first.',
+                                style: TextStyle(color: cs.onErrorContainer),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
                   // Presence toggle
                   Text(
                     'Attendance Status',
@@ -231,7 +276,9 @@ class _ManualAttendanceScreenState
                             : 'Not marked as present',
                       ),
                       value: _isPresent,
-                      onChanged: (v) => setState(() => _isPresent = v),
+                      onChanged: _existingSpecialDay != null
+                          ? null
+                          : (v) => setState(() => _isPresent = v),
                     ),
                   ),
 

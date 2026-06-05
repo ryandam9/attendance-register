@@ -10,11 +10,13 @@ import '../services/database_service.dart';
 class SpecialDayScreen extends ConsumerStatefulWidget {
   final int officeId;
   final DateTime? initialDate;
+  final DayType? initialType;
 
   const SpecialDayScreen({
     super.key,
     required this.officeId,
     this.initialDate,
+    this.initialType,
   });
 
   @override
@@ -33,6 +35,7 @@ class _SpecialDayScreenState extends ConsumerState<SpecialDayScreen> {
   void initState() {
     super.initState();
     _selectedDate = widget.initialDate ?? DateTime.now();
+    _dayType = widget.initialType ?? DayType.holiday;
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadDate());
   }
 
@@ -58,7 +61,7 @@ class _SpecialDayScreenState extends ConsumerState<SpecialDayScreen> {
         _dayType = special.type;
         _noteController.text = special.note ?? '';
       } else {
-        _dayType = DayType.holiday;
+        _dayType = widget.initialType ?? DayType.holiday;
         _noteController.clear();
       }
       _loading = false;

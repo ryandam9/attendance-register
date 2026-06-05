@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../models/office_location.dart';
+import '../models/special_day.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/special_day_provider.dart';
@@ -11,6 +12,8 @@ import 'manual_attendance_screen.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
 import 'special_day_screen.dart';
+
+enum _BlankDayAction { attendance, holiday, sickLeave }
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -75,7 +78,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (changed == true && mounted) _refreshAttendance();
   }
 
-  Future<void> _openSpecialDay({DateTime? initialDate}) async {
+  Future<void> _openSpecialDay({DateTime? initialDate, DayType? initialType}) async {
     final office = ref.read(officeProvider).selectedOffice;
     if (office == null) return;
     final changed = await Navigator.push<bool>(
@@ -84,10 +87,58 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         builder: (_) => SpecialDayScreen(
           officeId: office.id!,
           initialDate: initialDate,
+          initialType: initialType,
         ),
       ),
     );
     if (changed == true && mounted) _refreshAttendance();
+  }
+
+  Future<void> _showDayTypeBottomSheet(DateTime day) async {
+    final result = await showModalBottomSheet<_BlankDayAction>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                DateFormat('MMMM d, yyyy').format(day),
+                style: Theme.of(ctx).textTheme.titleMedium,
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.check_circle_outline, color: Colors.green),
+              title: const Text('Mark as Attended'),
+              onTap: () => Navigator.pop(ctx, _BlankDayAction.attendance),
+            ),
+            ListTile(
+              leading: const Icon(Icons.beach_access_outlined, color: Colors.blue),
+              title: const Text('Mark as Public Holiday'),
+              onTap: () => Navigator.pop(ctx, _BlankDayAction.holiday),
+            ),
+            ListTile(
+              leading: const Icon(Icons.sick_outlined, color: Colors.orange),
+              title: const Text('Mark as Sick Leave'),
+              onTap: () => Navigator.pop(ctx, _BlankDayAction.sickLeave),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    switch (result) {
+      case _BlankDayAction.attendance:
+        await _openManualAttendance(initialDate: day);
+      case _BlankDayAction.holiday:
+        await _openSpecialDay(initialDate: day, initialType: DayType.holiday);
+      case _BlankDayAction.sickLeave:
+        await _openSpecialDay(initialDate: day, initialType: DayType.sickLeave);
+      case null:
+        break;
+    }
   }
 
   @override
@@ -145,7 +196,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           },
           onPastDateCheckIn: () => _openManualAttendance(),
           onSpecialDay: () => _openSpecialDay(),
-          onDayTapped: (day) => _openManualAttendance(initialDate: day),
+          onAttendanceDayTapped: (day) => _openManualAttendance(initialDate: day),
+          onSpecialDayTapped: (day) => _openSpecialDay(initialDate: day),
+          onBlankDayTapped: (day) => _showDayTypeBottomSheet(day),
         );
       }(),
     );
@@ -207,7 +260,9 @@ class _Dashboard extends ConsumerWidget {
   final VoidCallback onManualCheckIn;
   final VoidCallback onPastDateCheckIn;
   final VoidCallback onSpecialDay;
-  final ValueChanged<DateTime> onDayTapped;
+  final ValueChanged<DateTime> onAttendanceDayTapped;
+  final ValueChanged<DateTime> onSpecialDayTapped;
+  final ValueChanged<DateTime> onBlankDayTapped;
 
   const _Dashboard({
     required this.offices,
@@ -220,7 +275,9 @@ class _Dashboard extends ConsumerWidget {
     required this.onManualCheckIn,
     required this.onPastDateCheckIn,
     required this.onSpecialDay,
-    required this.onDayTapped,
+    required this.onAttendanceDayTapped,
+    required this.onSpecialDayTapped,
+    required this.onBlankDayTapped,
   });
 
   @override
@@ -277,8 +334,14 @@ class _Dashboard extends ConsumerWidget {
             onPageChanged: onPageChanged,
             selectedDayPredicate: (_) => false,
             onDaySelected: (selectedDay, _) {
-              if (!selectedDay.isAfter(DateTime.now())) {
-                onDayTapped(selectedDay);
+              if (selectedDay.isAfter(DateTime.now())) return;
+              if (attended.any((d) => isSameDay(d, selectedDay))) {
+                onAttendanceDayTapped(selectedDay);
+              } else if (holidays.any((d) => isSameDay(d, selectedDay)) ||
+                  sickLeaves.any((d) => isSameDay(d, selectedDay))) {
+                onSpecialDayTapped(selectedDay);
+              } else {
+                onBlankDayTapped(selectedDay);
               }
             },
             calendarBuilders: CalendarBuilders(
