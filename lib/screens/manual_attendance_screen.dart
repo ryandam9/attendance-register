@@ -92,6 +92,32 @@ class _ManualAttendanceScreenState
       );
       return;
     }
+
+    if (!_isPresent && _existingRecord != null) {
+      final dateLabel = _displayFmt.format(_selectedDate);
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Remove Attendance'),
+          content: Text('Remove the attendance record for $dateLabel?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Remove'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+
     setState(() => _loading = true);
     final dateStr = _keyFmt.format(_selectedDate);
     final reason = _reasonController.text.trim();
@@ -112,37 +138,6 @@ class _ManualAttendanceScreenState
     setState(() => _loading = false);
     if (mounted) {
       Navigator.pop(context, true);
-    }
-  }
-
-  Future<void> _confirmRemove() async {
-    final dateLabel = _displayFmt.format(_selectedDate);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove Attendance'),
-        content: Text('Remove the attendance record for $dateLabel?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && mounted) {
-      await ref.read(attendanceProvider.notifier).deleteRecord(
-        _keyFmt.format(_selectedDate),
-        widget.office.id!,
-      );
-      if (mounted) Navigator.pop(context, true);
     }
   }
 
@@ -311,7 +306,47 @@ class _ManualAttendanceScreenState
                     ),
                   ],
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
+
+                  // Status banner
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _existingRecord != null
+                          ? cs.primaryContainer
+                          : cs.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _existingRecord != null
+                              ? Icons.check_circle_outline
+                              : Icons.highlight_off_outlined,
+                          color: _existingRecord != null
+                              ? cs.primary
+                              : cs.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          _existingRecord != null
+                              ? 'Attendance recorded for this day'
+                              : 'Attendance not recorded for this day',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: _existingRecord != null
+                                ? cs.onPrimaryContainer
+                                : cs.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
 
                   // Save
                   FilledButton.icon(
@@ -319,20 +354,6 @@ class _ManualAttendanceScreenState
                     icon: const Icon(Icons.save_outlined),
                     label: const Text('Save'),
                   ),
-
-                  // Remove — only shown when a record exists and toggle is off
-                  if (_existingRecord != null && !_isPresent) ...[
-                    const SizedBox(height: 10),
-                    OutlinedButton.icon(
-                      onPressed: _confirmRemove,
-                      icon: const Icon(Icons.delete_outline),
-                      label: const Text('Remove Record'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: cs.error,
-                        side: BorderSide(color: cs.error),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
