@@ -53,7 +53,7 @@ class LocationService {
       if (marks.isEmpty) return null;
       final p = marks.first;
       return [p.street, p.locality, p.postalCode, p.country]
-          .where((s) => s != null && s!.isNotEmpty)
+          .where((s) => s != null && s.isNotEmpty)
           .join(', ');
     } catch (_) {
       return null;

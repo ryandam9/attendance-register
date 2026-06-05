@@ -17,7 +17,7 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
-          _SectionLabel('Offices'),
+          const _SectionLabel('Offices'),
           ...officeState.offices.map(
             (o) => _OfficeTile(
               office: o,
@@ -39,7 +39,7 @@ class SettingsScreen extends ConsumerWidget {
 
           const Divider(height: 32),
 
-          _SectionLabel('How It Works'),
+          const _SectionLabel('How It Works'),
           const ListTile(
             leading: Icon(Icons.schedule_outlined),
             title: Text('Automatic Check-In'),

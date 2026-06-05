@@ -26,7 +26,7 @@ void main() async {
   await DatabaseService.instance.database;
   await NotificationService.instance.initialize();
 
-  await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+  await Workmanager().initialize(callbackDispatcher);
 
   // Android enforces a minimum of 15 minutes for periodic tasks.
   await Workmanager().registerPeriodicTask(

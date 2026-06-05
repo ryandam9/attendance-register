@@ -180,16 +180,16 @@ class DatabaseService {
     String where = 'office_location_id = ?';
     final args = <dynamic>[officeId];
 
-    String _fmt(DateTime d) =>
+    String fmt(DateTime d) =>
         '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
     if (from != null) {
       where += ' AND date >= ?';
-      args.add(_fmt(from));
+      args.add(fmt(from));
     }
     if (to != null) {
       where += ' AND date <= ?';
-      args.add(_fmt(to));
+      args.add(fmt(to));
     }
 
     final result = await db.rawQuery(

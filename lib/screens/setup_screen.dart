@@ -223,9 +223,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               label: '${_radius.toInt()} m',
               onChanged: (v) => setState(() => _radius = v),
             ),
-            Row(
+            const Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
+              children: [
                 Text('50 m', style: TextStyle(fontSize: 12)),
                 Text('500 m', style: TextStyle(fontSize: 12)),
               ],

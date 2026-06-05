@@ -6,7 +6,6 @@ import 'package:table_calendar/table_calendar.dart';
 import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
-import 'manual_attendance_screen.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
 
@@ -190,7 +189,7 @@ class _Dashboard extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: DropdownButtonFormField<OfficeLocation>(
-              value: selected,
+              initialValue: selected,
               decoration: const InputDecoration(
                 labelText: 'Office',
                 prefixIcon: Icon(Icons.business),

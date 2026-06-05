@@ -14,16 +14,16 @@ class NotificationService {
       requestSoundPermission: false,
     );
     await _plugin.initialize(
-      const InitializationSettings(android: android, iOS: ios),
+      settings: const InitializationSettings(android: android, iOS: ios),
     );
   }
 
   Future<void> showAttendanceRecorded(String officeName) async {
     await _plugin.show(
-      0,
-      'Attendance Recorded ✓',
-      'Your attendance at $officeName has been registered for today.',
-      const NotificationDetails(
+      id: 0,
+      title: 'Attendance Recorded ✓',
+      body: 'Your attendance at $officeName has been registered for today.',
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'attendance_channel',
           'Attendance',
