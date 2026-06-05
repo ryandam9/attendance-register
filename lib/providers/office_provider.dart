@@ -17,8 +17,9 @@ class OfficeState {
   bool get hasOffice => offices.isNotEmpty;
 }
 
-class OfficeNotifier extends StateNotifier<OfficeState> {
-  OfficeNotifier() : super(const OfficeState());
+class OfficeNotifier extends Notifier<OfficeState> {
+  @override
+  OfficeState build() => const OfficeState();
 
   Future<void> load() async {
     state = OfficeState(offices: state.offices, selectedOffice: state.selectedOffice, loading: true);
@@ -61,6 +62,6 @@ class OfficeNotifier extends StateNotifier<OfficeState> {
   }
 }
 
-final officeProvider = StateNotifierProvider<OfficeNotifier, OfficeState>(
-  (_) => OfficeNotifier(),
+final officeProvider = NotifierProvider<OfficeNotifier, OfficeState>(
+  OfficeNotifier.new,
 );

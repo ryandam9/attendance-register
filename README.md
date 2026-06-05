@@ -16,7 +16,7 @@ A Flutter mobile app that automatically tracks your return-to-office days using 
 
 ### Prerequisites
 
-- Flutter SDK ≥ 3.4.0 — [install guide](https://docs.flutter.dev/get-started/install)
+- Flutter SDK ≥ 3.38.1 (Dart ≥ 3.8) — [install guide](https://docs.flutter.dev/get-started/install)
 - Android Studio / Xcode for device/emulator builds
 
 ### Clone & run
