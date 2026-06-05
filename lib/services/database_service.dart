@@ -265,6 +265,30 @@ class DatabaseService {
     return rows.map(SpecialDay.fromMap).toList();
   }
 
+  Future<int> getSpecialDayCount(
+    DateTime from,
+    DateTime to, {
+    DayType? type,
+  }) async {
+    final db = await database;
+    String fmt(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+    String where = 'date >= ? AND date <= ?';
+    final args = <dynamic>[fmt(from), fmt(to)];
+
+    if (type != null) {
+      where += ' AND type = ?';
+      args.add(type.name);
+    }
+
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) AS cnt FROM special_days WHERE $where',
+      args,
+    );
+    return (result.first['cnt'] as int?) ?? 0;
+  }
+
   Future<void> deleteSpecialDay(String date) async {
     final db = await database;
     await db.delete('special_days', where: 'date = ?', whereArgs: [date]);

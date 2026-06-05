@@ -260,6 +260,8 @@ class _Dashboard extends ConsumerWidget {
           month: focusedDay,
           monthly: ap.monthlyCount,
           yearly: ap.yearlyCount,
+          monthlyPercentage: ap.monthlyPercentage,
+          yearlyPercentage: ap.yearlyPercentage,
         ),
 
         // Calendar
@@ -401,11 +403,15 @@ class _StatsRow extends StatelessWidget {
   final DateTime month;
   final int monthly;
   final int yearly;
+  final double? monthlyPercentage;
+  final double? yearlyPercentage;
 
   const _StatsRow({
     required this.month,
     required this.monthly,
     required this.yearly,
+    this.monthlyPercentage,
+    this.yearlyPercentage,
   });
 
   @override
@@ -422,6 +428,7 @@ class _StatsRow extends StatelessWidget {
               color: cs.primaryContainer,
               onColor: cs.onPrimaryContainer,
               icon: Icons.calendar_month_outlined,
+              percentage: monthlyPercentage,
             ),
           ),
           const SizedBox(width: 12),
@@ -432,6 +439,7 @@ class _StatsRow extends StatelessWidget {
               color: cs.secondaryContainer,
               onColor: cs.onSecondaryContainer,
               icon: Icons.star_outline,
+              percentage: yearlyPercentage,
             ),
           ),
         ],
@@ -446,6 +454,7 @@ class _StatCard extends StatelessWidget {
   final Color color;
   final Color onColor;
   final IconData icon;
+  final double? percentage;
 
   const _StatCard({
     required this.label,
@@ -453,6 +462,7 @@ class _StatCard extends StatelessWidget {
     required this.color,
     required this.onColor,
     required this.icon,
+    this.percentage,
   });
 
   @override
@@ -481,6 +491,27 @@ class _StatCard extends StatelessWidget {
                     color: onColor.withValues(alpha: 0.8),
                   ),
                 ),
+                if (percentage != null) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: percentage! >= 50 ? Colors.green : Colors.red,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${percentage!.toStringAsFixed(1)}%',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ],
