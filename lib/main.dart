@@ -33,8 +33,8 @@ void main() async {
     _backgroundTaskName,
     _backgroundTaskName,
     frequency: const Duration(minutes: 15),
-    constraints: Constraints(networkType: NetworkType.not_required),
-    existingWorkPolicy: ExistingWorkPolicy.keep,
+    constraints: Constraints(networkType: NetworkType.notRequired),
+    existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
   );
 
   runApp(const ProviderScope(child: AttendanceApp()));

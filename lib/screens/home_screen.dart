@@ -127,7 +127,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.business_outlined, size: 80, color: cs.primary.withOpacity(0.4)),
+            Icon(Icons.business_outlined, size: 80, color: cs.primary.withValues(alpha: 0.4)),
             const SizedBox(height: 24),
             Text(
               'No Office Registered',
@@ -138,7 +138,7 @@ class _EmptyState extends StatelessWidget {
               'Add your office address to start tracking your return-to-office days automatically.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: cs.onSurface.withOpacity(0.6),
+                color: cs.onSurface.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 32),
@@ -238,7 +238,7 @@ class _Dashboard extends ConsumerWidget {
             ),
             calendarStyle: CalendarStyle(
               todayDecoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               todayTextStyle: TextStyle(
@@ -367,7 +367,7 @@ class _StatCard extends StatelessWidget {
                 Text(
                   label,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: onColor.withOpacity(0.8),
+                    color: onColor.withValues(alpha: 0.8),
                   ),
                 ),
               ],

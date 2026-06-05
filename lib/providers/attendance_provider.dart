@@ -21,8 +21,9 @@ class AttendanceState {
       records.map((r) => DateTime.parse(r.date)).toSet();
 }
 
-class AttendanceNotifier extends StateNotifier<AttendanceState> {
-  AttendanceNotifier() : super(const AttendanceState());
+class AttendanceNotifier extends Notifier<AttendanceState> {
+  @override
+  AttendanceState build() => const AttendanceState();
 
   Future<void> loadForMonth(int officeId, int year, int month) async {
     state = AttendanceState(
@@ -108,6 +109,6 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
   }
 }
 
-final attendanceProvider = StateNotifierProvider<AttendanceNotifier, AttendanceState>(
-  (_) => AttendanceNotifier(),
+final attendanceProvider = NotifierProvider<AttendanceNotifier, AttendanceState>(
+  AttendanceNotifier.new,
 );

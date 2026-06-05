@@ -212,7 +212,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
             Text(
               'Attendance is recorded when you are within this distance from the office.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
             Slider(
