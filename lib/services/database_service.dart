@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/attendance_record.dart';
 import '../models/office_location.dart';
+import '../models/special_day.dart';
 
 class DatabaseService {
   DatabaseService._();
@@ -19,7 +20,7 @@ class DatabaseService {
     final dbPath = await getDatabasesPath();
     return openDatabase(
       join(dbPath, 'attendance.db'),
-      version: 2,
+      version: 3,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE office_locations (
@@ -48,12 +49,31 @@ class DatabaseService {
           'CREATE UNIQUE INDEX idx_attendance_date '
           'ON attendance_records(date, office_location_id)',
         );
+
+        await db.execute('''
+          CREATE TABLE special_days (
+            id    INTEGER PRIMARY KEY AUTOINCREMENT,
+            date  TEXT    NOT NULL UNIQUE,
+            type  TEXT    NOT NULL,
+            note  TEXT
+          )
+        ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await db.execute(
             'ALTER TABLE attendance_records ADD COLUMN reason TEXT',
           );
+        }
+        if (oldVersion < 3) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS special_days (
+              id    INTEGER PRIMARY KEY AUTOINCREMENT,
+              date  TEXT    NOT NULL UNIQUE,
+              type  TEXT    NOT NULL,
+              note  TEXT
+            )
+          ''');
         }
       },
     );
@@ -206,5 +226,47 @@ class DatabaseService {
       where: 'date = ? AND office_location_id = ?',
       whereArgs: [date, officeId],
     );
+  }
+
+  // ── Special Days ──────────────────────────────────────────────────────────
+
+  Future<void> upsertSpecialDay(SpecialDay day) async {
+    final db = await database;
+    final map = day.toMap()..remove('id');
+    await db.insert(
+      'special_days',
+      map,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<SpecialDay?> getSpecialDayForDate(String date) async {
+    final db = await database;
+    final rows = await db.query(
+      'special_days',
+      where: 'date = ?',
+      whereArgs: [date],
+    );
+    return rows.isEmpty ? null : SpecialDay.fromMap(rows.first);
+  }
+
+  Future<List<SpecialDay>> getSpecialDaysForMonth(int year, int month) async {
+    final db = await database;
+    final start = '$year-${month.toString().padLeft(2, '0')}-01';
+    final lastDay = DateTime(year, month + 1, 0).day;
+    final end =
+        '$year-${month.toString().padLeft(2, '0')}-${lastDay.toString().padLeft(2, '0')}';
+    final rows = await db.query(
+      'special_days',
+      where: 'date >= ? AND date <= ?',
+      whereArgs: [start, end],
+      orderBy: 'date ASC',
+    );
+    return rows.map(SpecialDay.fromMap).toList();
+  }
+
+  Future<void> deleteSpecialDay(String date) async {
+    final db = await database;
+    await db.delete('special_days', where: 'date = ?', whereArgs: [date]);
   }
 }
