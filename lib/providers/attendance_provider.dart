@@ -5,6 +5,8 @@ import '../models/attendance_record.dart';
 import '../models/special_day.dart';
 import '../services/database_service.dart';
 
+enum CheckInResult { recorded, alreadyRecorded, specialDayConflict }
+
 int _countWeekdays(DateTime start, DateTime end) {
   int count = 0;
   DateTime current = DateTime(start.year, start.month, start.day);
@@ -116,9 +118,14 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
     );
   }
 
-  Future<void> manualCheckIn(int officeId) async {
+  Future<CheckInResult> manualCheckIn(int officeId) async {
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    await DatabaseService.instance.insertAttendanceRecord(
+
+    // Prevent creating attendance on a holiday or sick-leave day.
+    final specialDay = await DatabaseService.instance.getSpecialDayForDate(today);
+    if (specialDay != null) return CheckInResult.specialDayConflict;
+
+    final id = await DatabaseService.instance.insertAttendanceRecord(
       AttendanceRecord(
         date: today,
         officeLocationId: officeId,
@@ -127,6 +134,7 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
     );
     final now = DateTime.now();
     await loadForMonth(officeId, now.year, now.month);
+    return id != null ? CheckInResult.recorded : CheckInResult.alreadyRecorded;
   }
 
   /// Inserts a new record or updates the reason on an existing one.
@@ -165,11 +173,9 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
 
   Future<void> deleteRecord(String date, int officeId) async {
     await DatabaseService.instance.deleteAttendanceRecord(date, officeId);
-    state = AttendanceState(
-      records: state.records.where((r) => r.date != date).toList(),
-      monthlyCount: state.monthlyCount,
-      yearlyCount: state.yearlyCount,
-    );
+    // Reload so counts, weekdays, and percentages are fully recalculated.
+    final target = DateTime.parse(date);
+    await loadForMonth(officeId, target.year, target.month);
   }
 }
 

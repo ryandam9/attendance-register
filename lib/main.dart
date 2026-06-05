@@ -49,12 +49,19 @@ class AttendanceApp extends StatelessWidget {
       title: 'Office Attendance',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A73E8)),
+        useMaterial3: true,
+        appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
+      ),
+      darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF1A73E8),
+          brightness: Brightness.dark,
         ),
         useMaterial3: true,
         appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
       ),
+      themeMode: ThemeMode.system,
       home: const HomeScreen(),
     );
   }
