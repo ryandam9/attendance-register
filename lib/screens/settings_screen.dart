@@ -1,81 +1,82 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/office_location.dart';
 import '../providers/office_provider.dart';
 import 'setup_screen.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final officeState = ref.watch(officeProvider);
+    final notifier = ref.read(officeProvider.notifier);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: Consumer<OfficeProvider>(
-        builder: (context, provider, _) => ListView(
-          children: [
-            _SectionLabel('Offices'),
-            ...provider.offices.map(
-              (o) => _OfficeTile(
-                office: o,
-                onEdit: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => SetupScreen(office: o)),
-                ).then((_) => provider.load()),
-                onDelete: () => _confirmDelete(context, provider, o),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.add_location_alt_outlined),
-              title: const Text('Add Another Office'),
-              onTap: () => Navigator.push(
+      body: ListView(
+        children: [
+          _SectionLabel('Offices'),
+          ...officeState.offices.map(
+            (o) => _OfficeTile(
+              office: o,
+              onEdit: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const SetupScreen()),
-              ).then((_) => provider.load()),
+                MaterialPageRoute(builder: (_) => SetupScreen(office: o)),
+              ).then((_) => notifier.load()),
+              onDelete: () => _confirmDelete(context, notifier, o),
             ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.add_location_alt_outlined),
+            title: const Text('Add Another Office'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SetupScreen()),
+            ).then((_) => notifier.load()),
+          ),
 
-            const Divider(height: 32),
+          const Divider(height: 32),
 
-            _SectionLabel('How It Works'),
-            const ListTile(
-              leading: Icon(Icons.schedule_outlined),
-              title: Text('Automatic Check-In'),
-              subtitle: Text(
-                'The app checks your GPS position every 15 minutes. '
-                'When you are within the detection radius of a registered office, '
-                'your attendance is automatically recorded once per day.',
-              ),
-              isThreeLine: true,
+          _SectionLabel('How It Works'),
+          const ListTile(
+            leading: Icon(Icons.schedule_outlined),
+            title: Text('Automatic Check-In'),
+            subtitle: Text(
+              'The app checks your GPS position every 15 minutes. '
+              'When you are within the detection radius of a registered office, '
+              'your attendance is automatically recorded once per day.',
             ),
-            const ListTile(
-              leading: Icon(Icons.battery_saver_outlined),
-              title: Text('Battery Tip'),
-              subtitle: Text(
-                'For reliable background tracking:\n'
-                '• Grant "Always Allow" location permission\n'
-                '• Disable battery optimisation for this app\n'
-                '• On Android 12+ allow "Exact Alarm" permission',
-              ),
-              isThreeLine: true,
+            isThreeLine: true,
+          ),
+          const ListTile(
+            leading: Icon(Icons.battery_saver_outlined),
+            title: Text('Battery Tip'),
+            subtitle: Text(
+              'For reliable background tracking:\n'
+              '• Grant "Always Allow" location permission\n'
+              '• Disable battery optimisation for this app\n'
+              '• On Android 12+ allow "Exact Alarm" permission',
             ),
-            const ListTile(
-              leading: Icon(Icons.touch_app_outlined),
-              title: Text('Manual Check-In'),
-              subtitle: Text(
-                'You can also tap "Manual Check-In" on the home screen to record today\'s attendance manually.',
-              ),
-              isThreeLine: true,
+            isThreeLine: true,
+          ),
+          const ListTile(
+            leading: Icon(Icons.touch_app_outlined),
+            title: Text('Manual Check-In'),
+            subtitle: Text(
+              'You can also tap "Manual Check-In" on the home screen to record today\'s attendance manually.',
             ),
-          ],
-        ),
+            isThreeLine: true,
+          ),
+        ],
       ),
     );
   }
 
   Future<void> _confirmDelete(
     BuildContext context,
-    OfficeProvider provider,
+    OfficeNotifier notifier,
     OfficeLocation office,
   ) async {
     final ok = await showDialog<bool>(
@@ -101,7 +102,7 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
     );
-    if (ok == true) await provider.deleteOffice(office.id!);
+    if (ok == true) await notifier.deleteOffice(office.id!);
   }
 }
 

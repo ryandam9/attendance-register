@@ -1,60 +1,66 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/office_location.dart';
 import '../services/database_service.dart';
 
-class OfficeProvider extends ChangeNotifier {
-  List<OfficeLocation> _offices = [];
-  OfficeLocation? _selected;
-  bool _loading = false;
+class OfficeState {
+  final List<OfficeLocation> offices;
+  final OfficeLocation? selectedOffice;
+  final bool loading;
 
-  List<OfficeLocation> get offices => List.unmodifiable(_offices);
-  OfficeLocation? get selectedOffice => _selected;
-  bool get loading => _loading;
-  bool get hasOffice => _offices.isNotEmpty;
+  const OfficeState({
+    this.offices = const [],
+    this.selectedOffice,
+    this.loading = false,
+  });
+
+  bool get hasOffice => offices.isNotEmpty;
+}
+
+class OfficeNotifier extends StateNotifier<OfficeState> {
+  OfficeNotifier() : super(const OfficeState());
 
   Future<void> load() async {
-    _loading = true;
-    notifyListeners();
-    _offices = await DatabaseService.instance.getOfficeLocations();
-    // Preserve selection across reloads; fall back to first office.
-    _selected = _offices.isEmpty
+    state = OfficeState(offices: state.offices, selectedOffice: state.selectedOffice, loading: true);
+    final offices = await DatabaseService.instance.getOfficeLocations();
+    final currentId = state.selectedOffice?.id;
+    final selected = offices.isEmpty
         ? null
-        : _offices.firstWhere(
-            (o) => o.id == _selected?.id,
-            orElse: () => _offices.first,
-          );
-    _loading = false;
-    notifyListeners();
+        : offices.firstWhere((o) => o.id == currentId, orElse: () => offices.first);
+    state = OfficeState(offices: offices, selectedOffice: selected);
   }
 
   void selectOffice(OfficeLocation office) {
-    _selected = office;
-    notifyListeners();
+    state = OfficeState(offices: state.offices, selectedOffice: office);
   }
 
   Future<void> addOffice(OfficeLocation office) async {
     final id = await DatabaseService.instance.insertOfficeLocation(office);
     final saved = office.copyWith(id: id);
-    _offices.add(saved);
-    _selected ??= saved;
-    notifyListeners();
+    final offices = [...state.offices, saved];
+    state = OfficeState(
+      offices: offices,
+      selectedOffice: state.selectedOffice ?? saved,
+    );
   }
 
   Future<void> updateOffice(OfficeLocation office) async {
     await DatabaseService.instance.updateOfficeLocation(office);
-    final idx = _offices.indexWhere((o) => o.id == office.id);
-    if (idx >= 0) _offices[idx] = office;
-    if (_selected?.id == office.id) _selected = office;
-    notifyListeners();
+    final offices = [for (final o in state.offices) o.id == office.id ? office : o];
+    final selected = state.selectedOffice?.id == office.id ? office : state.selectedOffice;
+    state = OfficeState(offices: offices, selectedOffice: selected);
   }
 
   Future<void> deleteOffice(int id) async {
     await DatabaseService.instance.deleteOfficeLocation(id);
-    _offices.removeWhere((o) => o.id == id);
-    if (_selected?.id == id) {
-      _selected = _offices.isNotEmpty ? _offices.first : null;
-    }
-    notifyListeners();
+    final offices = state.offices.where((o) => o.id != id).toList();
+    final selected = state.selectedOffice?.id == id
+        ? (offices.isNotEmpty ? offices.first : null)
+        : state.selectedOffice;
+    state = OfficeState(offices: offices, selectedOffice: selected);
   }
 }
+
+final officeProvider = StateNotifierProvider<OfficeNotifier, OfficeState>(
+  (_) => OfficeNotifier(),
+);

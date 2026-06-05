@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:workmanager/workmanager.dart';
 
-import 'providers/attendance_provider.dart';
-import 'providers/office_provider.dart';
 import 'screens/home_screen.dart';
 import 'services/database_service.dart';
 import 'services/location_service.dart';
@@ -39,15 +37,7 @@ void main() async {
     existingWorkPolicy: ExistingWorkPolicy.keep,
   );
 
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => OfficeProvider()),
-        ChangeNotifierProvider(create: (_) => AttendanceProvider()),
-      ],
-      child: const AttendanceApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: AttendanceApp()));
 }
 
 class AttendanceApp extends StatelessWidget {
