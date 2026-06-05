@@ -10,8 +10,9 @@ import '../services/database_service.dart';
 
 class ManualAttendanceScreen extends ConsumerStatefulWidget {
   final OfficeLocation office;
+  final DateTime? initialDate;
 
-  const ManualAttendanceScreen({super.key, required this.office});
+  const ManualAttendanceScreen({super.key, required this.office, this.initialDate});
 
   @override
   ConsumerState<ManualAttendanceScreen> createState() =>
@@ -20,7 +21,7 @@ class ManualAttendanceScreen extends ConsumerStatefulWidget {
 
 class _ManualAttendanceScreenState
     extends ConsumerState<ManualAttendanceScreen> {
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
   final _reasonController = TextEditingController();
   AttendanceRecord? _existingRecord;
   bool _isPresent = false;
@@ -32,6 +33,7 @@ class _ManualAttendanceScreenState
   @override
   void initState() {
     super.initState();
+    _selectedDate = widget.initialDate ?? DateTime.now();
     _loadExistingRecord();
   }
 
