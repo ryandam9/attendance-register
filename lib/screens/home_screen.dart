@@ -20,14 +20,33 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with WidgetsBindingObserver {
   DateTime _focusedDay = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _init());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // The background WorkManager task writes attendance to the database from a
+    // separate isolate, so the foreground snapshot held by attendanceProvider
+    // goes stale while the app is backgrounded. Re-read from disk on resume so
+    // the calendar reflects anything recorded automatically while we were away.
+    if (state == AppLifecycleState.resumed) {
+      _refreshAttendance();
+    }
   }
 
   Future<void> _init() async {
