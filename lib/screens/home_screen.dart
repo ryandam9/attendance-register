@@ -6,9 +6,11 @@ import 'package:table_calendar/table_calendar.dart';
 import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
+import '../providers/special_day_provider.dart';
 import 'manual_attendance_screen.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
+import 'special_day_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -40,6 +42,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       _focusedDay.year,
       _focusedDay.month,
     );
+    ref.read(specialDayProvider.notifier).loadForMonth(
+      _focusedDay.year,
+      _focusedDay.month,
+    );
   }
 
   void _onPageChanged(DateTime day) {
@@ -51,6 +57,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       day.year,
       day.month,
     );
+    ref.read(specialDayProvider.notifier).loadForMonth(day.year, day.month);
   }
 
   Future<void> _openManualAttendance({DateTime? initialDate}) async {
@@ -61,6 +68,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       MaterialPageRoute(
         builder: (_) => ManualAttendanceScreen(
           office: office,
+          initialDate: initialDate,
+        ),
+      ),
+    );
+    if (changed == true && mounted) _refreshAttendance();
+  }
+
+  Future<void> _openSpecialDay({DateTime? initialDate}) async {
+    final office = ref.read(officeProvider).selectedOffice;
+    if (office == null) return;
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SpecialDayScreen(
+          officeId: office.id!,
           initialDate: initialDate,
         ),
       ),
@@ -122,6 +144,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             }
           },
           onPastDateCheckIn: () => _openManualAttendance(),
+          onSpecialDay: () => _openSpecialDay(),
           onDayTapped: (day) => _openManualAttendance(initialDate: day),
         );
       }(),
@@ -183,6 +206,7 @@ class _Dashboard extends ConsumerWidget {
   final ValueChanged<DateTime> onPageChanged;
   final VoidCallback onManualCheckIn;
   final VoidCallback onPastDateCheckIn;
+  final VoidCallback onSpecialDay;
   final ValueChanged<DateTime> onDayTapped;
 
   const _Dashboard({
@@ -195,6 +219,7 @@ class _Dashboard extends ConsumerWidget {
     required this.onPageChanged,
     required this.onManualCheckIn,
     required this.onPastDateCheckIn,
+    required this.onSpecialDay,
     required this.onDayTapped,
   });
 
@@ -202,6 +227,9 @@ class _Dashboard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ap = ref.watch(attendanceProvider);
     final attended = ap.attendanceDates;
+    final sp = ref.watch(specialDayProvider);
+    final holidays = sp.holidayDates;
+    final sickLeaves = sp.sickLeaveDates;
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 32),
@@ -254,13 +282,25 @@ class _Dashboard extends ConsumerWidget {
             calendarBuilders: CalendarBuilders(
               defaultBuilder: (context, day, _) {
                 if (attended.any((d) => isSameDay(d, day))) {
-                  return _AttendanceDot(day: day);
+                  return _DayDot(day: day, color: Colors.green);
+                }
+                if (holidays.any((d) => isSameDay(d, day))) {
+                  return _DayDot(day: day, color: Colors.blue);
+                }
+                if (sickLeaves.any((d) => isSameDay(d, day))) {
+                  return _DayDot(day: day, color: Colors.orange);
                 }
                 return null;
               },
               todayBuilder: (context, day, _) {
                 if (attended.any((d) => isSameDay(d, day))) {
-                  return _AttendanceDot(day: day);
+                  return _DayDot(day: day, color: Colors.green);
+                }
+                if (holidays.any((d) => isSameDay(d, day))) {
+                  return _DayDot(day: day, color: Colors.blue);
+                }
+                if (sickLeaves.any((d) => isSameDay(d, day))) {
+                  return _DayDot(day: day, color: Colors.orange);
                 }
                 return null;
               },
@@ -321,6 +361,33 @@ class _Dashboard extends ConsumerWidget {
             onPressed: onPastDateCheckIn,
             icon: const Icon(Icons.history),
             label: const Text('Check-In for Past Date'),
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: OutlinedButton.icon(
+            onPressed: onSpecialDay,
+            icon: const Icon(Icons.event_outlined),
+            label: const Text('Mark Holiday / Sick Leave'),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Calendar legend
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 4,
+            children: const [
+              _LegendChip(color: Colors.green, label: 'Attended'),
+              _LegendChip(color: Colors.blue, label: 'Public Holiday'),
+              _LegendChip(color: Colors.orange, label: 'Sick Leave'),
+            ],
           ),
         ),
       ],
@@ -425,15 +492,16 @@ class _StatCard extends StatelessWidget {
 
 // ── Calendar day marker ───────────────────────────────────────────────────────
 
-class _AttendanceDot extends StatelessWidget {
+class _DayDot extends StatelessWidget {
   final DateTime day;
-  const _AttendanceDot({required this.day});
+  final Color color;
+  const _DayDot({required this.day, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.all(4),
-      decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       alignment: Alignment.center,
       child: Text(
         '${day.day}',
@@ -443,6 +511,28 @@ class _AttendanceDot extends StatelessWidget {
           fontSize: 13,
         ),
       ),
+    );
+  }
+}
+
+class _LegendChip extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _LegendChip({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+      ],
     );
   }
 }
