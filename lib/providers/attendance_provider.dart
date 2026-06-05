@@ -44,6 +44,32 @@ class AttendanceState {
     this.loading = false,
   });
 
+  AttendanceState copyWith({
+    List<AttendanceRecord>? records,
+    int? monthlyCount,
+    int? yearlyCount,
+    int? monthlyWeekdays,
+    int? yearlyWeekdays,
+    int? monthlyHolidayCount,
+    int? monthlySickLeaveCount,
+    int? yearlyHolidayCount,
+    int? yearlySickLeaveCount,
+    bool? loading,
+  }) {
+    return AttendanceState(
+      records: records ?? this.records,
+      monthlyCount: monthlyCount ?? this.monthlyCount,
+      yearlyCount: yearlyCount ?? this.yearlyCount,
+      monthlyWeekdays: monthlyWeekdays ?? this.monthlyWeekdays,
+      yearlyWeekdays: yearlyWeekdays ?? this.yearlyWeekdays,
+      monthlyHolidayCount: monthlyHolidayCount ?? this.monthlyHolidayCount,
+      monthlySickLeaveCount: monthlySickLeaveCount ?? this.monthlySickLeaveCount,
+      yearlyHolidayCount: yearlyHolidayCount ?? this.yearlyHolidayCount,
+      yearlySickLeaveCount: yearlySickLeaveCount ?? this.yearlySickLeaveCount,
+      loading: loading ?? this.loading,
+    );
+  }
+
   Set<DateTime> get attendanceDates =>
       records.map((r) => DateTime.parse(r.date)).toSet();
 
@@ -65,12 +91,11 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
   AttendanceState build() => const AttendanceState();
 
   Future<void> loadForMonth(int officeId, int year, int month) async {
-    state = AttendanceState(
-      records: state.records,
-      monthlyCount: state.monthlyCount,
-      yearlyCount: state.yearlyCount,
-      loading: true,
-    );
+    // Keep the previous month's values (counts, weekday totals, holiday/sick
+    // counts) while the new data loads. Resetting the untracked fields to 0
+    // here would make the percentage getters return null, causing the stat
+    // cards' percentage badges to flicker off and back on every page change.
+    state = state.copyWith(loading: true);
 
     final monthStart = DateTime(year, month, 1);
     final monthEnd = DateTime(year, month + 1, 0);
