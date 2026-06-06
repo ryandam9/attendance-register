@@ -6,6 +6,15 @@ import '../models/attendance_record.dart';
 import 'database_service.dart';
 import 'notification_service.dart';
 
+/// A reverse-geocoded location: a human-readable [address] plus the structured
+/// [state]/[country] fields the holiday importer matches on.
+class GeoPlace {
+  final String? address;
+  final String? state;
+  final String? country;
+  const GeoPlace({this.address, this.state, this.country});
+}
+
 class LocationService {
   LocationService._();
   static final LocationService instance = LocationService._();
@@ -48,13 +57,26 @@ class LocationService {
       Geolocator.distanceBetween(lat1, lon1, lat2, lon2);
 
   Future<String?> addressFromCoordinates(double lat, double lng) async {
+    return (await placeFromCoordinates(lat, lng))?.address;
+  }
+
+  /// Reverse-geocodes [lat]/[lng] into a display address plus the structured
+  /// [GeoPlace.state] (administrative area) and [GeoPlace.country] (ISO code)
+  /// used to match the office against public-holidays.csv.
+  Future<GeoPlace?> placeFromCoordinates(double lat, double lng) async {
     try {
       final marks = await placemarkFromCoordinates(lat, lng);
       if (marks.isEmpty) return null;
       final p = marks.first;
-      return [p.street, p.locality, p.postalCode, p.country]
+      final address = [p.street, p.locality, p.postalCode, p.country]
           .where((s) => s != null && s.isNotEmpty)
           .join(', ');
+      String? nonEmpty(String? s) => (s == null || s.isEmpty) ? null : s;
+      return GeoPlace(
+        address: address.isEmpty ? null : address,
+        state: nonEmpty(p.administrativeArea),
+        country: nonEmpty(p.isoCountryCode),
+      );
     } catch (_) {
       return null;
     }

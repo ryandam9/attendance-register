@@ -10,6 +10,7 @@ import '../providers/office_provider.dart';
 import '../providers/special_day_provider.dart';
 import '../services/app_settings_service.dart';
 import '../services/database_service.dart';
+import '../services/holiday_service.dart';
 import 'setup_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -84,6 +85,31 @@ class SettingsScreen extends ConsumerWidget {
 
           const Divider(height: 32),
 
+          const _SectionLabel('Public Holidays'),
+          const ListTile(
+            leading: Icon(Icons.beach_access_outlined),
+            title: Text('Automatic Holidays'),
+            subtitle: Text(
+              'Public holidays for your office\'s region are highlighted '
+              'automatically. Anything you mark or remove yourself always takes '
+              'priority and is never overwritten.',
+            ),
+            isThreeLine: true,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: OutlinedButton.icon(
+              onPressed: () => _syncHolidays(context, ref),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Sync Public Holidays Now'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+            ),
+          ),
+
+          const Divider(height: 32),
+
           const _SectionLabel('Developer'),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -104,6 +130,25 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _syncHolidays(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Syncing public holidays…')),
+    );
+    final inserted = await HolidayService.instance.sync();
+    if (inserted > 0) ref.invalidate(specialDayProvider);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          inserted > 0
+              ? 'Added $inserted public holiday${inserted == 1 ? '' : 's'}.'
+              : 'No new public holidays to add.',
+        ),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }

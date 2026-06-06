@@ -5,6 +5,12 @@ class OfficeLocation {
   final double latitude;
   final double longitude;
   final double radius; // metres
+  // Resolved from the geocoder when the address is looked up. Used to match the
+  // office against public-holidays.csv. [country] is an ISO country code (e.g.
+  // "AU", "US"); [state] is the administrative area (e.g. "Western Australia").
+  // Both are null for offices saved before structured location was captured.
+  final String? country;
+  final String? state;
 
   const OfficeLocation({
     this.id,
@@ -13,6 +19,8 @@ class OfficeLocation {
     required this.latitude,
     required this.longitude,
     this.radius = 200.0,
+    this.country,
+    this.state,
   });
 
   Map<String, dynamic> toMap() => {
@@ -22,6 +30,8 @@ class OfficeLocation {
     'latitude': latitude,
     'longitude': longitude,
     'radius': radius,
+    'country': country,
+    'state': state,
   };
 
   factory OfficeLocation.fromMap(Map<String, dynamic> map) => OfficeLocation(
@@ -31,6 +41,8 @@ class OfficeLocation {
     latitude: map['latitude'] as double,
     longitude: map['longitude'] as double,
     radius: map['radius'] as double,
+    country: map['country'] as String?,
+    state: map['state'] as String?,
   );
 
   OfficeLocation copyWith({
@@ -40,6 +52,8 @@ class OfficeLocation {
     double? latitude,
     double? longitude,
     double? radius,
+    String? country,
+    String? state,
   }) => OfficeLocation(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -47,5 +61,7 @@ class OfficeLocation {
     latitude: latitude ?? this.latitude,
     longitude: longitude ?? this.longitude,
     radius: radius ?? this.radius,
+    country: country ?? this.country,
+    state: state ?? this.state,
   );
 }
