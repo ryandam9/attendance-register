@@ -42,8 +42,14 @@ class SpecialDayNotifier extends Notifier<SpecialDayState> {
     await loadForMonth(target.year, target.month);
   }
 
-  Future<void> deleteDay(String date) async {
+  /// Removes the special day for [date]. When [dismiss] is true the date is also
+  /// recorded as a dismissed holiday so the importer will not re-add it — used
+  /// when the user deletes an auto-imported public holiday.
+  Future<void> deleteDay(String date, {bool dismiss = false}) async {
     await DatabaseService.instance.deleteSpecialDay(date);
+    if (dismiss) {
+      await DatabaseService.instance.dismissHoliday(date);
+    }
     state = SpecialDayState(
       days: state.days.where((d) => d.date != date).toList(),
     );

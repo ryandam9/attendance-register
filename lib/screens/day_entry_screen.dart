@@ -190,7 +190,13 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
             .deleteRecord(dateStr, widget.office.id!);
       }
       if (_existingSpecialDay != null) {
-        await ref.read(specialDayProvider.notifier).deleteDay(dateStr);
+        // If this was an auto-imported public holiday, remember the removal so
+        // the importer does not resurrect it on the next sync.
+        final wasAutoHoliday = _existingSpecialDay!.type == DayType.holiday &&
+            _existingSpecialDay!.source == DaySource.auto;
+        await ref
+            .read(specialDayProvider.notifier)
+            .deleteDay(dateStr, dismiss: wasAutoHoliday);
       }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {

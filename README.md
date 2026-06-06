@@ -10,6 +10,7 @@ A Flutter mobile app that automatically tracks your return-to-office days using 
 - **Dashboard** — a monthly calendar highlights every day you were in the office, with monthly and yearly totals
 - **Manual attendance update** — pick any past date, mark it as present, and optionally enter a reason (e.g. "Missed auto check-in", "Team meeting"); you can also remove a record or update its reason after the fact
 - **Multi-office** — track multiple office locations independently
+- **Auto public holidays** — public holidays for your office's region are highlighted automatically from a list published in this repo (see [Public Holidays](#public-holidays)); anything you mark or remove yourself always wins
 - **Edit / delete** — update the radius or remove an office at any time
 
 ## Getting Started
@@ -115,6 +116,50 @@ From the dashboard tap **Update Attendance** to open the manual screen:
 5. **Remove Record** — shown when an existing record exists and the toggle is turned off; deletes the record after confirmation.
 
 The home calendar and stats update automatically when you return from the screen.
+
+## Public Holidays
+
+Public holidays are pre-determined, so the app highlights them for you instead
+of making you enter each one by hand.
+
+### How it works
+
+1. A CSV of holidays lives in this repo: [`public-holidays.csv`](public-holidays.csv).
+   Each row is `country,state,date,desc`:
+
+   ```csv
+   country,state,date,desc
+   AU,Western Australia,2026-06-01,Western Australia Day
+   US,California,2026-07-04,Independence Day
+   ```
+
+   - `country` — ISO country code (e.g. `AU`, `US`)
+   - `state` — administrative area exactly as the geocoder reports it for the
+     office address (e.g. `Western Australia`, `California`)
+   - `date` — `YYYY-MM-DD`
+   - `desc` — shown as the note on the calendar entry (commas are allowed)
+
+2. When you register an office, the app reverse-geocodes the address and stores
+   its **country** and **state** alongside the coordinates.
+
+3. On launch (and via **Settings → Sync Public Holidays Now**) the app fetches
+   the CSV from GitHub and, for every holiday whose `country` + `state` matches
+   one of your offices, inserts a holiday entry — which the calendar highlights
+   and the attendance-percentage maths excludes. Matching is case-insensitive.
+
+To add or correct holidays, edit `public-holidays.csv` on `main`; the change is
+picked up on the next sync — no app release required.
+
+### Manual edits always win
+
+Auto-imported holidays never fight with your own entries:
+
+- A holiday is **only** added to a day that has nothing on it — never over a day
+  you marked yourself or actually attended.
+- If you **remove** an auto-imported holiday, it is remembered and not
+  re-added on the next sync.
+- Editing an auto holiday (e.g. to Sick Leave) converts it to a manual entry,
+  which the importer then leaves alone.
 
 ## Running Tests
 

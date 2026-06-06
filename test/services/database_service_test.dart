@@ -22,7 +22,9 @@ Future<Database> _openTestDb() async {
             address   TEXT    NOT NULL,
             latitude  REAL    NOT NULL,
             longitude REAL    NOT NULL,
-            radius    REAL    NOT NULL DEFAULT 200.0
+            radius    REAL    NOT NULL DEFAULT 200.0,
+            country   TEXT,
+            state     TEXT
           )
         ''');
         await db.execute('''

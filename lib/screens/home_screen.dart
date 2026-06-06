@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +10,7 @@ import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/special_day_provider.dart';
+import '../services/holiday_service.dart';
 import 'day_entry_screen.dart';
 import 'history_screen.dart';
 import 'settings_screen.dart';
@@ -52,6 +55,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Future<void> _init() async {
     await ref.read(officeProvider.notifier).load();
     _refreshAttendance();
+    // Pull public holidays for the registered office's region in the background
+    // and refresh the calendar if any new ones were inserted. Never blocks the
+    // first paint and silently no-ops when offline.
+    unawaited(_syncHolidays());
+  }
+
+  Future<void> _syncHolidays() async {
+    final inserted = await HolidayService.instance.sync();
+    if (inserted > 0 && mounted) _refreshAttendance();
   }
 
   void _refreshAttendance() {

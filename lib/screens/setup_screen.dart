@@ -21,6 +21,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   double _radius = 200;
   double? _lat;
   double? _lng;
+  String? _country;
+  String? _state;
   bool _busy = false;
 
   bool get _isEditing => widget.office != null;
@@ -34,6 +36,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     _radius = o?.radius ?? 200;
     _lat = o?.latitude;
     _lng = o?.longitude;
+    _country = o?.country;
+    _state = o?.state;
   }
 
   @override
@@ -54,14 +58,17 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       return;
     }
 
-    final address = await LocationService.instance.addressFromCoordinates(
+    final place = await LocationService.instance.placeFromCoordinates(
       pos.latitude,
       pos.longitude,
     );
+    if (!mounted) return;
     setState(() {
       _lat = pos.latitude;
       _lng = pos.longitude;
-      if (address != null) _addressCtrl.text = address;
+      if (place?.address != null) _addressCtrl.text = place!.address!;
+      _country = place?.country;
+      _state = place?.state;
       _busy = false;
     });
   }
@@ -72,20 +79,29 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     setState(() => _busy = true);
 
     final locations = await LocationService.instance.coordinatesFromAddress(addr);
-    setState(() => _busy = false);
     if (!mounted) return;
-
     if (locations == null || locations.isEmpty) {
+      setState(() => _busy = false);
       _showSnack('Address not found. Try a more specific address.');
       return;
     }
 
+    final lat = locations.first.latitude;
+    final lng = locations.first.longitude;
+    // Reverse-geocode the resolved point to capture the state/country used for
+    // public-holiday matching.
+    final place = await LocationService.instance.placeFromCoordinates(lat, lng);
+    if (!mounted) return;
+
     setState(() {
-      _lat = locations.first.latitude;
-      _lng = locations.first.longitude;
+      _lat = lat;
+      _lng = lng;
+      _country = place?.country;
+      _state = place?.state;
+      _busy = false;
     });
     _showSnack(
-      'Location resolved: ${_lat!.toStringAsFixed(5)}, ${_lng!.toStringAsFixed(5)}',
+      'Location resolved: ${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
     );
   }
 
@@ -113,6 +129,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       latitude: _lat!,
       longitude: _lng!,
       radius: _radius,
+      country: _country,
+      state: _state,
     );
 
     final notifier = ref.read(officeProvider.notifier);
@@ -194,6 +212,14 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                   color: Theme.of(context).colorScheme.primary,
                 ),
               ),
+              if (_state != null || _country != null)
+                Text(
+                  'Region: ${[_state, _country].where((s) => s != null && s.isNotEmpty).join(', ')}'
+                  ' — public holidays for this region are highlighted automatically.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
             ],
 
             const SizedBox(height: 28),

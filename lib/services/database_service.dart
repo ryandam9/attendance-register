@@ -20,7 +20,7 @@ class DatabaseService {
     final dbPath = await getDatabasesPath();
     return openDatabase(
       join(dbPath, 'attendance.db'),
-      version: 3,
+      version: 4,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE office_locations (
@@ -29,7 +29,9 @@ class DatabaseService {
             address TEXT    NOT NULL,
             latitude  REAL  NOT NULL,
             longitude REAL  NOT NULL,
-            radius    REAL  NOT NULL DEFAULT 200.0
+            radius    REAL  NOT NULL DEFAULT 200.0,
+            country TEXT,
+            state   TEXT
           )
         ''');
 
@@ -52,10 +54,20 @@ class DatabaseService {
 
         await db.execute('''
           CREATE TABLE special_days (
-            id    INTEGER PRIMARY KEY AUTOINCREMENT,
-            date  TEXT    NOT NULL UNIQUE,
-            type  TEXT    NOT NULL,
-            note  TEXT
+            id     INTEGER PRIMARY KEY AUTOINCREMENT,
+            date   TEXT    NOT NULL UNIQUE,
+            type   TEXT    NOT NULL,
+            note   TEXT,
+            source TEXT    NOT NULL DEFAULT 'manual'
+          )
+        ''');
+
+        // Dates the user explicitly removed an auto-imported holiday from. The
+        // importer skips these so a deleted public holiday is not resurrected on
+        // the next sync.
+        await db.execute('''
+          CREATE TABLE dismissed_holidays (
+            date TEXT PRIMARY KEY
           )
         ''');
       },
@@ -72,6 +84,23 @@ class DatabaseService {
               date  TEXT    NOT NULL UNIQUE,
               type  TEXT    NOT NULL,
               note  TEXT
+            )
+          ''');
+        }
+        if (oldVersion < 4) {
+          await db.execute(
+            'ALTER TABLE office_locations ADD COLUMN country TEXT',
+          );
+          await db.execute(
+            'ALTER TABLE office_locations ADD COLUMN state TEXT',
+          );
+          await db.execute(
+            "ALTER TABLE special_days "
+            "ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'",
+          );
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS dismissed_holidays (
+              date TEXT PRIMARY KEY
             )
           ''');
         }
@@ -131,6 +160,19 @@ class DatabaseService {
       'attendance_records',
       where: 'date = ? AND office_location_id = ?',
       whereArgs: [date, officeId],
+    );
+    return rows.isNotEmpty;
+  }
+
+  /// True when attendance was recorded at *any* office on [date]. Used by the
+  /// holiday importer so it never marks a day you actually worked as a holiday.
+  Future<bool> hasAnyAttendanceForDate(String date) async {
+    final db = await database;
+    final rows = await db.query(
+      'attendance_records',
+      where: 'date = ?',
+      whereArgs: [date],
+      limit: 1,
     );
     return rows.isNotEmpty;
   }
@@ -320,9 +362,29 @@ class DatabaseService {
     await db.delete('special_days', where: 'date = ?', whereArgs: [date]);
   }
 
+  // ── Dismissed (auto) holidays ─────────────────────────────────────────────
+
+  /// Remember that the user removed an auto-imported holiday on [date] so the
+  /// importer does not re-add it on the next sync.
+  Future<void> dismissHoliday(String date) async {
+    final db = await database;
+    await db.insert(
+      'dismissed_holidays',
+      {'date': date},
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+  }
+
+  Future<Set<String>> getDismissedHolidayDates() async {
+    final db = await database;
+    final rows = await db.query('dismissed_holidays', columns: ['date']);
+    return rows.map((r) => r['date'] as String).toSet();
+  }
+
   Future<void> deleteAllRecords() async {
     final db = await database;
     await db.delete('attendance_records');
     await db.delete('special_days');
+    await db.delete('dismissed_holidays');
   }
 }
