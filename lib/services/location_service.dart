@@ -111,6 +111,13 @@ class LocationService {
 
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
+    // A day already marked as a public holiday, sick leave or not-attended is
+    // off-limits to auto check-in — the user owns that decision and can change
+    // it manually. Mirrors the specialDayConflict guard in manualCheckIn so a
+    // background geo run never silently overwrites a (blue) public holiday with
+    // "Attended".
+    if (await db.getSpecialDayForDate(today) != null) return;
+
     for (final office in offices) {
       if (await db.hasAttendanceForDate(today, office.id!)) continue;
 
