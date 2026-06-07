@@ -23,6 +23,8 @@ class _HistoryItem {
     DayStatus.attended => AppColors.attendance,
     DayStatus.holiday => AppColors.holiday,
     DayStatus.sickLeave => AppColors.sickLeave,
+    DayStatus.annualLeave => AppColors.annualLeave,
+    DayStatus.carersLeave => AppColors.carersLeave,
     DayStatus.notAttended => AppColors.notAttended,
   };
 
@@ -30,6 +32,8 @@ class _HistoryItem {
     DayStatus.attended => Icons.check_circle_outline,
     DayStatus.holiday => Icons.beach_access_outlined,
     DayStatus.sickLeave => Icons.sick_outlined,
+    DayStatus.annualLeave => Icons.luggage_outlined,
+    DayStatus.carersLeave => Icons.volunteer_activism_outlined,
     DayStatus.notAttended => Icons.cancel_outlined,
   };
 
@@ -37,6 +41,8 @@ class _HistoryItem {
     DayStatus.attended => 'Attended',
     DayStatus.holiday => 'Public Holiday',
     DayStatus.sickLeave => 'Sick Leave',
+    DayStatus.annualLeave => 'Annual Leave',
+    DayStatus.carersLeave => "Carer's Leave",
     DayStatus.notAttended => 'Not Attended',
   };
 }
@@ -87,6 +93,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           status: switch (s.type) {
             DayType.holiday => DayStatus.holiday,
             DayType.sickLeave => DayStatus.sickLeave,
+            DayType.annualLeave => DayStatus.annualLeave,
+            DayType.carersLeave => DayStatus.carersLeave,
             DayType.notAttended => DayStatus.notAttended,
           },
           comment: s.note,

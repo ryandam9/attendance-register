@@ -13,7 +13,7 @@ import '../services/database_service.dart';
 
 /// The single status a day can hold. Attendance and special days are mutually
 /// exclusive, so picking one here replaces whatever was previously recorded.
-enum DayStatus { attended, holiday, sickLeave, notAttended }
+enum DayStatus { attended, holiday, sickLeave, annualLeave, carersLeave, notAttended }
 
 /// Unified screen for marking a day. For any past date or today the user picks
 /// one of Attended / Holiday / Sick Leave, optionally adds a comment, and saves
@@ -81,6 +81,8 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
         _status = switch (special.type) {
           DayType.holiday => DayStatus.holiday,
           DayType.sickLeave => DayStatus.sickLeave,
+          DayType.annualLeave => DayStatus.annualLeave,
+          DayType.carersLeave => DayStatus.carersLeave,
           DayType.notAttended => DayStatus.notAttended,
         };
         _commentController.text = special.note ?? '';
@@ -136,6 +138,8 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
             type: switch (_status) {
               DayStatus.holiday => DayType.holiday,
               DayStatus.sickLeave => DayType.sickLeave,
+              DayStatus.annualLeave => DayType.annualLeave,
+              DayStatus.carersLeave => DayType.carersLeave,
               DayStatus.notAttended => DayType.notAttended,
               DayStatus.attended => DayType.notAttended, // unreachable
             },
@@ -322,6 +326,26 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
                       color: AppColors.sickLeave,
                       selected: _status == DayStatus.sickLeave,
                       onTap: () => setState(() => _status = DayStatus.sickLeave),
+                    ),
+                    const SizedBox(height: 8),
+                    _StatusOption(
+                      label: 'Annual Leave',
+                      description: 'On annual (holiday) leave',
+                      icon: Icons.luggage_outlined,
+                      color: AppColors.annualLeave,
+                      selected: _status == DayStatus.annualLeave,
+                      onTap: () =>
+                          setState(() => _status = DayStatus.annualLeave),
+                    ),
+                    const SizedBox(height: 8),
+                    _StatusOption(
+                      label: "Carer's Leave",
+                      description: 'Caring for someone on this day',
+                      icon: Icons.volunteer_activism_outlined,
+                      color: AppColors.carersLeave,
+                      selected: _status == DayStatus.carersLeave,
+                      onTap: () =>
+                          setState(() => _status = DayStatus.carersLeave),
                     ),
                     const SizedBox(height: 8),
                     _StatusOption(

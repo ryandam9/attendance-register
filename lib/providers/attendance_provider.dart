@@ -25,10 +25,10 @@ class AttendanceState {
   final int yearlyCount;
   final int monthlyWeekdays;
   final int yearlyWeekdays;
-  final int monthlyHolidayCount;
-  final int monthlySickLeaveCount;
-  final int yearlyHolidayCount;
-  final int yearlySickLeaveCount;
+  // Weekday count of all leave types excluded from the denominator (holiday,
+  // sick, annual, carer's) — see excludedFromAttendanceDenominator.
+  final int monthlyExcludedCount;
+  final int yearlyExcludedCount;
   final bool loading;
 
   const AttendanceState({
@@ -37,10 +37,8 @@ class AttendanceState {
     this.yearlyCount = 0,
     this.monthlyWeekdays = 0,
     this.yearlyWeekdays = 0,
-    this.monthlyHolidayCount = 0,
-    this.monthlySickLeaveCount = 0,
-    this.yearlyHolidayCount = 0,
-    this.yearlySickLeaveCount = 0,
+    this.monthlyExcludedCount = 0,
+    this.yearlyExcludedCount = 0,
     this.loading = false,
   });
 
@@ -50,10 +48,8 @@ class AttendanceState {
     int? yearlyCount,
     int? monthlyWeekdays,
     int? yearlyWeekdays,
-    int? monthlyHolidayCount,
-    int? monthlySickLeaveCount,
-    int? yearlyHolidayCount,
-    int? yearlySickLeaveCount,
+    int? monthlyExcludedCount,
+    int? yearlyExcludedCount,
     bool? loading,
   }) {
     return AttendanceState(
@@ -62,10 +58,8 @@ class AttendanceState {
       yearlyCount: yearlyCount ?? this.yearlyCount,
       monthlyWeekdays: monthlyWeekdays ?? this.monthlyWeekdays,
       yearlyWeekdays: yearlyWeekdays ?? this.yearlyWeekdays,
-      monthlyHolidayCount: monthlyHolidayCount ?? this.monthlyHolidayCount,
-      monthlySickLeaveCount: monthlySickLeaveCount ?? this.monthlySickLeaveCount,
-      yearlyHolidayCount: yearlyHolidayCount ?? this.yearlyHolidayCount,
-      yearlySickLeaveCount: yearlySickLeaveCount ?? this.yearlySickLeaveCount,
+      monthlyExcludedCount: monthlyExcludedCount ?? this.monthlyExcludedCount,
+      yearlyExcludedCount: yearlyExcludedCount ?? this.yearlyExcludedCount,
       loading: loading ?? this.loading,
     );
   }
@@ -74,13 +68,13 @@ class AttendanceState {
       records.map((r) => DateTime.parse(r.date)).toSet();
 
   double? get monthlyPercentage {
-    final base = monthlyWeekdays - monthlyHolidayCount - monthlySickLeaveCount;
+    final base = monthlyWeekdays - monthlyExcludedCount;
     if (base <= 0) return null;
     return (monthlyCount / base * 100).clamp(0.0, 100.0);
   }
 
   double? get yearlyPercentage {
-    final base = yearlyWeekdays - yearlyHolidayCount - yearlySickLeaveCount;
+    final base = yearlyWeekdays - yearlyExcludedCount;
     if (base <= 0) return null;
     return (yearlyCount / base * 100).clamp(0.0, 100.0);
   }
@@ -113,21 +107,13 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
       from: yearStart,
       to: yearEnd,
     );
-    final monthlyHolidayCount = await DatabaseService.instance.getSpecialDayCount(
+    final monthlyExcludedCount = await DatabaseService.instance.getSpecialDayCount(
       monthStart, monthEnd,
-      type: DayType.holiday,
+      types: excludedFromAttendanceDenominator,
     );
-    final monthlySickLeaveCount = await DatabaseService.instance.getSpecialDayCount(
-      monthStart, monthEnd,
-      type: DayType.sickLeave,
-    );
-    final yearlyHolidayCount = await DatabaseService.instance.getSpecialDayCount(
+    final yearlyExcludedCount = await DatabaseService.instance.getSpecialDayCount(
       yearStart, yearEnd,
-      type: DayType.holiday,
-    );
-    final yearlySickLeaveCount = await DatabaseService.instance.getSpecialDayCount(
-      yearStart, yearEnd,
-      type: DayType.sickLeave,
+      types: excludedFromAttendanceDenominator,
     );
 
     state = AttendanceState(
@@ -136,10 +122,8 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
       yearlyCount: yearlyCount,
       monthlyWeekdays: _countWeekdays(monthStart, monthEnd),
       yearlyWeekdays: _countWeekdays(yearStart, yearEnd),
-      monthlyHolidayCount: monthlyHolidayCount,
-      monthlySickLeaveCount: monthlySickLeaveCount,
-      yearlyHolidayCount: yearlyHolidayCount,
-      yearlySickLeaveCount: yearlySickLeaveCount,
+      monthlyExcludedCount: monthlyExcludedCount,
+      yearlyExcludedCount: yearlyExcludedCount,
     );
   }
 

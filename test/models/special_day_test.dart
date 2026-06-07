@@ -34,5 +34,32 @@ void main() {
       });
       expect(restored.source, DaySource.manual);
     });
+
+    test('annual and carer\'s leave round-trip through their enum name', () {
+      for (final type in [DayType.annualLeave, DayType.carersLeave]) {
+        const date = '2026-06-08';
+        final restored = SpecialDay.fromMap(
+          SpecialDay(date: date, type: type).toMap(),
+        );
+        expect(restored.type, type);
+        expect(DayType.values.byName(type.name), type);
+      }
+    });
+  });
+
+  group('excludedFromAttendanceDenominator', () {
+    test('excludes every leave type but keeps notAttended in the denominator',
+        () {
+      expect(excludedFromAttendanceDenominator, contains(DayType.holiday));
+      expect(excludedFromAttendanceDenominator, contains(DayType.sickLeave));
+      expect(excludedFromAttendanceDenominator, contains(DayType.annualLeave));
+      expect(excludedFromAttendanceDenominator, contains(DayType.carersLeave));
+      // A normal working day you skipped must stay in the denominator so it
+      // lowers your percentage.
+      expect(
+        excludedFromAttendanceDenominator,
+        isNot(contains(DayType.notAttended)),
+      );
+    });
   });
 }

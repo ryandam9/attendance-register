@@ -275,6 +275,8 @@ class _Dashboard extends ConsumerWidget {
     final sp = ref.watch(specialDayProvider);
     final holidays = sp.holidayDates;
     final sickLeaves = sp.sickLeaveDates;
+    final annualLeaves = sp.annualLeaveDates;
+    final carersLeaves = sp.carersLeaveDates;
     final notAttended = sp.notAttendedDates;
 
     return ListView(
@@ -343,6 +345,12 @@ class _Dashboard extends ConsumerWidget {
                 if (sickLeaves.any((d) => isSameDay(d, day))) {
                   return _DayDot(day: day, color: AppColors.sickLeave);
                 }
+                if (annualLeaves.any((d) => isSameDay(d, day))) {
+                  return _DayDot(day: day, color: AppColors.annualLeave);
+                }
+                if (carersLeaves.any((d) => isSameDay(d, day))) {
+                  return _DayDot(day: day, color: AppColors.carersLeave);
+                }
                 if (notAttended.any((d) => isSameDay(d, day))) {
                   return _DayDot(day: day, color: AppColors.notAttended);
                 }
@@ -357,6 +365,12 @@ class _Dashboard extends ConsumerWidget {
                 }
                 if (sickLeaves.any((d) => isSameDay(d, day))) {
                   return _DayDot(day: day, color: AppColors.sickLeave, isToday: true);
+                }
+                if (annualLeaves.any((d) => isSameDay(d, day))) {
+                  return _DayDot(day: day, color: AppColors.annualLeave, isToday: true);
+                }
+                if (carersLeaves.any((d) => isSameDay(d, day))) {
+                  return _DayDot(day: day, color: AppColors.carersLeave, isToday: true);
                 }
                 if (notAttended.any((d) => isSameDay(d, day))) {
                   return _DayDot(day: day, color: AppColors.notAttended, isToday: true);
@@ -442,6 +456,8 @@ class _Dashboard extends ConsumerWidget {
               _LegendChip(color: AppColors.attendance, label: 'Attended'),
               _LegendChip(color: AppColors.holiday, label: 'Public Holiday'),
               _LegendChip(color: AppColors.sickLeave, label: 'Sick Leave'),
+              _LegendChip(color: AppColors.annualLeave, label: 'Annual Leave'),
+              _LegendChip(color: AppColors.carersLeave, label: "Carer's Leave"),
               _LegendChip(color: AppColors.notAttended, label: 'Not Attended'),
             ],
           ),
