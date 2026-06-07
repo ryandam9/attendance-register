@@ -19,6 +19,16 @@ class SpecialDayState {
       .map((d) => DateTime.parse(d.date))
       .toSet();
 
+  Set<DateTime> get annualLeaveDates => days
+      .where((d) => d.type == DayType.annualLeave)
+      .map((d) => DateTime.parse(d.date))
+      .toSet();
+
+  Set<DateTime> get carersLeaveDates => days
+      .where((d) => d.type == DayType.carersLeave)
+      .map((d) => DateTime.parse(d.date))
+      .toSet();
+
   Set<DateTime> get notAttendedDates => days
       .where((d) => d.type == DayType.notAttended)
       .map((d) => DateTime.parse(d.date))

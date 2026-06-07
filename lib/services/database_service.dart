@@ -309,13 +309,17 @@ class DatabaseService {
 
   /// Counts special days in [from]..[to]. Only weekdays (Mon–Fri) are counted:
   /// the attendance percentage denominator is built from weekdays, so a holiday
-  /// or sick day that falls on a weekend must not be subtracted from it (doing
+  /// or leave day that falls on a weekend must not be subtracted from it (doing
   /// so would shrink the denominator below the real number of working days).
   /// SQLite's strftime('%w') returns 0 for Sunday and 6 for Saturday.
+  ///
+  /// When [types] is given, only those day types are counted (e.g. the set of
+  /// leave types excluded from the attendance denominator); when null, every
+  /// special day in range is counted.
   Future<int> getSpecialDayCount(
     DateTime from,
     DateTime to, {
-    DayType? type,
+    Iterable<DayType>? types,
   }) async {
     final db = await database;
     String fmt(DateTime d) =>
@@ -325,9 +329,11 @@ class DatabaseService {
         "date >= ? AND date <= ? AND strftime('%w', date) NOT IN ('0', '6')";
     final args = <dynamic>[fmt(from), fmt(to)];
 
-    if (type != null) {
-      where += ' AND type = ?';
-      args.add(type.name);
+    final typeList = types?.toList();
+    if (typeList != null && typeList.isNotEmpty) {
+      final placeholders = List.filled(typeList.length, '?').join(', ');
+      where += ' AND type IN ($placeholders)';
+      args.addAll(typeList.map((t) => t.name));
     }
 
     final result = await db.rawQuery(
