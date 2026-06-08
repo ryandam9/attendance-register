@@ -24,7 +24,11 @@ class BirdTheme {
       brightness: brightness,
     ),
     useMaterial3: true,
-    appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
+    appBarTheme: const AppBarTheme(
+      centerTitle: true,
+      elevation: 0,
+      scrolledUnderElevation: 2,
+    ),
   );
 }
 
@@ -48,14 +52,14 @@ const birdThemes = [
   BirdTheme(
     id: 'plains_wanderer',
     name: 'Plains-wanderer',
-    primary: Color(0xFFac570f),
+    primary: Color(0xFFEDD8C5),
     secondary: Color(0xFFe7aa01),
     tertiary: Color(0xFFd09a5e),
   ),
   BirdTheme(
     id: 'bee_eater',
     name: 'Rainbow Bee-eater',
-    primary: Color(0xFF007CBF),
+    primary: Color(0xFF00346E),
     secondary: Color(0xFFEDD03E),
     tertiary: Color(0xFF6D8600),
   ),
@@ -69,16 +73,16 @@ const birdThemes = [
   BirdTheme(
     id: 'eastern_rosella',
     name: 'Eastern Rosella',
-    primary: Color(0xFFcd3122),
+    primary: Color(0xFF2F533C),
     secondary: Color(0xFFf4c623),
     tertiary: Color(0xFF2f7ab9),
   ),
   BirdTheme(
     id: 'oriole',
     name: 'Olivaceous Oriole',
-    primary: Color(0xFFbb5645),
+    primary: Color(0xFFb8a53f),
+    tertiary: Color(0xFFbb5645),
     secondary: Color(0xFFa29eb8),
-    tertiary: Color(0xFFb8a53f),
   ),
   BirdTheme(
     id: 'princess_parrot',
@@ -104,23 +108,23 @@ const birdThemes = [
   BirdTheme(
     id: 'yellow_robin',
     name: 'Eastern Yellow Robin',
-    primary: Color(0xFFE19E00),
-    secondary: Color(0xFF979EB9),
+    primary: Color(0xFF979EB9),
+    secondary: Color(0xFFE19E00),
     tertiary: Color(0xFF85773A),
   ),
   BirdTheme(
     id: 'galah',
     name: 'Galah',
     primary: Color(0xFFD05478),
-    secondary: Color(0xFFAAB9CC),
-    tertiary: Color(0xFFE9A7BB),
+    secondary: Color(0xFFE9A7BB),
+    tertiary: Color(0xFF4C5766),
   ),
   BirdTheme(
     id: 'blue_winged_kookaburra',
     name: 'Blue-winged Kookaburra',
-    primary: Color(0xFF0b7595),
-    secondary: Color(0xFFc45829),
-    tertiary: Color(0xFF725f77),
+    primary: Color(0xFFAD8D9F),
+    secondary: Color(0xFF0B7595),
+    tertiary: Color(0xFFB5EFFB),
   ),
 ];
 

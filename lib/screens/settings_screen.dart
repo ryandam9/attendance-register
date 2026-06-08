@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
@@ -32,7 +33,7 @@ class SettingsScreen extends ConsumerWidget {
               office: o,
               onEdit: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => SetupScreen(office: o)),
+                slideRoute(SetupScreen(office: o)),
               ).then((_) => notifier.load()),
               onDelete: () => _confirmDelete(context, notifier, o),
             ),
@@ -42,7 +43,7 @@ class SettingsScreen extends ConsumerWidget {
             title: const Text('Add Another Office'),
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const SetupScreen()),
+              slideRoute(const SetupScreen()),
             ).then((_) => notifier.load()),
           ),
 
@@ -62,7 +63,7 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const ThemeScreen()),
+              slideRoute(const ThemeScreen()),
             ),
           ),
 

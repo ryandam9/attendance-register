@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../helpers/day_type_helper.dart';
+import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
 import '../models/special_day.dart';
 import '../providers/attendance_provider.dart';
@@ -82,9 +83,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   Future<void> _openEntry(_HistoryItem item) async {
     final changed = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) =>
-            DayEntryScreen(office: widget.office, initialDate: item.date),
+      slideRoute(
+        DayEntryScreen(office: widget.office, initialDate: item.date),
       ),
     );
     if (changed == true && mounted) {
@@ -115,7 +115,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     itemCount: _items.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, i) {
                       final item = _items[i];
                       final isToday = _keyFmt.format(item.date) ==

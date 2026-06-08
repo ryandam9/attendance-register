@@ -7,6 +7,7 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../app_colors.dart';
 import '../helpers/day_type_helper.dart';
+import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
 import '../models/special_day.dart';
 import '../providers/attendance_provider.dart';
@@ -101,7 +102,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (office == null) return;
     final changed = await Navigator.push<bool>(
       context,
-      _slideRoute(DayEntryScreen(office: office, initialDate: initialDate)),
+      slideRoute(DayEntryScreen(office: office, initialDate: initialDate)),
     );
     if (changed == true && mounted) _refreshAttendance();
   }
@@ -110,9 +111,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget build(BuildContext context) {
     final officeState = ref.watch(officeProvider);
 
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Office Attendance'),
+        surfaceTintColor: officeState.hasOffice ? cs.primary : null,
+        title: officeState.hasOffice
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Office Attendance'),
+                  Text(
+                    officeState.selectedOffice!.name,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: cs.onSurface.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
+              )
+            : const Text('Office Attendance'),
         actions: [
           if (officeState.hasOffice) ...[
             IconButton(
@@ -120,7 +137,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               tooltip: 'Explain',
               onPressed: () => Navigator.push(
                 context,
-                _slideRoute(
+                slideRoute(
                   ExplainScreen(office: officeState.selectedOffice!),
                 ),
               ),
@@ -130,7 +147,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               tooltip: 'History',
               onPressed: () => Navigator.push(
                 context,
-                _slideRoute(
+                slideRoute(
                   HistoryScreen(office: officeState.selectedOffice!),
                 ),
               ).then((_) => _refreshAttendance()),
@@ -141,7 +158,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             tooltip: 'Settings',
             onPressed: () => Navigator.push(
               context,
-              _slideRoute(const SettingsScreen()),
+              slideRoute(const SettingsScreen()),
             ).then((_) => _init()),
           ),
         ],
@@ -155,7 +172,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     key: const ValueKey('empty'),
                     onAdd: () => Navigator.push(
                       context,
-                      _slideRoute(const SetupScreen()),
+                      slideRoute(const SetupScreen()),
                     ).then((_) => _init()),
                   )
                 : _Dashboard(
@@ -195,21 +212,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ),
     );
   }
-}
-
-/// Slide-from-right page transition used for all push navigations.
-Route<T> _slideRoute<T>(Widget page) {
-  return PageRouteBuilder<T>(
-    pageBuilder: (_, __, ___) => page,
-    transitionsBuilder: (_, animation, __, child) => SlideTransition(
-      position: Tween<Offset>(
-        begin: const Offset(1.0, 0.0),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-      child: child,
-    ),
-    transitionDuration: const Duration(milliseconds: 280),
-  );
 }
 
 // ── Empty state ───────────────────────────────────────────────────────────────
@@ -327,19 +329,6 @@ class _Dashboard extends ConsumerWidget {
           yearlyPercentage: ap.yearlyPercentage,
         ),
 
-        // Jump to today
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: () => onPageChanged(DateTime.now()),
-              icon: const Icon(Icons.today_outlined, size: 18),
-              label: const Text('Today'),
-            ),
-          ),
-        ),
-
         // Calendar
         Card(
           margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -429,25 +418,6 @@ class _Dashboard extends ConsumerWidget {
           ),
         ),
 
-        const SizedBox(height: 16),
-
-        // Office info chip
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Card(
-            child: ListTile(
-              leading: const Icon(Icons.location_on_outlined),
-              title: Text(selected.name),
-              subtitle: Text(
-                selected.address,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: Chip(label: Text('${selected.radius.toInt()} m')),
-            ),
-          ),
-        ),
-
         const SizedBox(height: 12),
 
         // Primary action
@@ -523,23 +493,23 @@ class _StatsRow extends StatelessWidget {
         children: [
           Expanded(
             child: _StatCard(
-              label: '${DateFormat.MMMM().format(month)} days',
+              label: DateFormat.MMMM().format(month),
               value: '$monthly',
+              percentage: monthlyPercentage,
               color: cs.primaryContainer,
               onColor: cs.onPrimaryContainer,
               icon: Icons.calendar_month_outlined,
-              percentage: monthlyPercentage,
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: _StatCard(
-              label: '${month.year} total',
+              label: '${month.year}',
               value: '$yearly',
+              percentage: yearlyPercentage,
               color: cs.secondaryContainer,
               onColor: cs.onSecondaryContainer,
               icon: Icons.star_outline,
-              percentage: yearlyPercentage,
             ),
           ),
         ],
@@ -551,71 +521,100 @@ class _StatsRow extends StatelessWidget {
 class _StatCard extends StatelessWidget {
   final String label;
   final String value;
+  final double? percentage;
   final Color color;
   final Color onColor;
   final IconData icon;
-  final double? percentage;
 
   const _StatCard({
     required this.label,
     required this.value,
+    required this.percentage,
     required this.color,
     required this.onColor,
     required this.icon,
-    this.percentage,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final pct = (percentage ?? 0) / 100;
     final pctGood = (percentage ?? 0) >= 50;
 
     return Card(
       color: color,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: onColor),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    value,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: onColor,
-                      fontWeight: FontWeight.bold,
-                    ),
+            Row(
+              children: [
+                Icon(icon, color: onColor, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: onColor.withValues(alpha: 0.8),
                   ),
-                  Text(
-                    label,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: onColor.withValues(alpha: 0.8),
-                    ),
-                  ),
-                  if (percentage != null) ...[
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: pctGood ? cs.primary : cs.error,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '${percentage!.toStringAsFixed(1)}%',
-                        style: TextStyle(
-                          color: pctGood ? cs.onPrimary : cs.onError,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+                ),
+              ],
             ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  value,
+                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                    color: onColor,
+                    fontWeight: FontWeight.bold,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    'days',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: onColor.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                if (percentage != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: pctGood ? cs.primary : cs.error,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${percentage!.toStringAsFixed(0)}%',
+                      style: TextStyle(
+                        color: pctGood ? cs.onPrimary : cs.onError,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            if (percentage != null) ...[
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: LinearProgressIndicator(
+                  value: pct.clamp(0.0, 1.0),
+                  backgroundColor: onColor.withValues(alpha: 0.15),
+                  valueColor: AlwaysStoppedAnimation(
+                    pctGood ? cs.primary : cs.error,
+                  ),
+                  minHeight: 6,
+                ),
+              ),
+            ],
           ],
         ),
       ),
