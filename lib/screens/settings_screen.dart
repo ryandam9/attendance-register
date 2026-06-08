@@ -7,13 +7,12 @@ import 'package:permission_handler/permission_handler.dart';
 import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
-import '../providers/settings_provider.dart';
 import '../providers/special_day_provider.dart';
 import '../services/app_settings_service.dart';
 import '../services/database_service.dart';
 import '../services/holiday_service.dart';
-import '../themes/bird_themes.dart';
 import 'setup_screen.dart';
+import 'theme_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -57,7 +56,16 @@ class SettingsScreen extends ConsumerWidget {
           const Divider(height: 32),
 
           const _SectionLabel('Theme'),
-          const _ThemePicker(),
+          ListTile(
+            leading: const Icon(Icons.palette_outlined),
+            title: const Text('App Theme'),
+            subtitle: const Text('Choose a colour theme'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ThemeScreen()),
+            ),
+          ),
 
           const Divider(height: 32),
 
@@ -263,7 +271,7 @@ class _PermissionsSectionState extends State<_PermissionsSection>
     with WidgetsBindingObserver {
   _PermStatus? _location;
   _PermStatus? _notifications;
-  _PermStatus? _battery; // Android only
+  _PermStatus? _battery;
 
   @override
   void initState() {
@@ -308,43 +316,54 @@ class _PermissionsSectionState extends State<_PermissionsSection>
         child: Center(child: CircularProgressIndicator()),
       );
     }
-    return Column(
-      children: [
-        _PermRow(
-          label: 'Location — Always Allow',
-          status: _location!,
-          reason:
-              'The app checks your GPS every 15 minutes while running in the '
-              'background. Without "Always Allow" automatic check-in will not work.',
-          onOpenSettings: AppSettingsService.openLocation,
-        ),
-        _PermRow(
-          label: 'Notifications',
-          status: _notifications!,
-          reason: 'Needed to alert you when attendance is automatically recorded.',
-          onOpenSettings: AppSettingsService.openNotifications,
-        ),
-        if (Platform.isAndroid && _battery != null)
-          _PermRow(
-            label: 'Battery Optimisation — Disabled',
-            status: _battery!,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Column(
+        children: [
+          _PermCard(
+            icon: Icons.location_on,
+            label: 'Location — Always Allow',
+            status: _location!,
             reason:
-                'Prevents Android from killing the background scan. Without this '
-                'the 15-minute location check may stop firing.',
-            onOpenSettings: AppSettingsService.openBatteryOptimization,
+                'The app checks your GPS every 15 minutes while running in the '
+                'background. Without "Always Allow" automatic check-in will not work.',
+            onOpenSettings: AppSettingsService.openLocation,
           ),
-      ],
+          const SizedBox(height: 8),
+          _PermCard(
+            icon: Icons.notifications,
+            label: 'Notifications',
+            status: _notifications!,
+            reason: 'Needed to alert you when attendance is automatically recorded.',
+            onOpenSettings: AppSettingsService.openNotifications,
+          ),
+          if (Platform.isAndroid && _battery != null) ...[
+            const SizedBox(height: 8),
+            _PermCard(
+              icon: Icons.battery_charging_full,
+              label: 'Battery Optimisation — Disabled',
+              status: _battery!,
+              reason:
+                  'Prevents Android from killing the background scan. Without this '
+                  'the 15-minute location check may stop firing.',
+              onOpenSettings: AppSettingsService.openBatteryOptimization,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
 
-class _PermRow extends StatelessWidget {
+class _PermCard extends StatelessWidget {
+  final IconData icon;
   final String label;
   final _PermStatus status;
   final String reason;
   final VoidCallback onOpenSettings;
 
-  const _PermRow({
+  const _PermCard({
+    required this.icon,
     required this.label,
     required this.status,
     required this.reason,
@@ -354,96 +373,81 @@ class _PermRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final granted = status == _PermStatus.granted;
-    final iconColor =
-        granted ? Colors.green : Theme.of(context).colorScheme.error;
+    final cs = Theme.of(context).colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                granted ? Icons.check_circle : Icons.cancel,
-                color: iconColor,
-                size: 20,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 28, color: cs.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              if (!granted)
-                TextButton(
-                  onPressed: onOpenSettings,
-                  child: const Text('Open Settings'),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: granted
+                        ? Colors.green.withValues(alpha: 0.12)
+                        : cs.error.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        granted ? Icons.check_circle : Icons.warning_amber_rounded,
+                        size: 14,
+                        color: granted ? Colors.green : cs.error,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        granted ? 'Granted' : 'Denied',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: granted ? Colors.green : cs.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-            ],
-          ),
-          if (!granted)
-            Padding(
-              padding: const EdgeInsets.only(left: 30, top: 2),
-              child: Text(
+              ],
+            ),
+            if (!granted) ...[
+              const SizedBox(height: 12),
+              Text(
                 reason,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: cs.onSurfaceVariant,
                 ),
               ),
-            ),
-        ],
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.tonalIcon(
+                  onPressed: onOpenSettings,
+                  icon: const Icon(Icons.settings, size: 16),
+                  label: const Text('Open Settings'),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 }
 
-// ── Theme picker ─────────────────────────────────────────────────────────────
-
-class _ThemePicker extends ConsumerWidget {
-  const _ThemePicker();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final currentId = ref.watch(settingsProvider).themeId;
-    final notifier = ref.read(settingsProvider.notifier);
-    final cs = Theme.of(context).colorScheme;
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: Text(
-            'Choose a colour theme inspired by Australian birds.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-        ),
-        for (final theme in birdThemes)
-          ListTile(
-            leading: CircleAvatar(
-              backgroundColor: theme.primary,
-              radius: 14,
-              child: currentId == theme.id
-                  ? Icon(Icons.check, size: 16, color: theme.primary.computeLuminance() > 0.5 ? Colors.black : Colors.white)
-                  : null,
-            ),
-            title: Text(theme.name),
-            trailing: currentId == theme.id
-                ? Icon(Icons.radio_button_checked, color: cs.primary)
-                : const Icon(Icons.radio_button_unchecked),
-            onTap: () => notifier.setThemeId(theme.id),
-          ),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _OfficeTile extends StatelessWidget {
   final OfficeLocation office;
