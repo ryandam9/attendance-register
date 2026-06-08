@@ -1,0 +1,128 @@
+import 'package:flutter/material.dart';
+
+class BirdTheme {
+  final String id;
+  final String name;
+  final Color primary;
+  final Color secondary;
+  final Color tertiary;
+
+  const BirdTheme({
+    required this.id,
+    required this.name,
+    required this.primary,
+    required this.secondary,
+    required this.tertiary,
+  });
+
+  ThemeData themeData(Brightness brightness) => ThemeData(
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: primary,
+      primary: primary,
+      secondary: secondary,
+      tertiary: tertiary,
+      brightness: brightness,
+    ),
+    useMaterial3: true,
+    appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
+  );
+}
+
+/// Australian bird colour palettes by Feathers.
+/// Each maps 3 key colours to primary / secondary / tertiary roles.
+const birdThemes = [
+  BirdTheme(
+    id: 'default',
+    name: 'Default',
+    primary: Color(0xFF1A73E8),
+    secondary: Color(0xFF5F6368),
+    tertiary: Color(0xFF34A853),
+  ),
+  BirdTheme(
+    id: 'spotted_pardalote',
+    name: 'Spotted Pardalote',
+    primary: Color(0xFFcb0300),
+    secondary: Color(0xFFfeca00),
+    tertiary: Color(0xFFd36328),
+  ),
+  BirdTheme(
+    id: 'plains_wanderer',
+    name: 'Plains-wanderer',
+    primary: Color(0xFFac570f),
+    secondary: Color(0xFFe7aa01),
+    tertiary: Color(0xFFd09a5e),
+  ),
+  BirdTheme(
+    id: 'bee_eater',
+    name: 'Rainbow Bee-eater',
+    primary: Color(0xFF007CBF),
+    secondary: Color(0xFFEDD03E),
+    tertiary: Color(0xFF6D8600),
+  ),
+  BirdTheme(
+    id: 'rose_crowned_fruit_dove',
+    name: 'Rose-crowned Fruit Dove',
+    primary: Color(0xFFBD338F),
+    secondary: Color(0xFFEB8252),
+    tertiary: Color(0xFF8FA33F),
+  ),
+  BirdTheme(
+    id: 'eastern_rosella',
+    name: 'Eastern Rosella',
+    primary: Color(0xFFcd3122),
+    secondary: Color(0xFFf4c623),
+    tertiary: Color(0xFF2f7ab9),
+  ),
+  BirdTheme(
+    id: 'oriole',
+    name: 'Olivaceous Oriole',
+    primary: Color(0xFFbb5645),
+    secondary: Color(0xFFa29eb8),
+    tertiary: Color(0xFFb8a53f),
+  ),
+  BirdTheme(
+    id: 'princess_parrot',
+    name: 'Princess Parrot',
+    primary: Color(0xFF7090c9),
+    secondary: Color(0xFF6eb245),
+    tertiary: Color(0xFFcf2236),
+  ),
+  BirdTheme(
+    id: 'superb_fairy_wren',
+    name: 'Superb Fairy-wren',
+    primary: Color(0xFFB03F05),
+    secondary: Color(0xFFAA7853),
+    tertiary: Color(0xFF4F3321),
+  ),
+  BirdTheme(
+    id: 'cassowary',
+    name: 'Cassowary',
+    primary: Color(0xFF0169C4),
+    secondary: Color(0xFFBDA14D),
+    tertiary: Color(0xFFD5114E),
+  ),
+  BirdTheme(
+    id: 'yellow_robin',
+    name: 'Eastern Yellow Robin',
+    primary: Color(0xFFE19E00),
+    secondary: Color(0xFF979EB9),
+    tertiary: Color(0xFF85773A),
+  ),
+  BirdTheme(
+    id: 'galah',
+    name: 'Galah',
+    primary: Color(0xFFD05478),
+    secondary: Color(0xFFAAB9CC),
+    tertiary: Color(0xFFE9A7BB),
+  ),
+  BirdTheme(
+    id: 'blue_winged_kookaburra',
+    name: 'Blue-winged Kookaburra',
+    primary: Color(0xFF0b7595),
+    secondary: Color(0xFFc45829),
+    tertiary: Color(0xFF725f77),
+  ),
+];
+
+BirdTheme birdThemeById(String id) =>
+    birdThemes.firstWhere((t) => t.id == id, orElse: () => birdThemes.first);

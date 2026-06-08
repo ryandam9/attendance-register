@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:workmanager/workmanager.dart';
 
+import 'providers/settings_provider.dart';
 import 'screens/home_screen.dart';
 import 'services/database_service.dart';
 import 'services/location_service.dart';
@@ -40,27 +41,17 @@ void main() async {
   runApp(const ProviderScope(child: AttendanceApp()));
 }
 
-class AttendanceApp extends StatelessWidget {
+class AttendanceApp extends ConsumerWidget {
   const AttendanceApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(settingsProvider).theme;
     return MaterialApp(
       title: 'Office Attendance',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A73E8)),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1A73E8),
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
-      ),
+      theme: theme.themeData(Brightness.light),
+      darkTheme: theme.themeData(Brightness.dark),
       themeMode: ThemeMode.system,
       home: const HomeScreen(),
     );

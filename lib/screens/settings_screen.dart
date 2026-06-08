@@ -7,10 +7,12 @@ import 'package:permission_handler/permission_handler.dart';
 import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
+import '../providers/settings_provider.dart';
 import '../providers/special_day_provider.dart';
 import '../services/app_settings_service.dart';
 import '../services/database_service.dart';
 import '../services/holiday_service.dart';
+import '../themes/bird_themes.dart';
 import 'setup_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -49,6 +51,13 @@ class SettingsScreen extends ConsumerWidget {
 
           const _SectionLabel('Permissions'),
           const _PermissionsSection(),
+
+          const Divider(height: 32),
+
+          const Divider(height: 32),
+
+          const _SectionLabel('Theme'),
+          const _ThemePicker(),
 
           const Divider(height: 32),
 
@@ -388,6 +397,48 @@ class _PermRow extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+// ── Theme picker ─────────────────────────────────────────────────────────────
+
+class _ThemePicker extends ConsumerWidget {
+  const _ThemePicker();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentId = ref.watch(settingsProvider).themeId;
+    final notifier = ref.read(settingsProvider.notifier);
+    final cs = Theme.of(context).colorScheme;
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: Text(
+            'Choose a colour theme inspired by Australian birds.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+        ),
+        for (final theme in birdThemes)
+          ListTile(
+            leading: CircleAvatar(
+              backgroundColor: theme.primary,
+              radius: 14,
+              child: currentId == theme.id
+                  ? Icon(Icons.check, size: 16, color: theme.primary.computeLuminance() > 0.5 ? Colors.black : Colors.white)
+                  : null,
+            ),
+            title: Text(theme.name),
+            trailing: currentId == theme.id
+                ? Icon(Icons.radio_button_checked, color: cs.primary)
+                : const Icon(Icons.radio_button_unchecked),
+            onTap: () => notifier.setThemeId(theme.id),
+          ),
+      ],
     );
   }
 }
