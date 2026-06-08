@@ -45,6 +45,27 @@ void main() {
         expect(DayType.values.byName(type.name), type);
       }
     });
+
+    test('fromMap maps a legacy "notAttended" row to miscLeave', () {
+      // Pre-v6 rows stored 'notAttended'; reading one must not throw.
+      final restored = SpecialDay.fromMap({
+        'id': 1,
+        'date': '2026-06-08',
+        'type': 'notAttended',
+        'note': null,
+        'source': 'manual',
+      });
+      expect(restored.type, DayType.miscLeave);
+    });
+
+    test('fromMap falls back to miscLeave for an unknown type', () {
+      final restored = SpecialDay.fromMap({
+        'date': '2026-06-08',
+        'type': 'totallyUnknown',
+        'source': 'manual',
+      });
+      expect(restored.type, DayType.miscLeave);
+    });
   });
 
   group('excludedFromAttendanceDenominator', () {

@@ -20,7 +20,7 @@ class DatabaseService {
     final dbPath = await getDatabasesPath();
     return openDatabase(
       join(dbPath, 'attendance.db'),
-      version: 5,
+      version: 6,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE office_locations (
@@ -120,6 +120,14 @@ class DatabaseService {
               value TEXT NOT NULL
             )
           ''');
+        }
+        if (oldVersion < 6) {
+          // 'Not attended' was renamed to 'Misc leave' and is now excluded from
+          // the attendance-percentage denominator. Convert existing rows so they
+          // parse back to the new DayType.miscLeave instead of crashing.
+          await db.execute(
+            "UPDATE special_days SET type = 'miscLeave' WHERE type = 'notAttended'",
+          );
         }
       },
     );
@@ -402,7 +410,7 @@ class DatabaseService {
     return rows.map(AttendanceRecord.fromMap).toList();
   }
 
-  /// Every special day (holiday / sick leave / not attended), newest first.
+  /// Every special day (holiday / sick leave / misc leave), newest first.
   Future<List<SpecialDay>> getAllSpecialDays() async {
     final db = await database;
     final rows = await db.query('special_days', orderBy: 'date DESC');
