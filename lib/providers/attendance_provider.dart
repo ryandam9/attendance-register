@@ -1,23 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../models/attendance_breakdown.dart';
 import '../models/attendance_record.dart';
 import '../models/special_day.dart';
 import '../services/database_service.dart';
 
 enum CheckInResult { recorded, alreadyRecorded, specialDayConflict }
-
-int _countWeekdays(DateTime start, DateTime end) {
-  int count = 0;
-  DateTime current = DateTime(start.year, start.month, start.day);
-  final last = DateTime(end.year, end.month, end.day);
-  while (!current.isAfter(last)) {
-    final wd = current.weekday;
-    if (wd != DateTime.saturday && wd != DateTime.sunday) count++;
-    current = current.add(const Duration(days: 1));
-  }
-  return count;
-}
 
 class AttendanceState {
   final List<AttendanceRecord> records;
@@ -120,8 +109,8 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
       records: records,
       monthlyCount: monthlyCount,
       yearlyCount: yearlyCount,
-      monthlyWeekdays: _countWeekdays(monthStart, monthEnd),
-      yearlyWeekdays: _countWeekdays(yearStart, yearEnd),
+      monthlyWeekdays: countWeekdays(monthStart, monthEnd),
+      yearlyWeekdays: countWeekdays(yearStart, yearEnd),
       monthlyExcludedCount: monthlyExcludedCount,
       yearlyExcludedCount: yearlyExcludedCount,
     );
