@@ -56,7 +56,7 @@ class SpecialDay {
   factory SpecialDay.fromMap(Map<String, dynamic> map) => SpecialDay(
     id: map['id'] as int?,
     date: map['date'] as String,
-    type: DayType.values.byName(map['type'] as String),
+    type: _dayTypeFromName(map['type'] as String),
     note: map['note'] as String?,
     // Rows written before the `source` column existed (pre-v4) read back null —
     // treat those as manual so the importer leaves them untouched.
@@ -64,4 +64,15 @@ class SpecialDay {
         ? DaySource.manual
         : DaySource.values.byName(map['source'] as String),
   );
+
+  /// Resolves a stored type name to a [DayType]. The pre-v6 'notAttended' value
+  /// is migrated to 'miscLeave' in the database, but fall back here too so an
+  /// unmigrated or otherwise unknown value never throws when read back.
+  static DayType _dayTypeFromName(String name) {
+    if (name == 'notAttended') return DayType.miscLeave;
+    for (final t in DayType.values) {
+      if (t.name == name) return t;
+    }
+    return DayType.miscLeave;
+  }
 }
