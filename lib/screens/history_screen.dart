@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../app_colors.dart';
+import '../helpers/day_type_helper.dart';
 import '../models/office_location.dart';
 import '../models/special_day.dart';
 import '../providers/attendance_provider.dart';
@@ -19,35 +19,9 @@ class _HistoryItem {
 
   const _HistoryItem({required this.date, required this.status, this.comment});
 
-  Color get color => switch (status) {
-    DayStatus.attended => AppColors.attendance,
-    DayStatus.holiday => AppColors.holiday,
-    DayStatus.sickLeave => AppColors.sickLeave,
-    DayStatus.annualLeave => AppColors.annualLeave,
-    DayStatus.carersLeave => AppColors.carersLeave,
-    DayStatus.workFromHome => AppColors.workFromHome,
-    DayStatus.miscLeave => AppColors.miscLeave,
-  };
-
-  IconData get icon => switch (status) {
-    DayStatus.attended => Icons.check_circle_outline,
-    DayStatus.holiday => Icons.beach_access_outlined,
-    DayStatus.sickLeave => Icons.sick_outlined,
-    DayStatus.annualLeave => Icons.luggage_outlined,
-    DayStatus.carersLeave => Icons.volunteer_activism_outlined,
-    DayStatus.workFromHome => Icons.home_work_outlined,
-    DayStatus.miscLeave => Icons.cancel_outlined,
-  };
-
-  String get label => switch (status) {
-    DayStatus.attended => 'Attended',
-    DayStatus.holiday => 'Public Holiday',
-    DayStatus.sickLeave => 'Sick Leave',
-    DayStatus.annualLeave => 'Annual Leave',
-    DayStatus.carersLeave => "Carer's Leave",
-    DayStatus.workFromHome => 'Work from Home',
-    DayStatus.miscLeave => 'Misc Leave',
-  };
+  Color get color => status.color;
+  IconData get icon => status.icon;
+  String get label => status.label;
 }
 
 /// Full chronological history of every recorded day (attendance, holiday, sick
@@ -93,14 +67,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       for (final s in specialDays)
         _HistoryItem(
           date: DateTime.parse(s.date),
-          status: switch (s.type) {
-            DayType.holiday => DayStatus.holiday,
-            DayType.sickLeave => DayStatus.sickLeave,
-            DayType.annualLeave => DayStatus.annualLeave,
-            DayType.carersLeave => DayStatus.carersLeave,
-            DayType.workFromHome => DayStatus.workFromHome,
-            DayType.miscLeave => DayStatus.miscLeave,
-          },
+          status: s.type.dayStatus,
           comment: s.note,
         ),
     ]..sort((a, b) => b.date.compareTo(a.date));

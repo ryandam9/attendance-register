@@ -7,6 +7,10 @@
 /// percentage.
 enum DayType { holiday, sickLeave, annualLeave, carersLeave, workFromHome, miscLeave }
 
+/// The single status a day can hold. Attendance and special days are mutually
+/// exclusive, so picking one here replaces whatever was previously recorded.
+enum DayStatus { attended, holiday, sickLeave, annualLeave, carersLeave, workFromHome, miscLeave }
+
 /// Day types that count as time you were not expected to be at the office, and
 /// are therefore subtracted from the attendance-percentage denominator. Keeping
 /// this in one place means every new leave type only has to be listed here to

@@ -2,23 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app_colors.dart';
+import '../helpers/day_type_helper.dart';
 import '../models/attendance_breakdown.dart';
 import '../models/office_location.dart';
 import '../models/report_period.dart';
 import '../models/special_day.dart';
 import '../providers/explain_provider.dart';
 import '../providers/settings_provider.dart';
-
-/// Display metadata for a [DayType] on the Explain page — the label and the dot
-/// colour shared with the calendar legend.
-({String label, Color color}) _typeDisplay(DayType type) => switch (type) {
-      DayType.holiday => (label: 'Public holiday', color: AppColors.holiday),
-      DayType.sickLeave => (label: 'Sick leave', color: AppColors.sickLeave),
-      DayType.annualLeave => (label: 'Annual leave', color: AppColors.annualLeave),
-      DayType.carersLeave => (label: "Carer's leave", color: AppColors.carersLeave),
-      DayType.workFromHome => (label: 'Work from home', color: AppColors.workFromHome),
-      DayType.miscLeave => (label: 'Misc leave', color: AppColors.miscLeave),
-    };
 
 /// Explains how the "Return to office" percentage is calculated for a chosen
 /// month or financial year: every contributing count plus the arithmetic that
@@ -390,8 +380,8 @@ class _CountsCard extends StatelessWidget {
               DayType.carersLeave,
             ])
               _CountRow(
-                color: _typeDisplay(type).color,
-                label: _typeDisplay(type).label,
+                color: type.color,
+                label: type.label,
                 count: b.countOf(type),
                 tag: excludedFromAttendanceDenominator.contains(type)
                     ? 'excluded from %'

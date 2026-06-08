@@ -59,7 +59,6 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.palette_outlined),
             title: const Text('App Theme'),
-            subtitle: const Text('Choose a colour theme'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.push(
               context,
@@ -143,6 +142,20 @@ class SettingsScreen extends ConsumerWidget {
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: Theme.of(context).colorScheme.error),
                 minimumSize: const Size.fromHeight(48),
+              ),
+            ),
+          ),
+
+          const Divider(height: 32),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            child: Text(
+              'Disclaimer: This app was fully designed and built by AI '
+              '(Claude Opus 4.8) and may not represent the statistics accurately.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),

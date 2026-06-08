@@ -6,7 +6,9 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../app_colors.dart';
+import '../helpers/day_type_helper.dart';
 import '../models/office_location.dart';
+import '../models/special_day.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/special_day_provider.dart';
@@ -325,6 +327,19 @@ class _Dashboard extends ConsumerWidget {
           yearlyPercentage: ap.yearlyPercentage,
         ),
 
+        // Jump to today
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => onPageChanged(DateTime.now()),
+              icon: const Icon(Icons.today_outlined, size: 18),
+              label: const Text('Today'),
+            ),
+          ),
+        ),
+
         // Calendar
         Card(
           margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -455,7 +470,7 @@ class _Dashboard extends ConsumerWidget {
           child: OutlinedButton.icon(
             onPressed: onMarkADay,
             icon: const Icon(Icons.edit_calendar_outlined),
-            label: const Text('Mark a Day (Attendance / Holiday / Sick)'),
+            label: const Text('Mark a Day (Attendance / Leave / WFH)'),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size.fromHeight(48),
             ),
@@ -467,18 +482,13 @@ class _Dashboard extends ConsumerWidget {
         // Calendar legend — centered.
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: const Wrap(
+          child: Wrap(
             alignment: WrapAlignment.center,
             spacing: 12,
             runSpacing: 4,
             children: [
-              _LegendChip(color: AppColors.attendance, label: 'Attended'),
-              _LegendChip(color: AppColors.holiday, label: 'Public Holiday'),
-              _LegendChip(color: AppColors.sickLeave, label: 'Sick Leave'),
-              _LegendChip(color: AppColors.annualLeave, label: 'Annual Leave'),
-              _LegendChip(color: AppColors.carersLeave, label: "Carer's Leave"),
-              _LegendChip(color: AppColors.workFromHome, label: 'Work from Home'),
-              _LegendChip(color: AppColors.miscLeave, label: 'Misc Leave'),
+              for (final s in DayStatus.values)
+                _LegendChip(color: s.color, label: s.label),
             ],
           ),
         ),

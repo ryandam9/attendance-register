@@ -3,17 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
-import '../app_colors.dart';
+import '../helpers/day_type_helper.dart';
 import '../models/attendance_record.dart';
 import '../models/office_location.dart';
 import '../models/special_day.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/special_day_provider.dart';
 import '../services/database_service.dart';
-
-/// The single status a day can hold. Attendance and special days are mutually
-/// exclusive, so picking one here replaces whatever was previously recorded.
-enum DayStatus { attended, holiday, sickLeave, annualLeave, carersLeave, workFromHome, miscLeave }
 
 /// Unified screen for marking a day. For any past date or today the user picks
 /// one of Attended / Holiday / Sick Leave, optionally adds a comment, and saves
@@ -42,6 +38,7 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
   AttendanceRecord? _existingRecord;
   SpecialDay? _existingSpecialDay;
   bool _loading = false;
+  bool _dirty = false;
 
   static final _displayFmt = DateFormat('MMMM d, yyyy');
   static final _keyFmt = DateFormat('yyyy-MM-dd');
@@ -53,13 +50,19 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
     super.initState();
     _selectedDate = widget.initialDate ?? DateTime.now();
     _status = widget.initialStatus ?? DayStatus.attended;
+    _commentController.addListener(_onCommentChanged);
     _loadExisting();
   }
 
   @override
   void dispose() {
+    _commentController.removeListener(_onCommentChanged);
     _commentController.dispose();
     super.dispose();
+  }
+
+  void _onCommentChanged() {
+    if (!_dirty) setState(() => _dirty = true);
   }
 
   Future<void> _loadExisting() async {
@@ -78,19 +81,13 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
         _status = DayStatus.attended;
         _commentController.text = record.reason ?? '';
       } else if (special != null) {
-        _status = switch (special.type) {
-          DayType.holiday => DayStatus.holiday,
-          DayType.sickLeave => DayStatus.sickLeave,
-          DayType.annualLeave => DayStatus.annualLeave,
-          DayType.carersLeave => DayStatus.carersLeave,
-          DayType.workFromHome => DayStatus.workFromHome,
-          DayType.miscLeave => DayStatus.miscLeave,
-        };
+        _status = special.type.dayStatus;
         _commentController.text = special.note ?? '';
       } else {
         _status = widget.initialStatus ?? DayStatus.attended;
         _commentController.clear();
       }
+      _dirty = false;
       _loading = false;
     });
   }
@@ -136,15 +133,7 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
           SpecialDay(
             id: _existingSpecialDay?.id,
             date: dateStr,
-            type: switch (_status) {
-              DayStatus.holiday => DayType.holiday,
-              DayStatus.sickLeave => DayType.sickLeave,
-              DayStatus.annualLeave => DayType.annualLeave,
-              DayStatus.carersLeave => DayType.carersLeave,
-              DayStatus.workFromHome => DayType.workFromHome,
-              DayStatus.miscLeave => DayType.miscLeave,
-              DayStatus.attended => DayType.miscLeave, // unreachable
-            },
+            type: _status.dayType,
             note: note,
           ),
         );
@@ -222,212 +211,151 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
     final cs = Theme.of(context).colorScheme;
     final isToday = isSameDay(_selectedDate, DateTime.now());
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Mark a Day')),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 250),
-        child: _loading
-            ? const Center(
-                key: ValueKey('loading'),
-                child: CircularProgressIndicator(),
-              )
-            : SingleChildScrollView(
-                key: const ValueKey('content'),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Office card
-                    Card(
-                      child: ListTile(
-                        leading: Icon(Icons.business_outlined, color: cs.primary),
-                        title: Text(widget.office.name),
-                        subtitle: Text(
-                          widget.office.address,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Date picker
-                    Text('Date', style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    InkWell(
-                      onTap: _pickDate,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: cs.outline),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.calendar_today_outlined, color: cs.primary),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _displayFmt.format(_selectedDate),
-                                  style: Theme.of(context).textTheme.bodyLarge,
-                                ),
-                                if (isToday)
-                                  Text(
-                                    'Today',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(
-                                          color: cs.primary,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                  ),
-                              ],
-                            ),
-                            const Spacer(),
-                            Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Status selector
-                    Text('Status', style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    _StatusOption(
-                      label: 'Attended',
-                      description: 'You were at the office',
-                      icon: Icons.check_circle_outline,
-                      color: AppColors.attendance,
-                      selected: _status == DayStatus.attended,
-                      onTap: () => setState(() => _status = DayStatus.attended),
-                    ),
-                    const SizedBox(height: 8),
-                    _StatusOption(
-                      label: 'Public Holiday',
-                      description: 'A non-working public holiday',
-                      icon: Icons.beach_access_outlined,
-                      color: AppColors.holiday,
-                      selected: _status == DayStatus.holiday,
-                      onTap: () => setState(() => _status = DayStatus.holiday),
-                    ),
-                    const SizedBox(height: 8),
-                    _StatusOption(
-                      label: 'Sick Leave',
-                      description: 'Off sick on this day',
-                      icon: Icons.sick_outlined,
-                      color: AppColors.sickLeave,
-                      selected: _status == DayStatus.sickLeave,
-                      onTap: () => setState(() => _status = DayStatus.sickLeave),
-                    ),
-                    const SizedBox(height: 8),
-                    _StatusOption(
-                      label: 'Annual Leave',
-                      description: 'On annual (holiday) leave',
-                      icon: Icons.luggage_outlined,
-                      color: AppColors.annualLeave,
-                      selected: _status == DayStatus.annualLeave,
-                      onTap: () =>
-                          setState(() => _status = DayStatus.annualLeave),
-                    ),
-                    const SizedBox(height: 8),
-                    _StatusOption(
-                      label: "Carer's Leave",
-                      description: 'Caring for someone on this day',
-                      icon: Icons.volunteer_activism_outlined,
-                      color: AppColors.carersLeave,
-                      selected: _status == DayStatus.carersLeave,
-                      onTap: () =>
-                          setState(() => _status = DayStatus.carersLeave),
-                    ),
-                    const SizedBox(height: 8),
-                    _StatusOption(
-                      label: 'Work from Home',
-                      description: 'Worked, but not from the office',
-                      icon: Icons.home_work_outlined,
-                      color: AppColors.workFromHome,
-                      selected: _status == DayStatus.workFromHome,
-                      onTap: () =>
-                          setState(() => _status = DayStatus.workFromHome),
-                    ),
-                    const SizedBox(height: 8),
-                    _StatusOption(
-                      label: 'Misc Leave',
-                      description:
-                          'Other leave (treated like sick/annual leave)',
-                      icon: Icons.cancel_outlined,
-                      color: AppColors.miscLeave,
-                      selected: _status == DayStatus.miscLeave,
-                      onTap: () =>
-                          setState(() => _status = DayStatus.miscLeave),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Comment — shared by all three statuses.
-                    Text(
-                      'Comment',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Optional — add a note for this day.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _commentController,
-                      decoration: const InputDecoration(
-                        hintText:
-                            'e.g. Team meeting, doctor appointment, bank holiday…',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.notes_outlined),
-                        alignLabelWithHint: true,
-                      ),
-                      maxLines: 3,
-                      textCapitalization: TextCapitalization.sentences,
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    FilledButton.icon(
-                      onPressed: _save,
-                      icon: const Icon(Icons.save_outlined),
-                      label: Text(_hasExisting ? 'Update' : 'Save'),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
-                      ),
-                    ),
-
-                    if (_hasExisting) ...[
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: _remove,
-                        icon: Icon(Icons.delete_outline, color: cs.error),
-                        label: Text(
-                          'Remove Entry',
-                          style: TextStyle(color: cs.error),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: cs.error),
-                          minimumSize: const Size.fromHeight(48),
-                        ),
-                      ),
-                    ],
-                  ],
+    return PopScope(
+      canPop: !_dirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (!didPop) {
+          final discard = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Discard Changes?'),
+              content: const Text('You have unsaved changes. Discard them?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Keep Editing'),
                 ),
-              ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Discard'),
+                ),
+              ],
+            ),
+          );
+          if (discard == true && context.mounted) Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Mark a Day')),
+        body: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          child: _loading
+              ? const Center(
+                  key: ValueKey('loading'),
+                  child: CircularProgressIndicator(),
+                )
+              : SingleChildScrollView(
+                  key: const ValueKey('content'),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Card(
+                        child: ListTile(
+                          leading: Icon(Icons.business_outlined, color: cs.primary),
+                          title: Text(widget.office.name),
+                          subtitle: Text(
+                            widget.office.address,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text('Date', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: _pickDate,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: cs.outline),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.calendar_today_outlined, color: cs.primary),
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _displayFmt.format(_selectedDate),
+                                    style: Theme.of(context).textTheme.bodyLarge,
+                                  ),
+                                  if (isToday)
+                                    Text(
+                                      'Today',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(color: cs.primary, fontWeight: FontWeight.w600),
+                                    ),
+                                ],
+                              ),
+                              const Spacer(),
+                              Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text('Status', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 8),
+                      for (final s in DayStatus.values) ...[
+                        if (s != DayStatus.values.first) const SizedBox(height: 8),
+                        _StatusOption(
+                          label: s.label,
+                          description: s.description,
+                          icon: s.icon,
+                          color: s.color,
+                          selected: _status == s,
+                          onTap: () => setState(() { _status = s; _dirty = true; }),
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                      Text('Comment', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Optional — add a note for this day.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _commentController,
+                        decoration: const InputDecoration(
+                          hintText: 'e.g. Team meeting, doctor appointment, bank holiday…',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.notes_outlined),
+                          alignLabelWithHint: true,
+                        ),
+                        maxLines: 3,
+                        textCapitalization: TextCapitalization.sentences,
+                      ),
+                      const SizedBox(height: 24),
+                      FilledButton.icon(
+                        onPressed: _loading ? null : _save,
+                        icon: const Icon(Icons.save_outlined),
+                        label: Text(_hasExisting ? 'Update' : 'Save'),
+                        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                      ),
+                      if (_hasExisting) ...[
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: _remove,
+                          icon: Icon(Icons.delete_outline, color: cs.error),
+                          label: Text('Remove Entry', style: TextStyle(color: cs.error)),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: cs.error),
+                            minimumSize: const Size.fromHeight(48),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+        ),
       ),
     );
   }
