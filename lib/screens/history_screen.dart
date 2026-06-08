@@ -25,6 +25,7 @@ class _HistoryItem {
     DayStatus.sickLeave => AppColors.sickLeave,
     DayStatus.annualLeave => AppColors.annualLeave,
     DayStatus.carersLeave => AppColors.carersLeave,
+    DayStatus.workFromHome => AppColors.workFromHome,
     DayStatus.notAttended => AppColors.notAttended,
   };
 
@@ -34,6 +35,7 @@ class _HistoryItem {
     DayStatus.sickLeave => Icons.sick_outlined,
     DayStatus.annualLeave => Icons.luggage_outlined,
     DayStatus.carersLeave => Icons.volunteer_activism_outlined,
+    DayStatus.workFromHome => Icons.home_work_outlined,
     DayStatus.notAttended => Icons.cancel_outlined,
   };
 
@@ -43,6 +45,7 @@ class _HistoryItem {
     DayStatus.sickLeave => 'Sick Leave',
     DayStatus.annualLeave => 'Annual Leave',
     DayStatus.carersLeave => "Carer's Leave",
+    DayStatus.workFromHome => 'Work from Home',
     DayStatus.notAttended => 'Not Attended',
   };
 }
@@ -95,6 +98,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             DayType.sickLeave => DayStatus.sickLeave,
             DayType.annualLeave => DayStatus.annualLeave,
             DayType.carersLeave => DayStatus.carersLeave,
+            DayType.workFromHome => DayStatus.workFromHome,
             DayType.notAttended => DayStatus.notAttended,
           },
           comment: s.note,
