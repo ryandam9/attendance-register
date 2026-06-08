@@ -12,6 +12,7 @@ import '../providers/office_provider.dart';
 import '../providers/special_day_provider.dart';
 import '../services/holiday_service.dart';
 import 'day_entry_screen.dart';
+import 'explain_screen.dart';
 import 'history_screen.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
@@ -111,7 +112,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       appBar: AppBar(
         title: const Text('Office Attendance'),
         actions: [
-          if (officeState.hasOffice)
+          if (officeState.hasOffice) ...[
+            IconButton(
+              icon: const Icon(Icons.insights_outlined),
+              tooltip: 'Explain',
+              onPressed: () => Navigator.push(
+                context,
+                _slideRoute(
+                  ExplainScreen(office: officeState.selectedOffice!),
+                ),
+              ),
+            ),
             IconButton(
               icon: const Icon(Icons.history),
               tooltip: 'History',
@@ -122,6 +133,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ),
               ).then((_) => _refreshAttendance()),
             ),
+          ],
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',

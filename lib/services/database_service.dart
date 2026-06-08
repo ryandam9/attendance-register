@@ -20,7 +20,7 @@ class DatabaseService {
     final dbPath = await getDatabasesPath();
     return openDatabase(
       join(dbPath, 'attendance.db'),
-      version: 4,
+      version: 5,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE office_locations (
@@ -70,6 +70,15 @@ class DatabaseService {
             date TEXT PRIMARY KEY
           )
         ''');
+
+        // Simple key/value store for app preferences (e.g. the financial-year
+        // start used by the Explain report).
+        await db.execute('''
+          CREATE TABLE app_settings (
+            key   TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+          )
+        ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -101,6 +110,14 @@ class DatabaseService {
           await db.execute('''
             CREATE TABLE IF NOT EXISTS dismissed_holidays (
               date TEXT PRIMARY KEY
+            )
+          ''');
+        }
+        if (oldVersion < 5) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS app_settings (
+              key   TEXT PRIMARY KEY,
+              value TEXT NOT NULL
             )
           ''');
         }
@@ -343,6 +360,35 @@ class DatabaseService {
     return (result.first['cnt'] as int?) ?? 0;
   }
 
+  /// Counts the special days in [from]..[to] grouped by [DayType], for the
+  /// Explain report. Weekday-only (Mon–Fri), matching [getSpecialDayCount] so
+  /// the figures line up with the attendance-percentage denominator. Types with
+  /// no days in range are simply absent from the map. Unknown/legacy type
+  /// strings are ignored.
+  Future<Map<DayType, int>> getSpecialDayCountsByType(
+    DateTime from,
+    DateTime to,
+  ) async {
+    final db = await database;
+    String fmt(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+    final rows = await db.rawQuery(
+      "SELECT type, COUNT(*) AS cnt FROM special_days "
+      "WHERE date >= ? AND date <= ? AND strftime('%w', date) NOT IN ('0', '6') "
+      "GROUP BY type",
+      [fmt(from), fmt(to)],
+    );
+
+    final counts = <DayType, int>{};
+    for (final row in rows) {
+      final name = row['type'] as String;
+      final match = DayType.values.where((t) => t.name == name);
+      if (match.isNotEmpty) counts[match.first] = (row['cnt'] as int?) ?? 0;
+    }
+    return counts;
+  }
+
   /// Every attendance record for an office, newest first — used by the history
   /// list view.
   Future<List<AttendanceRecord>> getAllAttendanceRecords(int officeId) async {
@@ -387,6 +433,31 @@ class DatabaseService {
     return rows.map((r) => r['date'] as String).toSet();
   }
 
+  // ── App settings (key/value preferences) ──────────────────────────────────
+
+  Future<String?> getSetting(String key) async {
+    final db = await database;
+    final rows = await db.query(
+      'app_settings',
+      columns: ['value'],
+      where: 'key = ?',
+      whereArgs: [key],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : rows.first['value'] as String;
+  }
+
+  Future<void> setSetting(String key, String value) async {
+    final db = await database;
+    await db.insert(
+      'app_settings',
+      {'key': key, 'value': value},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Clears attendance and special-day data. App preferences in [app_settings]
+  /// (e.g. the financial-year start) are intentionally kept.
   Future<void> deleteAllRecords() async {
     final db = await database;
     await db.delete('attendance_records');
