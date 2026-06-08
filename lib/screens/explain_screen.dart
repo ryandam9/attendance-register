@@ -280,7 +280,7 @@ class _CalculationCard extends StatelessWidget {
             _CalcLine(
               label: 'Eligible working days',
               expression:
-                  '${b.weekdays} weekdays − ${b.excludedDays} leave days',
+                  '${b.weekdays} weekdays − ${_dayCount(b.excludedDays, 'non-working day')}',
               result: '${b.eligibleWorkingDays}',
             ),
             const Divider(height: 24),
@@ -294,9 +294,9 @@ class _CalculationCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Leave days (public holiday, sick, annual and carer’s) are removed '
-              'from the working-day total. Work-from-home and not-attended days '
-              'stay in it, so they lower the percentage.',
+              'Non-working days — public holidays and sick, annual and carer’s '
+              'leave — are removed from the working-day total. Work-from-home '
+              'and not-attended days stay in it, so they lower the percentage.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -467,6 +467,9 @@ class _CountRow extends StatelessWidget {
     );
   }
 }
+
+/// "1 non-working day" / "3 non-working days" — pluralises [unit] by [n].
+String _dayCount(int n, String unit) => '$n $unit${n == 1 ? '' : 's'}';
 
 Widget _sectionTitle(BuildContext context, IconData icon, String text) {
   final cs = Theme.of(context).colorScheme;
