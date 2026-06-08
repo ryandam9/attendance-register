@@ -54,8 +54,13 @@ void main() {
       expect(excludedFromAttendanceDenominator, contains(DayType.sickLeave));
       expect(excludedFromAttendanceDenominator, contains(DayType.annualLeave));
       expect(excludedFromAttendanceDenominator, contains(DayType.carersLeave));
-      // A normal working day you skipped must stay in the denominator so it
-      // lowers your percentage.
+      // Working days you did not attend the office (work-from-home and
+      // not-attended) must stay in the denominator so they lower your
+      // office-attendance percentage.
+      expect(
+        excludedFromAttendanceDenominator,
+        isNot(contains(DayType.workFromHome)),
+      );
       expect(
         excludedFromAttendanceDenominator,
         isNot(contains(DayType.notAttended)),

@@ -277,6 +277,7 @@ class _Dashboard extends ConsumerWidget {
     final sickLeaves = sp.sickLeaveDates;
     final annualLeaves = sp.annualLeaveDates;
     final carersLeaves = sp.carersLeaveDates;
+    final workFromHome = sp.workFromHomeDates;
     final notAttended = sp.notAttendedDates;
 
     return ListView(
@@ -351,6 +352,9 @@ class _Dashboard extends ConsumerWidget {
                 if (carersLeaves.any((d) => isSameDay(d, day))) {
                   return _DayDot(day: day, color: AppColors.carersLeave);
                 }
+                if (workFromHome.any((d) => isSameDay(d, day))) {
+                  return _DayDot(day: day, color: AppColors.workFromHome);
+                }
                 if (notAttended.any((d) => isSameDay(d, day))) {
                   return _DayDot(day: day, color: AppColors.notAttended);
                 }
@@ -371,6 +375,9 @@ class _Dashboard extends ConsumerWidget {
                 }
                 if (carersLeaves.any((d) => isSameDay(d, day))) {
                   return _DayDot(day: day, color: AppColors.carersLeave, isToday: true);
+                }
+                if (workFromHome.any((d) => isSameDay(d, day))) {
+                  return _DayDot(day: day, color: AppColors.workFromHome, isToday: true);
                 }
                 if (notAttended.any((d) => isSameDay(d, day))) {
                   return _DayDot(day: day, color: AppColors.notAttended, isToday: true);
@@ -458,6 +465,7 @@ class _Dashboard extends ConsumerWidget {
               _LegendChip(color: AppColors.sickLeave, label: 'Sick Leave'),
               _LegendChip(color: AppColors.annualLeave, label: 'Annual Leave'),
               _LegendChip(color: AppColors.carersLeave, label: "Carer's Leave"),
+              _LegendChip(color: AppColors.workFromHome, label: 'Work from Home'),
               _LegendChip(color: AppColors.notAttended, label: 'Not Attended'),
             ],
           ),

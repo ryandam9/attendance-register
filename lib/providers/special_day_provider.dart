@@ -29,6 +29,11 @@ class SpecialDayState {
       .map((d) => DateTime.parse(d.date))
       .toSet();
 
+  Set<DateTime> get workFromHomeDates => days
+      .where((d) => d.type == DayType.workFromHome)
+      .map((d) => DateTime.parse(d.date))
+      .toSet();
+
   Set<DateTime> get notAttendedDates => days
       .where((d) => d.type == DayType.notAttended)
       .map((d) => DateTime.parse(d.date))

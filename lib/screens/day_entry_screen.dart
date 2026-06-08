@@ -13,7 +13,7 @@ import '../services/database_service.dart';
 
 /// The single status a day can hold. Attendance and special days are mutually
 /// exclusive, so picking one here replaces whatever was previously recorded.
-enum DayStatus { attended, holiday, sickLeave, annualLeave, carersLeave, notAttended }
+enum DayStatus { attended, holiday, sickLeave, annualLeave, carersLeave, workFromHome, notAttended }
 
 /// Unified screen for marking a day. For any past date or today the user picks
 /// one of Attended / Holiday / Sick Leave, optionally adds a comment, and saves
@@ -83,6 +83,7 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
           DayType.sickLeave => DayStatus.sickLeave,
           DayType.annualLeave => DayStatus.annualLeave,
           DayType.carersLeave => DayStatus.carersLeave,
+          DayType.workFromHome => DayStatus.workFromHome,
           DayType.notAttended => DayStatus.notAttended,
         };
         _commentController.text = special.note ?? '';
@@ -140,6 +141,7 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
               DayStatus.sickLeave => DayType.sickLeave,
               DayStatus.annualLeave => DayType.annualLeave,
               DayStatus.carersLeave => DayType.carersLeave,
+              DayStatus.workFromHome => DayType.workFromHome,
               DayStatus.notAttended => DayType.notAttended,
               DayStatus.attended => DayType.notAttended, // unreachable
             },
@@ -346,6 +348,16 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
                       selected: _status == DayStatus.carersLeave,
                       onTap: () =>
                           setState(() => _status = DayStatus.carersLeave),
+                    ),
+                    const SizedBox(height: 8),
+                    _StatusOption(
+                      label: 'Work from Home',
+                      description: 'Worked, but not from the office',
+                      icon: Icons.home_work_outlined,
+                      color: AppColors.workFromHome,
+                      selected: _status == DayStatus.workFromHome,
+                      onTap: () =>
+                          setState(() => _status = DayStatus.workFromHome),
                     ),
                     const SizedBox(height: 8),
                     _StatusOption(
