@@ -34,8 +34,8 @@ class SpecialDayState {
       .map((d) => DateTime.parse(d.date))
       .toSet();
 
-  Set<DateTime> get notAttendedDates => days
-      .where((d) => d.type == DayType.notAttended)
+  Set<DateTime> get miscLeaveDates => days
+      .where((d) => d.type == DayType.miscLeave)
       .map((d) => DateTime.parse(d.date))
       .toSet();
 }

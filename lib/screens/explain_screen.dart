@@ -17,7 +17,7 @@ import '../providers/settings_provider.dart';
       DayType.annualLeave => (label: 'Annual leave', color: AppColors.annualLeave),
       DayType.carersLeave => (label: "Carer's leave", color: AppColors.carersLeave),
       DayType.workFromHome => (label: 'Work from home', color: AppColors.workFromHome),
-      DayType.notAttended => (label: 'Not attended', color: AppColors.notAttended),
+      DayType.miscLeave => (label: 'Misc leave', color: AppColors.miscLeave),
     };
 
 /// Explains how the "Return to office" percentage is calculated for a chosen
@@ -294,9 +294,9 @@ class _CalculationCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Non-working days — public holidays and sick, annual and carer’s '
-              'leave — are removed from the working-day total. Work-from-home '
-              'and not-attended days stay in it, so they lower the percentage.',
+              'Non-working days \u2014 public holidays and sick, annual, carer\u2019s '
+              'and misc leave \u2014 are removed from the working-day total. '
+              'Work-from-home days stay in it, so they lower the percentage.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -383,7 +383,7 @@ class _CountsCard extends StatelessWidget {
             // Special-day types in a stable, readable order.
             for (final type in const [
               DayType.workFromHome,
-              DayType.notAttended,
+              DayType.miscLeave,
               DayType.holiday,
               DayType.sickLeave,
               DayType.annualLeave,

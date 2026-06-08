@@ -178,7 +178,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         CheckInResult.recorded => 'Attendance recorded for today!',
                         CheckInResult.alreadyRecorded => 'Already checked in for today.',
                         CheckInResult.specialDayConflict =>
-                          'Today is already marked (holiday, sick leave or not attended) — change it first.',
+                          'Today is already marked (holiday, sick leave or misc leave) — change it first.',
                       };
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -290,7 +290,7 @@ class _Dashboard extends ConsumerWidget {
     final annualLeaves = sp.annualLeaveDates;
     final carersLeaves = sp.carersLeaveDates;
     final workFromHome = sp.workFromHomeDates;
-    final notAttended = sp.notAttendedDates;
+    final miscLeave = sp.miscLeaveDates;
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 32),
@@ -367,8 +367,8 @@ class _Dashboard extends ConsumerWidget {
                 if (workFromHome.any((d) => isSameDay(d, day))) {
                   return _DayDot(day: day, color: AppColors.workFromHome);
                 }
-                if (notAttended.any((d) => isSameDay(d, day))) {
-                  return _DayDot(day: day, color: AppColors.notAttended);
+                if (miscLeave.any((d) => isSameDay(d, day))) {
+                  return _DayDot(day: day, color: AppColors.miscLeave);
                 }
                 return null;
               },
@@ -391,8 +391,8 @@ class _Dashboard extends ConsumerWidget {
                 if (workFromHome.any((d) => isSameDay(d, day))) {
                   return _DayDot(day: day, color: AppColors.workFromHome, isToday: true);
                 }
-                if (notAttended.any((d) => isSameDay(d, day))) {
-                  return _DayDot(day: day, color: AppColors.notAttended, isToday: true);
+                if (miscLeave.any((d) => isSameDay(d, day))) {
+                  return _DayDot(day: day, color: AppColors.miscLeave, isToday: true);
                 }
                 return null;
               },
@@ -478,7 +478,7 @@ class _Dashboard extends ConsumerWidget {
               _LegendChip(color: AppColors.annualLeave, label: 'Annual Leave'),
               _LegendChip(color: AppColors.carersLeave, label: "Carer's Leave"),
               _LegendChip(color: AppColors.workFromHome, label: 'Work from Home'),
-              _LegendChip(color: AppColors.notAttended, label: 'Not Attended'),
+              _LegendChip(color: AppColors.miscLeave, label: 'Misc Leave'),
             ],
           ),
         ),

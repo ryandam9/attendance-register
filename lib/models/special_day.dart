@@ -1,24 +1,23 @@
 /// A day that is explicitly not an office-attendance day.
 ///
-/// [holiday], [sickLeave], [annualLeave] and [carersLeave] are excluded from
-/// the attendance percentage denominator (they are not working days you were
-/// expected to attend) — see [excludedFromAttendanceDenominator].
-/// [workFromHome] and [notAttended] are normal working days you did not attend
-/// the office — they stay in the denominator and therefore lower your
+/// [holiday], [sickLeave], [annualLeave], [carersLeave] and [miscLeave] are
+/// excluded from the attendance percentage denominator (they are not working
+/// days you were expected to attend) — see [excludedFromAttendanceDenominator].
+/// [workFromHome] stays in the denominator and therefore lowers your
 /// percentage.
-enum DayType { holiday, sickLeave, annualLeave, carersLeave, workFromHome, notAttended }
+enum DayType { holiday, sickLeave, annualLeave, carersLeave, workFromHome, miscLeave }
 
 /// Day types that count as time you were not expected to be at the office, and
 /// are therefore subtracted from the attendance-percentage denominator. Keeping
 /// this in one place means every new leave type only has to be listed here to
-/// inherit the existing percentage rule. [DayType.workFromHome] and
-/// [DayType.notAttended] are deliberately absent — they stay in the denominator
-/// and lower your percentage.
+/// inherit the existing percentage rule. [DayType.workFromHome] is deliberately
+/// absent — it stays in the denominator and lowers your percentage.
 const excludedFromAttendanceDenominator = <DayType>{
   DayType.holiday,
   DayType.sickLeave,
   DayType.annualLeave,
   DayType.carersLeave,
+  DayType.miscLeave,
 };
 
 /// Where a [SpecialDay] came from. [manual] entries are created (or edited) by

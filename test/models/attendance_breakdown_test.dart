@@ -34,11 +34,11 @@ void main() {
         DayType.sickLeave: 1,
         DayType.annualLeave: 1,
         DayType.carersLeave: 1,
+        DayType.miscLeave: 1,
         DayType.workFromHome: 3, // stays in the denominator
-        DayType.notAttended: 2, // stays in the denominator
       });
-      expect(b.excludedDays, 4);
-      expect(b.eligibleWorkingDays, 16); // 20 - 4
+      expect(b.excludedDays, 5);
+      expect(b.eligibleWorkingDays, 15); // 20 - 5
     });
 
     test('return-to-office percentage divides office days by eligible days', () {

@@ -13,7 +13,7 @@ import '../services/database_service.dart';
 
 /// The single status a day can hold. Attendance and special days are mutually
 /// exclusive, so picking one here replaces whatever was previously recorded.
-enum DayStatus { attended, holiday, sickLeave, annualLeave, carersLeave, workFromHome, notAttended }
+enum DayStatus { attended, holiday, sickLeave, annualLeave, carersLeave, workFromHome, miscLeave }
 
 /// Unified screen for marking a day. For any past date or today the user picks
 /// one of Attended / Holiday / Sick Leave, optionally adds a comment, and saves
@@ -84,7 +84,7 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
           DayType.annualLeave => DayStatus.annualLeave,
           DayType.carersLeave => DayStatus.carersLeave,
           DayType.workFromHome => DayStatus.workFromHome,
-          DayType.notAttended => DayStatus.notAttended,
+          DayType.miscLeave => DayStatus.miscLeave,
         };
         _commentController.text = special.note ?? '';
       } else {
@@ -142,8 +142,8 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
               DayStatus.annualLeave => DayType.annualLeave,
               DayStatus.carersLeave => DayType.carersLeave,
               DayStatus.workFromHome => DayType.workFromHome,
-              DayStatus.notAttended => DayType.notAttended,
-              DayStatus.attended => DayType.notAttended, // unreachable
+              DayStatus.miscLeave => DayType.miscLeave,
+              DayStatus.attended => DayType.miscLeave, // unreachable
             },
             note: note,
           ),
@@ -361,14 +361,14 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
                     ),
                     const SizedBox(height: 8),
                     _StatusOption(
-                      label: 'Not Attended',
+                      label: 'Misc Leave',
                       description:
-                          'A working day you did not attend the office',
+                          'Other leave (treated like sick/annual leave)',
                       icon: Icons.cancel_outlined,
-                      color: AppColors.notAttended,
-                      selected: _status == DayStatus.notAttended,
+                      color: AppColors.miscLeave,
+                      selected: _status == DayStatus.miscLeave,
                       onTap: () =>
-                          setState(() => _status = DayStatus.notAttended),
+                          setState(() => _status = DayStatus.miscLeave),
                     ),
 
                     const SizedBox(height: 24),

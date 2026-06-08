@@ -26,7 +26,7 @@ class _HistoryItem {
     DayStatus.annualLeave => AppColors.annualLeave,
     DayStatus.carersLeave => AppColors.carersLeave,
     DayStatus.workFromHome => AppColors.workFromHome,
-    DayStatus.notAttended => AppColors.notAttended,
+    DayStatus.miscLeave => AppColors.miscLeave,
   };
 
   IconData get icon => switch (status) {
@@ -36,7 +36,7 @@ class _HistoryItem {
     DayStatus.annualLeave => Icons.luggage_outlined,
     DayStatus.carersLeave => Icons.volunteer_activism_outlined,
     DayStatus.workFromHome => Icons.home_work_outlined,
-    DayStatus.notAttended => Icons.cancel_outlined,
+    DayStatus.miscLeave => Icons.cancel_outlined,
   };
 
   String get label => switch (status) {
@@ -46,7 +46,7 @@ class _HistoryItem {
     DayStatus.annualLeave => 'Annual Leave',
     DayStatus.carersLeave => "Carer's Leave",
     DayStatus.workFromHome => 'Work from Home',
-    DayStatus.notAttended => 'Not Attended',
+    DayStatus.miscLeave => 'Misc Leave',
   };
 }
 
@@ -99,7 +99,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             DayType.annualLeave => DayStatus.annualLeave,
             DayType.carersLeave => DayStatus.carersLeave,
             DayType.workFromHome => DayStatus.workFromHome,
-            DayType.notAttended => DayStatus.notAttended,
+            DayType.miscLeave => DayStatus.miscLeave,
           },
           comment: s.note,
         ),
@@ -232,7 +232,7 @@ class _EmptyHistory extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Days you mark as attended, holiday, sick leave or not attended '
+              'Days you mark as attended, holiday, sick leave or misc leave '
               'will appear here.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
