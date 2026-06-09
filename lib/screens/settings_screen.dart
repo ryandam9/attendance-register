@@ -8,6 +8,7 @@ import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
+import '../providers/settings_provider.dart';
 import '../providers/special_day_provider.dart';
 import '../services/app_settings_service.dart';
 import '../services/database_service.dart';
@@ -27,6 +28,9 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
+          const _SectionLabel('Profile'),
+          const _NameSection(),
+          const Divider(height: 32),
           const _SectionLabel('Offices'),
           ...officeState.offices.map(
             (o) => _OfficeTile(
@@ -462,6 +466,48 @@ class _PermCard extends StatelessWidget {
   }
 }
 
+
+class _NameSection extends ConsumerStatefulWidget {
+  const _NameSection();
+
+  @override
+  ConsumerState<_NameSection> createState() => _NameSectionState();
+}
+
+class _NameSectionState extends ConsumerState<_NameSection> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: ref.read(settingsProvider).userName);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: TextField(
+        controller: _ctrl,
+        decoration: const InputDecoration(
+          labelText: 'Your Name',
+          hintText: 'Used in attendance notifications',
+          border: OutlineInputBorder(),
+          prefixIcon: Icon(Icons.person_outline),
+        ),
+        textCapitalization: TextCapitalization.words,
+        onSubmitted: (v) =>
+            ref.read(settingsProvider.notifier).setUserName(v.trim()),
+      ),
+    );
+  }
+}
 
 class _OfficeTile extends StatelessWidget {
   final OfficeLocation office;

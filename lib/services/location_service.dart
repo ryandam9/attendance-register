@@ -145,7 +145,11 @@ class LocationService {
         );
         if (id != null && id > 0) {
           final displayDate = DateFormat('d MMM yyyy').format(DateTime.now());
-          await NotificationService.instance.showAttendanceRecorded(office.name, displayDate);
+          final userName = await db.getSetting('user_name');
+          await NotificationService.instance.showAttendanceRecorded(
+            userName != null && userName.isNotEmpty ? userName : 'there',
+            displayDate,
+          );
         }
       }
     }
