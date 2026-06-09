@@ -6,7 +6,7 @@ import '../models/attendance_record.dart';
 import '../models/special_day.dart';
 import '../services/database_service.dart';
 
-enum CheckInResult { recorded, alreadyRecorded, specialDayConflict }
+enum CheckInResult { recorded, alreadyRecorded, alreadyRecordedByAuto, specialDayConflict }
 
 class AttendanceState {
   final List<AttendanceRecord> records;
@@ -132,7 +132,10 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
     );
     final now = DateTime.now();
     await loadForMonth(officeId, now.year, now.month);
-    return id != null ? CheckInResult.recorded : CheckInResult.alreadyRecorded;
+    if (id != null && id > 0) return CheckInResult.recorded;
+    final existing = await DatabaseService.instance.getAttendanceForDate(today, officeId);
+    if (existing?.reason == 'Auto check-in') return CheckInResult.alreadyRecordedByAuto;
+    return CheckInResult.alreadyRecorded;
   }
 
   /// Inserts a new record or updates the reason on an existing one.

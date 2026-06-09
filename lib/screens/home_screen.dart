@@ -196,6 +196,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       final msg = switch (result) {
                         CheckInResult.recorded => 'Attendance recorded for today!',
                         CheckInResult.alreadyRecorded => 'Already checked in for today.',
+                        CheckInResult.alreadyRecordedByAuto =>
+                          'Attendance already recorded by auto check-in.',
                         CheckInResult.specialDayConflict =>
                           'Today is already marked (holiday, sick leave or misc leave) — change it first.',
                       };

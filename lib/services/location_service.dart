@@ -140,10 +140,16 @@ class LocationService {
             date: today,
             officeLocationId: office.id!,
             timestamp: DateTime.now(),
+            reason: 'Auto check-in',
           ),
         );
         if (id != null && id > 0) {
-          await NotificationService.instance.showAttendanceRecorded(office.name);
+          final displayDate = DateFormat('d MMM yyyy, h:mm a').format(DateTime.now());
+          final userName = await db.getSetting('user_name');
+          await NotificationService.instance.showAttendanceRecorded(
+            userName != null && userName.isNotEmpty ? userName : 'there',
+            displayDate,
+          );
         }
       }
     }
