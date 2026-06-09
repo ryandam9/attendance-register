@@ -18,11 +18,11 @@ class NotificationService {
     );
   }
 
-  Future<void> showAttendanceRecorded(String officeName) async {
+  Future<void> showAttendanceRecorded(String officeName, String date) async {
     await _plugin.show(
       id: 0,
       title: 'Attendance Recorded ✓',
-      body: 'Your attendance at $officeName has been registered for today.',
+      body: 'Hey $officeName, your attendance at office has been recorded for $date.',
       notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'attendance_channel',

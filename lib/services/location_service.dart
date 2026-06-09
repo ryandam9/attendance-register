@@ -140,10 +140,12 @@ class LocationService {
             date: today,
             officeLocationId: office.id!,
             timestamp: DateTime.now(),
+            reason: 'Auto check-in',
           ),
         );
         if (id != null && id > 0) {
-          await NotificationService.instance.showAttendanceRecorded(office.name);
+          final displayDate = DateFormat('d MMM yyyy').format(DateTime.now());
+          await NotificationService.instance.showAttendanceRecorded(office.name, displayDate);
         }
       }
     }
