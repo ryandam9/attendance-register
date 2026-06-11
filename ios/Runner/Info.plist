@@ -52,10 +52,9 @@
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Office Attendance needs background location access to automatically record office attendance.</string>
 
-	<!-- ── Background execution ──────────────────────────────────────────── -->
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>location</string>
-	</array>
+	<!-- No UIBackgroundModes: native_geofence uses CLLocationManager region
+	     monitoring, which relaunches the app on geofence crossings without a
+	     background mode. The 'location' mode is for continuous tracking and
+	     attracts extra App Store review scrutiny. -->
 </dict>
 </plist>
