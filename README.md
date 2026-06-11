@@ -5,12 +5,18 @@ A Flutter mobile app that automatically tracks your return-to-office days using 
 ## Features
 
 - **Register your office** — save name, address and detection radius (50–500 m)
-- **Auto check-in** — a background task runs every 15 minutes; when you are within range, your attendance is recorded once per day in a local SQLite database
+- **Auto check-in** — a background task runs every 15 minutes; when you are within range, your attendance is recorded once per day in a local SQLite database. Opening the app while at the office records it too (a safety net for when the OS kills the background task)
+- **Permission setup flow** — after the first office is saved, the app walks you through granting background location, notifications and battery-optimisation exemption, with one-tap requests (also available later under Settings → Permissions)
 - **Push notification** — you get a notification the moment attendance is recorded
-- **Dashboard** — a monthly calendar highlights every day you were in the office, with monthly and yearly totals
-- **Manual attendance update** — pick any past date, mark it as present, and optionally enter a reason (e.g. "Missed auto check-in", "Team meeting"); you can also remove a record or update its reason after the fact
+- **Dashboard** — a monthly calendar highlights every recorded day, with monthly and yearly totals and return-to-office percentages
+- **Mark a Day** — pick any past date and mark it as Attended, Public Holiday, Sick / Annual / Carer's / Misc Leave or Work from Home, with an optional comment; entries can be edited or removed later
+- **Explain page** — itemises exactly how the return-to-office percentage is calculated for a month or a (financial) year
+- **Configurable target** — set the RTO percentage your employer expects; dashboard stats turn green at or above it
+- **History** — a chronological list of every recorded day
 - **Multi-office** — track multiple office locations independently
 - **Auto public holidays** — public holidays for your office's region are highlighted automatically from a list published in this repo (see [Public Holidays](#public-holidays)); anything you mark or remove yourself always wins
+- **Data export** — copy a CSV of every recorded day to the clipboard as a backup
+- **Themes** — colour palettes inspired by Australian birds
 - **Edit / delete** — update the radius or remove an office at any time
 
 ## Getting Started
@@ -46,14 +52,14 @@ flutter run
 ### Android
 
 1. The `AndroidManifest.xml` already declares all required permissions.
-2. After installing the app, grant **"Allow all the time"** for location (Settings → Apps → Office Attendance → Permissions → Location).
-3. Disable battery optimisation for the app so WorkManager fires reliably (Settings → Battery → Unrestricted).
+2. The app requests location ("Allow all the time"), notifications and battery-optimisation exemption after the first office is saved; the same requests are available under **Settings → Permissions**.
+3. If a permission was permanently denied, the app opens the relevant system settings page instead.
 
 ### iOS
 
 1. The `Info.plist` already contains location usage strings and `BGTaskSchedulerPermittedIdentifiers`.
-2. After installing the app, go to Settings → Office Attendance → Location → select **"Always"**.
-3. WorkManager on iOS uses `BGProcessingTask`; tasks run when the OS decides conditions are met (plugged in, idle). For more reliable polling on iOS, consider [background_fetch](https://pub.dev/packages/background_fetch) as an alternative.
+2. Grant **"Always"** location when prompted (or via Settings → Office Attendance → Location).
+3. WorkManager on iOS uses `BGProcessingTask`; tasks run when the OS decides conditions are met (plugged in, idle). The foreground check on app open/resume compensates for missed background runs.
 
 ---
 
@@ -61,22 +67,44 @@ flutter run
 
 ```
 lib/
-├── main.dart                    # App entry point + WorkManager setup
+├── main.dart                        # App entry point + WorkManager setup
+├── app_colors.dart                  # Semantic colour tokens (calendar dots, chips)
 ├── models/
-│   ├── office_location.dart     # Office data model
-│   └── attendance_record.dart   # Attendance record model (includes reason field)
+│   ├── office_location.dart         # Office data model (value equality)
+│   ├── attendance_record.dart       # Attendance record model (includes reason field)
+│   ├── special_day.dart             # Leave/holiday/WFH day types + percentage rules
+│   ├── attendance_breakdown.dart    # Percentage maths shared by dashboard & Explain
+│   └── report_period.dart           # Month / financial-year reporting windows
 ├── services/
-│   ├── database_service.dart    # SQLite CRUD (singleton, schema v2)
-│   ├── location_service.dart    # GPS + background check logic
-│   └── notification_service.dart
-├── providers/
-│   ├── office_provider.dart     # ChangeNotifier for offices
-│   └── attendance_provider.dart # ChangeNotifier for attendance
+│   ├── database_service.dart        # SQLite CRUD (singleton, schema v7, FKs enforced)
+│   ├── location_service.dart        # GPS + background/foreground check logic
+│   ├── holiday_service.dart         # Public-holiday CSV import
+│   ├── notification_service.dart    # Local notifications
+│   ├── permission_service.dart      # Runtime permission requests
+│   ├── app_settings_service.dart    # Deep links into system settings pages
+│   └── export_service.dart          # CSV backup of all recorded days
+├── providers/                       # Riverpod state (Notifier-based)
+│   ├── office_provider.dart
+│   ├── attendance_provider.dart
+│   ├── special_day_provider.dart
+│   ├── settings_provider.dart       # FY start, theme, name, RTO target
+│   └── explain_provider.dart
+├── widgets/
+│   └── permission_cards.dart        # Permission status cards w/ grant buttons
+├── helpers/
+│   ├── day_type_helper.dart         # Labels, icons & colours per day type
+│   └── route_helper.dart
+├── themes/
+│   └── bird_themes.dart             # Australian-bird colour palettes
 └── screens/
     ├── home_screen.dart             # Dashboard + calendar
-    ├── day_entry_screen.dart        # Pick a day → Attendance / Holiday / Sick Leave + comment
+    ├── day_entry_screen.dart        # Pick a day → status + comment
+    ├── explain_screen.dart          # Percentage breakdown report
+    ├── history_screen.dart          # Chronological list of recorded days
     ├── setup_screen.dart            # Add / edit office
-    └── settings_screen.dart         # Manage offices
+    ├── permission_setup_screen.dart # First-run permission walkthrough
+    ├── settings_screen.dart         # Profile, target, offices, permissions, data
+    └── theme_screen.dart            # Theme picker
 ```
 
 ## Key Packages
@@ -89,33 +117,69 @@ lib/
 | `workmanager` | 15-minute background task |
 | `table_calendar` | Calendar widget |
 | `flutter_local_notifications` | Attendance notifications |
-| `provider` | State management |
+| `permission_handler` | Runtime permission requests & status |
+| `flutter_riverpod` | State management |
 
 ## How the Background Check Works
 
 ```
-WorkManager (every 15 min)
-  └─ callbackDispatcher()
-       └─ LocationService.performBackgroundCheck()
-            ├─ load all registered offices from SQLite
-            ├─ get current GPS position
-            └─ for each office:
-                 ├─ skip if attendance already recorded today
-                 ├─ calculate distance to office
-                 └─ if distance ≤ radius → insert record + show notification
+WorkManager (every 15 min)            App open / resume
+  └─ callbackDispatcher()               └─ HomeScreen
+       └─ LocationService                    └─ LocationService
+            .performBackgroundCheck()             .performForegroundCheck()
+                 │                                     │
+                 └──────────── shared logic ───────────┘
+                      ├─ load registered offices from SQLite
+                      ├─ skip unless location permission already granted
+                      ├─ skip if today is marked as a holiday / leave day
+                      ├─ get current GPS position
+                      └─ for each office:
+                           ├─ skip if attendance already recorded today
+                           ├─ calculate distance to office
+                           └─ if distance ≤ radius → insert record
+                                ├─ background: show notification
+                                └─ foreground: show in-app snackbar
 ```
 
-## Manual Attendance Update
+The foreground check exists because OS battery management (especially on iOS,
+and on aggressive Android OEMs) can stop the periodic task; opening the app
+while at the office always records the day.
 
-From the dashboard tap **Update Attendance** to open the manual screen:
+> **Roadmap:** the 15-minute polling approach trades battery for simplicity. A
+> future improvement is platform geofencing (Android `GeofencingClient` / iOS
+> region monitoring), which is event-driven, more battery-friendly and fires
+> even when the app process is dead. It requires native code on both platforms
+> and on-device testing, so it is deliberately not bundled with app-level
+> changes.
 
-1. **Pick a date** — tap the date field to open a date picker; you can select any past date back to 2020.
-2. **Toggle presence** — flip the switch to mark the day as present or absent.
-3. **Enter a reason** — an optional text field appears when the day is marked present. Use it to explain why the record was added manually.
-4. **Save** — commits the change (insert or update).
-5. **Remove Record** — shown when an existing record exists and the toggle is turned off; deletes the record after confirmation.
+## Percentage Rules
 
-The home calendar and stats update automatically when you return from the screen.
+The return-to-office percentage is **weekday-based** on both sides of the
+division:
+
+- **Denominator** — weekdays (Mon–Fri) in the period, minus public holidays and
+  sick/annual/carer's/misc leave that fall on weekdays.
+- **Numerator** — days recorded at the office that fall on weekdays. Weekend
+  check-ins still appear on the calendar, in History and in the day totals, but
+  they cannot inflate the percentage (the Explain page lists them separately).
+- **Work-from-home** days stay in the denominator, so they lower the
+  percentage.
+
+The yearly stat follows the reporting year configured on the Explain page —
+calendar year (Jan–Dec) or financial year (Oct–Sep).
+
+## Mark a Day
+
+From the dashboard tap **Mark a Day** (or tap any calendar day) to open the
+day-entry screen:
+
+1. **Pick a date** — any past date back to 2020.
+2. **Pick a status** — Attended, Public Holiday, Sick Leave, Annual Leave,
+   Carer's Leave, Work from Home or Misc Leave. Saving one status replaces any
+   conflicting entry of another kind.
+3. **Comment** — optional note shown in History.
+4. **Save / Update / Remove Entry** — the home calendar and stats refresh
+   automatically when you return.
 
 ## Public Holidays
 
@@ -136,7 +200,7 @@ of making you enter each one by hand.
    - `country` — ISO country code (e.g. `AU`, `US`)
    - `state` — administrative area exactly as the geocoder reports it for the
      office address (e.g. `Western Australia`, `California`)
-   - `date` — `YYYY-MM-DD`
+   - `date` — `YYYY-MM-DD` (rows with malformed dates are skipped)
    - `desc` — shown as the note on the calendar entry (commas are allowed)
 
 2. When you register an office, the app reverse-geocodes the address and stores
@@ -161,6 +225,13 @@ Auto-imported holidays never fight with your own entries:
 - Editing an auto holiday (e.g. to Sick Leave) converts it to a manual entry,
   which the importer then leaves alone.
 
+## Data Export
+
+**Settings → Data → Export All Data (CSV)** copies every recorded day —
+attendance (with office name), leave, holidays and WFH — to the clipboard as
+CSV (`date,status,office,comment`), newest first. Paste it into a file or
+spreadsheet to keep a backup outside the device.
+
 ## Running Tests
 
 ```bash
@@ -168,15 +239,23 @@ flutter test
 ```
 
 Tests cover:
-- `AttendanceRecord` serialisation (`toMap` / `fromMap`) including the `reason` field
-- `OfficeLocation` serialisation and `copyWith`
-- Database schema: CRUD operations, duplicate-insert handling, month-range queries, multi-office isolation
+- `AttendanceRecord`, `OfficeLocation` (incl. value equality) and `SpecialDay`
+  serialisation
+- `AttendanceBreakdown` percentage rules, including weekend exclusion
+- `ReportPeriod` month/financial-year windows
+- Holiday CSV parsing, including malformed-date rejection
+- Database schema: CRUD, duplicate-insert handling, month-range queries,
+  multi-office isolation, weekday-only counting, transactional office deletion
+- `DayEntryScreen` widget tests: save, replace-on-status-change, remove
 
-The database tests use `sqflite_common_ffi` with an in-memory database so they run on desktop without a device.
+The database tests use `sqflite_common_ffi` with an in-memory database so they
+run on desktop without a device. CI (GitHub Actions) runs `flutter analyze` and
+`flutter test` on every PR.
 
 ## Database Schema
 
-**Version 2** (upgraded automatically from v1 on first launch):
+**Version 7** (older versions are upgraded automatically on first launch).
+Foreign keys are enforced (`PRAGMA foreign_keys = ON`).
 
 ```sql
 CREATE TABLE office_locations (
@@ -185,7 +264,9 @@ CREATE TABLE office_locations (
   address   TEXT    NOT NULL,
   latitude  REAL    NOT NULL,
   longitude REAL    NOT NULL,
-  radius    REAL    NOT NULL DEFAULT 200.0
+  radius    REAL    NOT NULL DEFAULT 200.0,
+  country   TEXT,            -- ISO code, for public-holiday matching
+  state     TEXT             -- administrative area, for public-holiday matching
 );
 
 CREATE TABLE attendance_records (
@@ -193,10 +274,28 @@ CREATE TABLE attendance_records (
   date               TEXT    NOT NULL,       -- YYYY-MM-DD
   office_location_id INTEGER NOT NULL,
   timestamp          TEXT    NOT NULL,       -- ISO-8601
-  reason             TEXT,                  -- nullable, set on manual entries
+  reason             TEXT,                   -- nullable, set on manual entries
   FOREIGN KEY (office_location_id) REFERENCES office_locations(id)
 );
 
 CREATE UNIQUE INDEX idx_attendance_date
   ON attendance_records(date, office_location_id);
+
+CREATE TABLE special_days (
+  id     INTEGER PRIMARY KEY AUTOINCREMENT,
+  date   TEXT NOT NULL UNIQUE,               -- YYYY-MM-DD
+  type   TEXT NOT NULL,                      -- holiday | sickLeave | annualLeave |
+                                             -- carersLeave | workFromHome | miscLeave
+  note   TEXT,
+  source TEXT NOT NULL DEFAULT 'manual'      -- manual | auto (holiday importer)
+);
+
+CREATE TABLE dismissed_holidays (             -- auto-holidays the user removed
+  date TEXT PRIMARY KEY
+);
+
+CREATE TABLE app_settings (                   -- key/value preferences
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 ```

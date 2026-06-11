@@ -3,6 +3,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 
 import '../models/attendance_record.dart';
+import '../models/office_location.dart';
 import 'database_service.dart';
 import 'notification_service.dart';
 
@@ -29,14 +30,11 @@ class LocationService {
         perm == LocationPermission.whileInUse;
   }
 
-  /// Ask for "always" (background) permission — call after foreground is granted.
-  Future<bool> requestAlwaysPermission() async {
+  /// True when a position can be read right now without prompting the user.
+  static Future<bool> _hasPermissionSilently() async {
     final perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.whileInUse) {
-      // On Android 10+ the OS shows its own "upgrade to always" dialog.
-      await Geolocator.requestPermission();
-    }
-    return (await Geolocator.checkPermission()) == LocationPermission.always;
+    return perm == LocationPermission.always ||
+        perm == LocationPermission.whileInUse;
   }
 
   Future<Position?> getCurrentPosition() async {
@@ -55,10 +53,6 @@ class LocationService {
 
   double distanceTo(double lat1, double lon1, double lat2, double lon2) =>
       Geolocator.distanceBetween(lat1, lon1, lat2, lon2);
-
-  Future<String?> addressFromCoordinates(double lat, double lng) async {
-    return (await placeFromCoordinates(lat, lng))?.address;
-  }
 
   /// Reverse-geocodes [lat]/[lng] into a display address plus the structured
   /// [GeoPlace.state] (administrative area) and [GeoPlace.country] (ISO code)
@@ -93,9 +87,25 @@ class LocationService {
   /// Executed by WorkManager every 15 minutes in the background.
   /// Must be a static method so it can be called from the top-level callback.
   static Future<void> performBackgroundCheck() async {
+    await _checkAndRecord(notify: true);
+  }
+
+  /// Same check, run when the app is opened or resumed. Catches the days the
+  /// background task missed (killed by the OS, battery optimisation, iOS task
+  /// scheduling) — if the user is standing in the office with the app open,
+  /// attendance is recorded on the spot. Returns the office recorded at, or
+  /// null. Skips the system notification: the caller shows in-app feedback.
+  static Future<OfficeLocation?> performForegroundCheck() =>
+      _checkAndRecord(notify: false);
+
+  /// Core auto check-in: if the current position is within the radius of a
+  /// registered office and today is unmarked, record attendance. Never prompts
+  /// for permission — runs only when location access was already granted.
+  static Future<OfficeLocation?> _checkAndRecord({required bool notify}) async {
     final db = DatabaseService.instance;
     final offices = await db.getOfficeLocations();
-    if (offices.isEmpty) return;
+    if (offices.isEmpty) return null;
+    if (!await _hasPermissionSilently()) return null;
 
     Position? pos;
     try {
@@ -106,18 +116,19 @@ class LocationService {
         ),
       );
     } catch (_) {
-      return;
+      return null;
     }
 
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-    // A day already marked as a public holiday, sick leave or not-attended is
+    // A day already marked as a public holiday, sick leave or misc leave is
     // off-limits to auto check-in — the user owns that decision and can change
-    // it manually. Mirrors the specialDayConflict guard in manualCheckIn so a
-    // background geo run never silently overwrites a (blue) public holiday with
-    // "Attended".
-    if (await db.getSpecialDayForDate(today) != null) return;
+    // it manually. Mirrors the specialDayConflict guard in manualCheckIn so an
+    // automatic geo check never silently overwrites a (blue) public holiday
+    // with "Attended".
+    if (await db.getSpecialDayForDate(today) != null) return null;
 
+    OfficeLocation? recordedAt;
     for (final office in offices) {
       if (await db.hasAttendanceForDate(today, office.id!)) continue;
 
@@ -133,7 +144,7 @@ class LocationService {
         // new row id on a real insert, 0 when a record for today already exists
         // (duplicate ignored), or null on error. Only notify when a row was
         // actually written, so the user never sees "attendance recorded" twice
-        // for the same day — even if two background runs race past the
+        // for the same day — even if two runs race past the
         // hasAttendanceForDate guard above.
         final id = await db.insertAttendanceRecord(
           AttendanceRecord(
@@ -144,14 +155,20 @@ class LocationService {
           ),
         );
         if (id != null && id > 0) {
-          final displayDate = DateFormat('d MMM yyyy, h:mm a').format(DateTime.now());
-          final userName = await db.getSetting('user_name');
-          await NotificationService.instance.showAttendanceRecorded(
-            userName != null && userName.isNotEmpty ? userName : 'there',
-            displayDate,
-          );
+          recordedAt ??= office;
+          if (notify) {
+            final displayDate =
+                DateFormat('d MMM yyyy, h:mm a').format(DateTime.now());
+            final userName = await db.getSetting('user_name');
+            await NotificationService.instance.showAttendanceRecorded(
+              userName != null && userName.isNotEmpty ? userName : 'there',
+              displayDate,
+              id: office.id!,
+            );
+          }
         }
       }
     }
+    return recordedAt;
   }
 }

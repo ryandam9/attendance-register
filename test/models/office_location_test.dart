@@ -78,5 +78,17 @@ void main() {
       final restored = OfficeLocation.fromMap(map);
       expect(restored.id, isNull);
     });
+
+    test('equal field-by-field copies are == with matching hashCode', () {
+      final copy = office.copyWith();
+      expect(copy, equals(office));
+      expect(copy.hashCode, office.hashCode);
+    });
+
+    test('differing fields break equality', () {
+      expect(office.copyWith(name: 'Branch'), isNot(equals(office)));
+      expect(office.copyWith(radius: 50.0), isNot(equals(office)));
+      expect(office.copyWith(id: 2), isNot(equals(office)));
+    });
   });
 }

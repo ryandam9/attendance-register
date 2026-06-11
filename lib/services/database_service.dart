@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -5,9 +6,18 @@ import '../models/attendance_record.dart';
 import '../models/office_location.dart';
 import '../models/special_day.dart';
 
+/// Formats [d] as the `YYYY-MM-DD` key used by every date column.
+String _fmtDate(DateTime d) =>
+    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
 class DatabaseService {
   DatabaseService._();
   static final DatabaseService instance = DatabaseService._();
+
+  /// When set (in tests), the database is opened at this path (e.g.
+  /// `inMemoryDatabasePath`) instead of the on-device file.
+  @visibleForTesting
+  static String? overridePath;
 
   Database? _db;
 
@@ -16,11 +26,23 @@ class DatabaseService {
     return _db!;
   }
 
+  /// Closes and clears the cached connection so the next access reopens it —
+  /// gives each test a fresh in-memory database.
+  @visibleForTesting
+  Future<void> reset() async {
+    await _db?.close();
+    _db = null;
+  }
+
   Future<Database> _open() async {
-    final dbPath = await getDatabasesPath();
+    final path =
+        overridePath ?? join(await getDatabasesPath(), 'attendance.db');
     return openDatabase(
-      join(dbPath, 'attendance.db'),
-      version: 6,
+      path,
+      version: 7,
+      // sqflite does not enforce FOREIGN KEY constraints unless explicitly
+      // enabled per connection.
+      onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE office_locations (
@@ -129,6 +151,16 @@ class DatabaseService {
             "UPDATE special_days SET type = 'miscLeave' WHERE type = 'notAttended'",
           );
         }
+        if (oldVersion < 7) {
+          // Foreign keys were not enforced before v7, and office deletion was
+          // not transactional, so a crash mid-delete could leave attendance
+          // rows pointing at a removed office. Clean those up before the
+          // PRAGMA starts rejecting writes that touch them.
+          await db.execute(
+            'DELETE FROM attendance_records WHERE office_location_id '
+            'NOT IN (SELECT id FROM office_locations)',
+          );
+        }
       },
     );
   }
@@ -169,12 +201,17 @@ class DatabaseService {
 
   Future<void> deleteOfficeLocation(int id) async {
     final db = await database;
-    await db.delete('office_locations', where: 'id = ?', whereArgs: [id]);
-    await db.delete(
-      'attendance_records',
-      where: 'office_location_id = ?',
-      whereArgs: [id],
-    );
+    // One transaction so a crash can't leave attendance rows orphaned. Records
+    // go first: with foreign keys enforced, deleting the office while rows
+    // still reference it would be rejected.
+    await db.transaction((txn) async {
+      await txn.delete(
+        'attendance_records',
+        where: 'office_location_id = ?',
+        whereArgs: [id],
+      );
+      await txn.delete('office_locations', where: 'id = ?', whereArgs: [id]);
+    });
   }
 
   // ── Attendance Records ────────────────────────────────────────────────────
@@ -189,17 +226,14 @@ class DatabaseService {
     return rows.isNotEmpty;
   }
 
-  /// True when attendance was recorded at *any* office on [date]. Used by the
-  /// holiday importer so it never marks a day you actually worked as a holiday.
-  Future<bool> hasAnyAttendanceForDate(String date) async {
+  /// Every date (at any office) with an attendance record. Used by the holiday
+  /// importer so it never marks a day you actually worked as a holiday.
+  Future<Set<String>> getAllAttendanceDates() async {
     final db = await database;
-    final rows = await db.query(
-      'attendance_records',
-      where: 'date = ?',
-      whereArgs: [date],
-      limit: 1,
+    final rows = await db.rawQuery(
+      'SELECT DISTINCT date FROM attendance_records',
     );
-    return rows.isNotEmpty;
+    return rows.map((r) => r['date'] as String).toSet();
   }
 
   Future<AttendanceRecord?> getAttendanceForDate(
@@ -258,25 +292,31 @@ class DatabaseService {
     return rows.map(AttendanceRecord.fromMap).toList();
   }
 
+  /// Counts attendance records for [officeId], optionally restricted to
+  /// [from]..[to]. With [weekdaysOnly] set, weekend check-ins are excluded —
+  /// used by the attendance percentage, whose denominator is built from
+  /// weekdays, so a Saturday at the office must not inflate it.
+  /// SQLite's strftime('%w') returns 0 for Sunday and 6 for Saturday.
   Future<int> getAttendanceCount(
     int officeId, {
     DateTime? from,
     DateTime? to,
+    bool weekdaysOnly = false,
   }) async {
     final db = await database;
     String where = 'office_location_id = ?';
     final args = <dynamic>[officeId];
 
-    String fmt(DateTime d) =>
-        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
     if (from != null) {
       where += ' AND date >= ?';
-      args.add(fmt(from));
+      args.add(_fmtDate(from));
     }
     if (to != null) {
       where += ' AND date <= ?';
-      args.add(fmt(to));
+      args.add(_fmtDate(to));
+    }
+    if (weekdaysOnly) {
+      where += " AND strftime('%w', date) NOT IN ('0', '6')";
     }
 
     final result = await db.rawQuery(
@@ -347,12 +387,10 @@ class DatabaseService {
     Iterable<DayType>? types,
   }) async {
     final db = await database;
-    String fmt(DateTime d) =>
-        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
     String where =
         "date >= ? AND date <= ? AND strftime('%w', date) NOT IN ('0', '6')";
-    final args = <dynamic>[fmt(from), fmt(to)];
+    final args = <dynamic>[_fmtDate(from), _fmtDate(to)];
 
     final typeList = types?.toList();
     if (typeList != null && typeList.isNotEmpty) {
@@ -378,14 +416,12 @@ class DatabaseService {
     DateTime to,
   ) async {
     final db = await database;
-    String fmt(DateTime d) =>
-        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
     final rows = await db.rawQuery(
       "SELECT type, COUNT(*) AS cnt FROM special_days "
       "WHERE date >= ? AND date <= ? AND strftime('%w', date) NOT IN ('0', '6') "
       "GROUP BY type",
-      [fmt(from), fmt(to)],
+      [_fmtDate(from), _fmtDate(to)],
     );
 
     final counts = <DayType, int>{};
@@ -415,6 +451,14 @@ class DatabaseService {
     final db = await database;
     final rows = await db.query('special_days', orderBy: 'date DESC');
     return rows.map(SpecialDay.fromMap).toList();
+  }
+
+  /// Every date with a special day, as a set — lets the holiday importer test
+  /// all candidate dates with one query instead of one query per CSV row.
+  Future<Set<String>> getAllSpecialDayDates() async {
+    final db = await database;
+    final rows = await db.query('special_days', columns: ['date']);
+    return rows.map((r) => r['date'] as String).toSet();
   }
 
   Future<void> deleteSpecialDay(String date) async {

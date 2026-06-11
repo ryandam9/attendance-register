@@ -36,8 +36,25 @@ class HolidayService {
   static const csvUrl =
       'https://raw.githubusercontent.com/ryandam9/attendance-register/main/public-holidays.csv';
 
-  /// Parses CSV text into rows, skipping a header line and blanks. Commas inside
-  /// the trailing `desc` field are preserved.
+  static final _dateRe = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+
+  /// True when [s] is a real calendar date in `YYYY-MM-DD` form. DateTime.parse
+  /// alone is not enough: it normalises out-of-range values (2026-02-30 →
+  /// 2026-03-02), so round-trip the parsed date back to the string.
+  static bool _isValidDate(String s) {
+    if (!_dateRe.hasMatch(s)) return false;
+    final d = DateTime.tryParse(s);
+    if (d == null) return false;
+    return s ==
+        '${d.year.toString().padLeft(4, '0')}-'
+            '${d.month.toString().padLeft(2, '0')}-'
+            '${d.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Parses CSV text into rows, skipping a header line, blanks and rows whose
+  /// date is not a valid `YYYY-MM-DD` (a malformed date would otherwise be
+  /// stored and crash date parsing in the calendar/history views). Commas
+  /// inside the trailing `desc` field are preserved.
   static List<HolidayRow> parseCsv(String csv) {
     final rows = <HolidayRow>[];
     for (final raw in const LineSplitter().convert(csv)) {
@@ -48,10 +65,12 @@ class HolidayService {
       final country = parts[0].trim();
       // Skip the header row (and anything obviously not a data row).
       if (country.toLowerCase() == 'country') continue;
+      final date = parts[2].trim();
+      if (!_isValidDate(date)) continue;
       rows.add(HolidayRow(
         country: country,
         state: parts[1].trim(),
-        date: parts[2].trim(),
+        date: date,
         desc: parts.length > 3 ? parts.sublist(3).join(',').trim() : '',
       ));
     }
@@ -76,13 +95,19 @@ class HolidayService {
   ) =>
       rows.where((r) => officeKeys.contains(_key(r.country, r.state))).toList();
 
+  /// Bounded so a dead network can't leave the Settings "Syncing…" flow (or a
+  /// background sync) hanging forever.
+  static const _fetchTimeout = Duration(seconds: 15);
+
   Future<String?> _fetchCsv() async {
-    final client = HttpClient();
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 10);
     try {
-      final req = await client.getUrl(Uri.parse(csvUrl));
-      final resp = await req.close();
+      final req =
+          await client.getUrl(Uri.parse(csvUrl)).timeout(_fetchTimeout);
+      final resp = await req.close().timeout(_fetchTimeout);
       if (resp.statusCode != 200) return null;
-      return await resp.transform(utf8.decoder).join();
+      return await resp.transform(utf8.decoder).join().timeout(_fetchTimeout);
     } catch (_) {
       return null;
     } finally {
@@ -105,14 +130,18 @@ class HolidayService {
     final matches = matchingHolidays(parseCsv(csv), keys);
     if (matches.isEmpty) return 0;
 
+    // One query per table instead of two queries per CSV row.
     final dismissed = await db.getDismissedHolidayDates();
+    final existingSpecial = await db.getAllSpecialDayDates();
+    final attendance = await db.getAllAttendanceDates();
+
     var inserted = 0;
     for (final h in matches) {
       // Manual edits win, real attendance wins, and a removed holiday stays
       // removed — only fill in untouched days.
       if (dismissed.contains(h.date)) continue;
-      if (await db.getSpecialDayForDate(h.date) != null) continue;
-      if (await db.hasAnyAttendanceForDate(h.date)) continue;
+      if (existingSpecial.contains(h.date)) continue;
+      if (attendance.contains(h.date)) continue;
 
       await db.upsertSpecialDay(SpecialDay(
         date: h.date,
@@ -120,6 +149,9 @@ class HolidayService {
         note: h.desc.isEmpty ? null : h.desc,
         source: DaySource.auto,
       ));
+      // So a duplicate date later in the CSV is skipped, like it was when the
+      // existence check re-queried the database for every row.
+      existingSpecial.add(h.date);
       inserted++;
     }
     return inserted;

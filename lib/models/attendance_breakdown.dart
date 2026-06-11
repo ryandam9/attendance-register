@@ -29,8 +29,14 @@ class AttendanceBreakdown {
   /// Weekdays (Mon–Fri) in the period.
   final int weekdays;
 
-  /// Days you were recorded at the office (the percentage numerator).
+  /// Weekdays you were recorded at the office (the percentage numerator).
+  /// Weekday-only so the numerator and the weekday-built denominator agree —
+  /// a Saturday check-in must not inflate the percentage.
   final int officeDays;
+
+  /// Office days that fell on a weekend. Shown for transparency but excluded
+  /// from the percentage maths entirely.
+  final int weekendOfficeDays;
 
   /// Count of each special-day type in the period — weekdays only, matching the
   /// denominator's weekday-only rule.
@@ -40,6 +46,7 @@ class AttendanceBreakdown {
     required this.weekdays,
     required this.officeDays,
     required this.specialDayCounts,
+    this.weekendOfficeDays = 0,
   });
 
   int countOf(DayType type) => specialDayCounts[type] ?? 0;

@@ -64,4 +64,25 @@ class OfficeLocation {
     country: country ?? this.country,
     state: state ?? this.state,
   );
+
+  // Value equality so widgets that compare offices (e.g. the office dropdown
+  // matching its selected value against the items list) don't depend on
+  // instance identity.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OfficeLocation &&
+          other.id == id &&
+          other.name == name &&
+          other.address == address &&
+          other.latitude == latitude &&
+          other.longitude == longitude &&
+          other.radius == radius &&
+          other.country == country &&
+          other.state == state;
+
+  @override
+  int get hashCode => Object.hash(
+    id, name, address, latitude, longitude, radius, country, state,
+  );
 }

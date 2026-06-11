@@ -15,12 +15,22 @@ class BirdTheme {
     required this.tertiary,
   });
 
+  /// Black or white, whichever contrasts with [background]. Overriding a
+  /// scheme colour without its "on" partner risks the seed-derived on-colour
+  /// (e.g. white) landing on a light bird colour like the Plains-wanderer's
+  /// beige — unreadable buttons and badges.
+  static Color _onColor(Color background) =>
+      background.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+
   ThemeData themeData(Brightness brightness) => ThemeData(
     colorScheme: ColorScheme.fromSeed(
       seedColor: primary,
       primary: primary,
+      onPrimary: _onColor(primary),
       secondary: secondary,
+      onSecondary: _onColor(secondary),
       tertiary: tertiary,
+      onTertiary: _onColor(tertiary),
       brightness: brightness,
     ),
     useMaterial3: true,
