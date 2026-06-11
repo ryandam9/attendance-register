@@ -8,9 +8,13 @@
 build/
 pubspec.lock
 
+# AI-tool session artifacts
+.antigravitycli/
+
 # Android
 **/android/**/gradle-wrapper.jar
 **/android/.gradle
+**/android/.kotlin/
 **/android/captures/
 **/android/gradlew
 **/android/gradlew.bat
@@ -46,6 +50,9 @@ pubspec.lock
 
 # macOS
 **/macos/Flutter/GeneratedPluginRegistrant.swift
+
+# IDE caches (the rest of .idea/ is tracked deliberately)
+.idea/caches/
 
 # Exceptions to the above
 !**/ios/**/default.mode1v3

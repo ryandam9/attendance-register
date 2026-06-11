@@ -5,7 +5,7 @@ A Flutter mobile app that automatically tracks your return-to-office days using 
 ## Features
 
 - **Register your office** — save name, address and detection radius (50–500 m)
-- **Auto check-in** — a background task runs every 15 minutes; when you are within range, your attendance is recorded once per day in a local SQLite database. Opening the app while at the office records it too (a safety net for when the OS kills the background task)
+- **Auto check-in** — each office is registered as an OS-level geofence; when your phone enters the radius the OS wakes the app (even if it was killed) and attendance is recorded once per day in a local SQLite database. Opening the app while at the office records it too (a safety net for missed geofence events)
 - **Permission setup flow** — after the first office is saved, the app walks you through granting background location, notifications and battery-optimisation exemption, with one-tap requests (also available later under Settings → Permissions)
 - **Push notification** — you get a notification the moment attendance is recorded
 - **Dashboard** — a monthly calendar highlights every recorded day, with monthly and yearly totals and return-to-office percentages
@@ -51,15 +51,20 @@ flutter run
 
 ### Android
 
-1. The `AndroidManifest.xml` already declares all required permissions.
-2. The app requests location ("Allow all the time"), notifications and battery-optimisation exemption after the first office is saved; the same requests are available under **Settings → Permissions**.
-3. If a permission was permanently denied, the app opens the relevant system settings page instead.
+1. Requires Android 8.0+ (minSdk 26, needed by `native_geofence`) and Google
+   Play Services (geofencing is delivered by `GeofencingClient`).
+2. The `AndroidManifest.xml` already declares all required permissions and the
+   geofencing receivers (including boot re-registration).
+3. The app requests location ("Allow all the time"), notifications and battery-optimisation exemption after the first office is saved; the same requests are available under **Settings → Permissions**.
+4. If a permission was permanently denied, the app opens the relevant system settings page instead.
 
 ### iOS
 
-1. The `Info.plist` already contains location usage strings and `BGTaskSchedulerPermittedIdentifiers`.
+1. The `Info.plist` already contains the location usage strings; no background
+   mode is needed — region monitoring relaunches the app on geofence crossings.
 2. Grant **"Always"** location when prompted (or via Settings → Office Attendance → Location).
-3. WorkManager on iOS uses `BGProcessingTask`; tasks run when the OS decides conditions are met (plugged in, idle). The foreground check on app open/resume compensates for missed background runs.
+3. iOS limits an app to 20 monitored regions — far more offices than the app
+   will ever register.
 
 ---
 
@@ -67,7 +72,7 @@ flutter run
 
 ```
 lib/
-├── main.dart                        # App entry point + WorkManager setup
+├── main.dart                        # App entry point + geofencing init
 ├── app_colors.dart                  # Semantic colour tokens (calendar dots, chips)
 ├── models/
 │   ├── office_location.dart         # Office data model (value equality)
@@ -77,7 +82,7 @@ lib/
 │   └── report_period.dart           # Month / financial-year reporting windows
 ├── services/
 │   ├── database_service.dart        # SQLite CRUD (singleton, schema v7, FKs enforced)
-│   ├── location_service.dart        # GPS + background/foreground check logic
+│   ├── location_service.dart        # GPS, geofence sync + check-in recording
 │   ├── holiday_service.dart         # Public-holiday CSV import
 │   ├── notification_service.dart    # Local notifications
 │   ├── permission_service.dart      # Runtime permission requests
@@ -114,43 +119,41 @@ lib/
 | `sqflite` | Local SQLite database |
 | `geolocator` | GPS positioning |
 | `geocoding` | Address ↔ coordinate lookup |
-| `workmanager` | 15-minute background task |
+| `native_geofence` | OS-level geofencing (auto check-in) |
 | `table_calendar` | Calendar widget |
 | `flutter_local_notifications` | Attendance notifications |
 | `permission_handler` | Runtime permission requests & status |
 | `flutter_riverpod` | State management |
 
-## How the Background Check Works
+## How Auto Check-In Works
+
+Each registered office is mirrored to an OS-level geofence (Android
+`GeofencingClient` via the `native_geofence` plugin; iOS region monitoring).
+Geofences are (re-)synced whenever an office is added, edited or deleted, on
+every app open/resume, and after the "Always" location permission is granted.
+Android re-registers them after a reboot; iOS persists monitored regions
+itself.
 
 ```
-WorkManager (every 15 min)            App open / resume
-  └─ callbackDispatcher()               └─ HomeScreen
-       └─ LocationService                    └─ LocationService
-            .performBackgroundCheck()             .performForegroundCheck()
-                 │                                     │
-                 └──────────── shared logic ───────────┘
-                      ├─ load registered offices from SQLite
-                      ├─ skip unless location permission already granted
+OS geofence ENTER event               App open / resume
+(fires even when the app is dead)       └─ HomeScreen
+  └─ geofenceTriggered()                     └─ LocationService
+       └─ LocationService                         .performForegroundCheck()
+            .recordGeofenceCheckIn()                   │ (reads GPS once,
+                 │                                     │  same guards)
+                 └──────────── shared rules ───────────┘
+                      ├─ skip if the office no longer exists
                       ├─ skip if today is marked as a holiday / leave day
-                      ├─ get current GPS position
-                      └─ for each office:
-                           ├─ skip if attendance already recorded today
-                           ├─ calculate distance to office
-                           └─ if distance ≤ radius → insert record
-                                ├─ background: show notification
-                                └─ foreground: show in-app snackbar
+                      ├─ skip if attendance already recorded today
+                      └─ insert record (once per day per office)
+                           ├─ geofence: show notification
+                           └─ foreground: show in-app snackbar
 ```
 
-The foreground check exists because OS battery management (especially on iOS,
-and on aggressive Android OEMs) can stop the periodic task; opening the app
-while at the office always records the day.
-
-> **Roadmap:** the 15-minute polling approach trades battery for simplicity. A
-> future improvement is platform geofencing (Android `GeofencingClient` / iOS
-> region monitoring), which is event-driven, more battery-friendly and fires
-> even when the app process is dead. It requires native code on both platforms
-> and on-device testing, so it is deliberately not bundled with app-level
-> changes.
+Being event-driven, this uses near-zero battery compared to periodic GPS
+polling and fires even when the app process has been killed. The foreground
+check on app open remains as a safety net: if the OS ever misses or suppresses
+a geofence event, opening the app while at the office still records the day.
 
 ## Percentage Rules
 

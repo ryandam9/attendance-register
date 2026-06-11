@@ -42,8 +42,8 @@ class PermissionService {
     return false;
   }
 
-  /// Shows Android's "let app ignore battery optimisations" dialog so the
-  /// 15-minute background check keeps firing. Android only.
+  /// Shows Android's "let app ignore battery optimisations" dialog so
+  /// background geofence callbacks keep firing reliably. Android only.
   static Future<bool> requestIgnoreBatteryOptimizations() async {
     final status = await Permission.ignoreBatteryOptimizations.request();
     if (status.isGranted) return true;

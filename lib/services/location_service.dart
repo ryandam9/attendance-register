@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
@@ -8,15 +9,25 @@ import '../models/office_location.dart';
 import 'database_service.dart';
 import 'notification_service.dart';
 
+/// Invoked by the native_geofence plugin in a background isolate when the OS
+/// reports a geofence crossing — including with the app fully killed.
 @pragma('vm:entry-point')
 Future<void> geofenceTriggered(nf.GeofenceCallbackParams params) async {
-  if (params.event == nf.GeofenceEvent.enter) {
+  // An uncaught exception here dies silently in the background isolate, so
+  // guard the whole callback.
+  try {
+    if (params.event != nf.GeofenceEvent.enter) return;
+    // This isolate has no plugin state from the main isolate — initialise
+    // notifications explicitly rather than relying on persisted settings.
+    await NotificationService.instance.initialize();
     for (final activeGeofence in params.geofences) {
       final officeId = int.tryParse(activeGeofence.id);
       if (officeId != null) {
         await LocationService.instance.recordGeofenceCheckIn(officeId);
       }
     }
+  } catch (e) {
+    debugPrint('Geofence callback failed: $e');
   }
 }
 
@@ -140,10 +151,11 @@ class LocationService {
           iosSettings: const nf.IosGeofenceSettings(
             initialTrigger: true,
           ),
+          // No expiration: a geofence that silently lapses would stop auto
+          // check-in for a user who hasn't opened the app in a while.
+          // loiteringDelay is omitted — it only applies to dwell triggers.
           androidSettings: const nf.AndroidGeofenceSettings(
             initialTriggers: {nf.GeofenceEvent.enter},
-            expiration: Duration(days: 365),
-            loiteringDelay: Duration(minutes: 1),
             notificationResponsiveness: Duration(seconds: 30),
           ),
         );
@@ -152,7 +164,7 @@ class LocationService {
       }
     } catch (e, stack) {
       // Gracefully log instead of crashing (important for offline/testing/unsupported platform scenarios)
-      print('Failed to sync geofences: $e\n$stack');
+      debugPrint('Failed to sync geofences: $e\n$stack');
     }
   }
 

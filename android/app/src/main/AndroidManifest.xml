@@ -44,8 +44,11 @@
             </intent-filter>
         </activity>
 
-        <!-- Native Geofencing components -->
-        <receiver 
+        <!-- Native geofencing components. These entries (including
+             android:exported="true") match the native_geofence package's
+             documented setup — do not tighten without re-testing geofence
+             delivery on a device. -->
+        <receiver
             android:name="com.chunkytofustudios.native_geofence.receivers.NativeGeofenceBroadcastReceiver" 
             android:exported="true"/>
 

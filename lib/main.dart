@@ -12,7 +12,14 @@ void main() async {
 
   await DatabaseService.instance.database;
   await NotificationService.instance.initialize();
-  await NativeGeofenceManager.instance.initialize();
+  // Geofencing powers auto check-in but must never block the app from
+  // starting — if the plugin fails to initialise (missing Play Services,
+  // unsupported platform), the user can still view and record days manually.
+  try {
+    await NativeGeofenceManager.instance.initialize();
+  } catch (e) {
+    debugPrint('Geofencing unavailable: $e');
+  }
 
   runApp(const ProviderScope(child: AttendanceApp()));
 }
