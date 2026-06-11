@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:attendance_register/models/attendance_record.dart';
 import 'package:attendance_register/models/office_location.dart';
 import 'package:attendance_register/models/special_day.dart';
 import 'package:attendance_register/screens/day_entry_screen.dart';
@@ -117,5 +118,52 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(DayEntryScreen), findsOneWidget);
+  });
+
+  testWidgets(
+      'marking Work from Home removes an auto check-in inserted after the '
+      'sheet opened', (tester) async {
+    await openSheet(tester);
+
+    // Simulate the background geofence isolate recording an auto check-in
+    // while the sheet is already open — the sheet's snapshot says the day is
+    // unmarked, so saving used to leave this record behind alongside the WFH
+    // special day, and History showed both.
+    await service.insertAttendanceRecord(AttendanceRecord(
+      date: dateKey,
+      officeLocationId: office.id!,
+      timestamp: DateTime(2026, 6, 10, 9),
+      reason: 'Auto check-in',
+    ));
+
+    await tester.tap(find.text('Work from Home'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(await service.getAttendanceForDate(dateKey, office.id!), isNull);
+    final special = await service.getSpecialDayForDate(dateKey);
+    expect(special!.type, DayType.workFromHome);
+  });
+
+  testWidgets('removing an auto check-in dismisses the day for auto check-in',
+      (tester) async {
+    await service.insertAttendanceRecord(AttendanceRecord(
+      date: dateKey,
+      officeLocationId: office.id!,
+      timestamp: DateTime(2026, 6, 10, 9),
+      reason: 'Auto check-in',
+    ));
+    await openSheet(tester);
+
+    await tester.tap(find.byTooltip('Remove entry'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
+
+    expect(await service.getAttendanceForDate(dateKey, office.id!), isNull);
+    // The geofence/foreground checks consult this flag, so the deleted
+    // check-in cannot be silently re-recorded later the same day.
+    expect(await service.isAutoCheckInDismissed(dateKey), isTrue);
   });
 }

@@ -118,7 +118,6 @@ class _QuickMarkSheetState extends ConsumerState<_QuickMarkSheet> {
         dateKey: widget.dateKey,
         status: _status,
         note: note.isEmpty ? null : note,
-        existingRecord: widget.existingRecord,
         existingSpecial: widget.existingSpecial,
       );
       unawaited(HapticFeedback.lightImpact());
@@ -163,7 +162,6 @@ class _QuickMarkSheetState extends ConsumerState<_QuickMarkSheet> {
       ref,
       office: widget.office,
       dateKey: widget.dateKey,
-      existingRecord: widget.existingRecord,
       existingSpecial: widget.existingSpecial,
     );
     unawaited(HapticFeedback.lightImpact());

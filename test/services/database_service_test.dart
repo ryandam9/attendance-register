@@ -456,5 +456,26 @@ void main() {
         );
       });
     });
+
+    group('dismissed auto check-ins', () {
+      test('round-trip: dismiss, query, undismiss', () async {
+        expect(await service.isAutoCheckInDismissed('2026-06-08'), isFalse);
+
+        await service.dismissAutoCheckIn('2026-06-08');
+        // Dismissing the same date twice must not throw (PK conflict ignored).
+        await service.dismissAutoCheckIn('2026-06-08');
+        expect(await service.isAutoCheckInDismissed('2026-06-08'), isTrue);
+        expect(await service.isAutoCheckInDismissed('2026-06-09'), isFalse);
+
+        await service.undismissAutoCheckIn('2026-06-08');
+        expect(await service.isAutoCheckInDismissed('2026-06-08'), isFalse);
+      });
+
+      test('deleteAllRecords clears dismissals', () async {
+        await service.dismissAutoCheckIn('2026-06-08');
+        await service.deleteAllRecords();
+        expect(await service.isAutoCheckInDismissed('2026-06-08'), isFalse);
+      });
+    });
   });
 }

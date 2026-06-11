@@ -178,6 +178,9 @@ class LocationService {
     // Check special day conflicts (holidays, leaves, etc.)
     if (await db.getSpecialDayForDate(today) != null) return;
 
+    // The user deleted today's record — don't resurrect it.
+    if (await db.isAutoCheckInDismissed(today)) return;
+
     // Check if attendance already recorded today for this office
     if (await db.hasAttendanceForDate(today, officeId)) return;
 
@@ -241,6 +244,9 @@ class LocationService {
     // automatic geo check never silently overwrites a (blue) public holiday
     // with "Attended".
     if (await db.getSpecialDayForDate(today) != null) return null;
+
+    // The user deleted today's record — don't resurrect it.
+    if (await db.isAutoCheckInDismissed(today)) return null;
 
     OfficeLocation? recordedAt;
     for (final office in offices) {

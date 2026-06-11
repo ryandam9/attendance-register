@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models/attendance_record.dart';
 import '../models/office_location.dart';
 import '../models/special_day.dart';
 import '../providers/attendance_provider.dart';
@@ -13,25 +12,29 @@ import 'day_type_helper.dart';
 
 /// Saves [status] for [dateKey] (YYYY-MM-DD), replacing any conflicting entry:
 /// marking attendance removes a special day and vice versa.
+///
+/// The conflicting entry is removed unconditionally rather than only when the
+/// caller's snapshot says one exists: snapshots are taken when the sheet
+/// opens, and a background geofence event can insert an auto check-in in the
+/// meantime. Trusting a stale null here used to leave the day with both an
+/// "Auto check-in" attendance record and a special day (e.g. Work from Home)
+/// at once.
 Future<void> saveDayStatus(
   WidgetRef ref, {
   required OfficeLocation office,
   required String dateKey,
   required DayStatus status,
   String? note,
-  AttendanceRecord? existingRecord,
   SpecialDay? existingSpecial,
 }) async {
   final attendance = ref.read(attendanceProvider.notifier);
   final special = ref.read(specialDayProvider.notifier);
 
   if (status == DayStatus.attended) {
-    if (existingSpecial != null) await special.deleteDay(dateKey);
+    await special.deleteDay(dateKey);
     await attendance.saveRecord(office.id!, dateKey, reason: note);
   } else {
-    if (existingRecord != null) {
-      await attendance.deleteRecord(dateKey, office.id!);
-    }
+    await attendance.deleteRecord(dateKey, office.id!);
     await special.saveDay(SpecialDay(
       id: existingSpecial?.id,
       date: dateKey,
@@ -48,14 +51,15 @@ Future<void> removeDayEntry(
   WidgetRef ref, {
   required OfficeLocation office,
   required String dateKey,
-  AttendanceRecord? existingRecord,
   SpecialDay? existingSpecial,
 }) async {
-  if (existingRecord != null) {
-    await ref
-        .read(attendanceProvider.notifier)
-        .deleteRecord(dateKey, office.id!);
-  }
+  // Unconditional for the same stale-snapshot reason as saveDayStatus — an
+  // auto check-in inserted after the sheet opened must not survive a Remove.
+  // Deleting also dismisses auto check-in for the day, so blanking today
+  // sticks even while the user is still inside the office radius.
+  await ref
+      .read(attendanceProvider.notifier)
+      .deleteRecord(dateKey, office.id!);
   if (existingSpecial != null) {
     final wasAutoHoliday = existingSpecial.type == DayType.holiday &&
         existingSpecial.source == DaySource.auto;
