@@ -44,16 +44,23 @@
             </intent-filter>
         </activity>
 
-        <!-- WorkManager initialisation -->
-        <provider
-            android:name="androidx.startup.InitializationProvider"
-            android:authorities="${applicationId}.androidx-startup"
-            android:exported="false"
-            tools:node="merge">
-            <meta-data
-                android:name="androidx.work.WorkManagerInitializer"
-                android:value="androidx.startup" />
-        </provider>
+        <!-- Native Geofencing components -->
+        <receiver 
+            android:name="com.chunkytofustudios.native_geofence.receivers.NativeGeofenceBroadcastReceiver" 
+            android:exported="true"/>
+
+        <receiver 
+            android:name="com.chunkytofustudios.native_geofence.receivers.NativeGeofenceRebootBroadcastReceiver" 
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
+
+        <service 
+            android:name="com.chunkytofustudios.native_geofence.NativeGeofenceForegroundService" 
+            android:permission="android.permission.BIND_JOB_SERVICE" 
+            android:exported="true"/>
 
         <meta-data
             android:name="flutterEmbedding"

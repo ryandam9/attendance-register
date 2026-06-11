@@ -1,11 +1,24 @@
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
+import 'package:native_geofence/native_geofence.dart' as nf;
 
 import '../models/attendance_record.dart';
 import '../models/office_location.dart';
 import 'database_service.dart';
 import 'notification_service.dart';
+
+@pragma('vm:entry-point')
+Future<void> geofenceTriggered(nf.GeofenceCallbackParams params) async {
+  if (params.event == nf.GeofenceEvent.enter) {
+    for (final activeGeofence in params.geofences) {
+      final officeId = int.tryParse(activeGeofence.id);
+      if (officeId != null) {
+        await LocationService.instance.recordGeofenceCheckIn(officeId);
+      }
+    }
+  }
+}
 
 /// A reverse-geocoded location: a human-readable [address] plus the structured
 /// [state]/[country] fields the holiday importer matches on.
@@ -84,10 +97,97 @@ class LocationService {
     }
   }
 
-  /// Executed by WorkManager every 15 minutes in the background.
-  /// Must be a static method so it can be called from the top-level callback.
-  static Future<void> performBackgroundCheck() async {
-    await _checkAndRecord(notify: true);
+  Future<bool> hasAlwaysPermission() async {
+    final perm = await Geolocator.checkPermission();
+    return perm == LocationPermission.always;
+  }
+
+  Future<void> syncGeofences() async {
+    try {
+      final alwaysGranted = await hasAlwaysPermission();
+      if (!alwaysGranted) {
+        await nf.NativeGeofenceManager.instance.removeAllGeofences();
+        return;
+      }
+
+      final db = DatabaseService.instance;
+      final offices = await db.getOfficeLocations();
+      final activeGeofences = await nf.NativeGeofenceManager.instance.getRegisteredGeofences();
+      final activeIds = activeGeofences.map((g) => g.id).toSet();
+      final dbIds = offices.map((o) => o.id.toString()).toSet();
+
+      // 1. Remove geofences that are no longer in the DB
+      for (final activeId in activeIds) {
+        if (!dbIds.contains(activeId)) {
+          await nf.NativeGeofenceManager.instance.removeGeofenceById(activeId);
+        }
+      }
+
+      // 2. Register/re-register geofences for offices in DB
+      for (final office in offices) {
+        final idStr = office.id.toString();
+        if (activeIds.contains(idStr)) {
+          await nf.NativeGeofenceManager.instance.removeGeofenceById(idStr);
+        }
+
+        final geofence = nf.Geofence(
+          id: idStr,
+          location: nf.Location(latitude: office.latitude, longitude: office.longitude),
+          radiusMeters: office.radius,
+          triggers: {
+            nf.GeofenceEvent.enter,
+          },
+          iosSettings: const nf.IosGeofenceSettings(
+            initialTrigger: true,
+          ),
+          androidSettings: const nf.AndroidGeofenceSettings(
+            initialTriggers: {nf.GeofenceEvent.enter},
+            expiration: Duration(days: 365),
+            loiteringDelay: Duration(minutes: 1),
+            notificationResponsiveness: Duration(seconds: 30),
+          ),
+        );
+
+        await nf.NativeGeofenceManager.instance.createGeofence(geofence, geofenceTriggered);
+      }
+    } catch (e, stack) {
+      // Gracefully log instead of crashing (important for offline/testing/unsupported platform scenarios)
+      print('Failed to sync geofences: $e\n$stack');
+    }
+  }
+
+  Future<void> recordGeofenceCheckIn(int officeId) async {
+    final db = DatabaseService.instance;
+    final office = await db.getOfficeLocation(officeId);
+    if (office == null) return;
+
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    // Check special day conflicts (holidays, leaves, etc.)
+    if (await db.getSpecialDayForDate(today) != null) return;
+
+    // Check if attendance already recorded today for this office
+    if (await db.hasAttendanceForDate(today, officeId)) return;
+
+    // Insert attendance record
+    final id = await db.insertAttendanceRecord(
+      AttendanceRecord(
+        date: today,
+        officeLocationId: officeId,
+        timestamp: DateTime.now(),
+        reason: 'Auto check-in',
+      ),
+    );
+
+    if (id != null && id > 0) {
+      final displayDate = DateFormat('d MMM yyyy, h:mm a').format(DateTime.now());
+      final userName = await db.getSetting('user_name');
+      await NotificationService.instance.showAttendanceRecorded(
+        userName != null && userName.isNotEmpty ? userName : 'there',
+        displayDate,
+        id: officeId,
+      );
+    }
   }
 
   /// Same check, run when the app is opened or resumed. Catches the days the
@@ -95,8 +195,10 @@ class LocationService {
   /// scheduling) — if the user is standing in the office with the app open,
   /// attendance is recorded on the spot. Returns the office recorded at, or
   /// null. Skips the system notification: the caller shows in-app feedback.
-  static Future<OfficeLocation?> performForegroundCheck() =>
-      _checkAndRecord(notify: false);
+  static Future<OfficeLocation?> performForegroundCheck() async {
+    await instance.syncGeofences();
+    return _checkAndRecord(notify: false);
+  }
 
   /// Core auto check-in: if the current position is within the radius of a
   /// registered office and today is unmarked, record attendance. Never prompts

@@ -80,9 +80,9 @@ class SettingsScreen extends ConsumerWidget {
             leading: Icon(Icons.schedule_outlined),
             title: Text('Automatic Check-In'),
             subtitle: Text(
-              'The app checks your GPS position every 15 minutes. '
-              'When you are within the detection radius of a registered office, '
-              'your attendance is automatically recorded once per day. '
+              'The OS monitors virtual geofence boundaries around your offices. '
+              'When you enter an office boundary, the OS wakes the app in the background '
+              'to record your attendance automatically once per day. '
               'Opening the app while at the office records it too.',
             ),
             isThreeLine: true,
@@ -93,7 +93,7 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: Text(
               'For reliable background tracking:\n'
               '• Grant "Always Allow" location permission\n'
-              '• Disable battery optimisation for this app',
+              '• Disable battery optimisation to keep geofence callbacks reliable',
             ),
             isThreeLine: true,
           ),

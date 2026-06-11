@@ -50,7 +50,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // The background WorkManager task writes attendance to the database from a
+    // The background native geofence trigger writes attendance to the database from a
     // separate isolate, so the foreground snapshot held by attendanceProvider
     // goes stale while the app is backgrounded. Re-read from disk on resume so
     // the calendar reflects anything recorded automatically while we were away.
@@ -75,9 +75,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (inserted > 0 && mounted) _refreshAttendance();
   }
 
-  /// Safety net for the 15-minute background task (which the OS may have
-  /// killed): if the user opens the app while standing in the office, record
-  /// today on the spot. Never prompts for permission and never runs twice
+  /// Safety net for background geofence triggers (which the OS may have
+  /// missed or restricted): if the user opens the app while standing in the office,
+  /// record today on the spot. Never prompts for permission and never runs twice
   /// concurrently.
   Future<void> _foregroundCheckIn() async {
     if (_foregroundCheckRunning) return;

@@ -2,11 +2,10 @@
   <library name="Flutter Plugins" type="FlutterPluginsLibraryType">
     <CLASSES>
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/geolocator_linux-0.2.5" />
-      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/workmanager_android-0.9.0+2" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/jni_flutter-1.0.1" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/flutter_local_notifications-21.0.0" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/geolocator-14.0.2" />
-      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/workmanager-0.9.0+3" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/native_geofence-1.3.1" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_foundation-2.6.0" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/permission_handler_html-0.1.3+5" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/package_info_plus-10.1.0" />
@@ -15,7 +14,6 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_android-2.3.1" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_linux-2.2.1" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/flutter_local_notifications_windows-3.0.0" />
-      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/workmanager_apple-0.9.1+2" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/geocoding_android-4.0.1" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/geocoding-4.0.0" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/geolocator_apple-2.3.13" />

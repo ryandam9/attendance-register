@@ -16,6 +16,7 @@ Future<Database> _openTestDb() async {
     inMemoryDatabasePath,
     options: OpenDatabaseOptions(
       version: 2,
+      singleInstance: false,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE office_locations (

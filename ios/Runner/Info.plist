@@ -55,14 +55,7 @@
 	<!-- ── Background execution ──────────────────────────────────────────── -->
 	<key>UIBackgroundModes</key>
 	<array>
-		<string>fetch</string>
-		<string>processing</string>
-	</array>
-
-	<!-- WorkManager task identifiers -->
-	<key>BGTaskSchedulerPermittedIdentifiers</key>
-	<array>
-		<string>attendanceLocationCheck</string>
+		<string>location</string>
 	</array>
 </dict>
 </plist>

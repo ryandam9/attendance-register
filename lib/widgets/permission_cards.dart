@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../services/location_service.dart';
 import '../services/permission_service.dart';
 
 enum _PermStatus { granted, denied }
@@ -49,6 +50,9 @@ class _PermissionsSectionState extends State<PermissionsSection>
 
   Future<void> _refresh() async {
     final loc = await Permission.locationAlways.status;
+    if (loc.isGranted) {
+      await LocationService.instance.syncGeofences();
+    }
     final notif = await Permission.notification.status;
     _PermStatus? bat;
     if (Platform.isAndroid) {
@@ -93,8 +97,8 @@ class _PermissionsSectionState extends State<PermissionsSection>
             label: 'Location — Always Allow',
             status: _location!,
             reason:
-                'The app checks your GPS every 15 minutes while running in the '
-                'background. Without "Always Allow" automatic check-in will not work.',
+                'The OS monitors virtual geofence boundaries around your offices '
+                'and alerts the app when you enter. Without "Always Allow" automatic check-in will not work.',
             onGrant: () => _grant(PermissionService.requestLocationAlways),
           ),
           const SizedBox(height: 8),
@@ -112,8 +116,8 @@ class _PermissionsSectionState extends State<PermissionsSection>
               label: 'Battery Optimisation — Disabled',
               status: _battery!,
               reason:
-                  'Prevents Android from killing the background scan. Without this '
-                  'the 15-minute location check may stop firing.',
+                  'Prevents Android from aggressively terminating background event-driven '
+                  'geofence services, ensuring automatic check-in triggers reliably.',
               onGrant: () =>
                   _grant(PermissionService.requestIgnoreBatteryOptimizations),
             ),

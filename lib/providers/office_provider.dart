@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/office_location.dart';
 import '../services/database_service.dart';
+import '../services/location_service.dart';
 
 class OfficeState {
   final List<OfficeLocation> offices;
@@ -43,6 +44,7 @@ class OfficeNotifier extends Notifier<OfficeState> {
       offices: offices,
       selectedOffice: state.selectedOffice ?? saved,
     );
+    await LocationService.instance.syncGeofences();
   }
 
   Future<void> updateOffice(OfficeLocation office) async {
@@ -50,6 +52,7 @@ class OfficeNotifier extends Notifier<OfficeState> {
     final offices = [for (final o in state.offices) o.id == office.id ? office : o];
     final selected = state.selectedOffice?.id == office.id ? office : state.selectedOffice;
     state = OfficeState(offices: offices, selectedOffice: selected);
+    await LocationService.instance.syncGeofences();
   }
 
   Future<void> deleteOffice(int id) async {
@@ -59,6 +62,7 @@ class OfficeNotifier extends Notifier<OfficeState> {
         ? (offices.isNotEmpty ? offices.first : null)
         : state.selectedOffice;
     state = OfficeState(offices: offices, selectedOffice: selected);
+    await LocationService.instance.syncGeofences();
   }
 }
 
