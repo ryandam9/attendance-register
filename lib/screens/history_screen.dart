@@ -3,13 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../helpers/day_type_helper.dart';
-import '../helpers/route_helper.dart';
-import '../models/office_location.dart';
 import '../models/special_day.dart';
-import '../providers/attendance_provider.dart';
-import '../providers/special_day_provider.dart';
+import '../providers/office_provider.dart';
 import '../services/database_service.dart';
-import 'day_entry_screen.dart';
+import '../widgets/no_office_placeholder.dart';
+import '../widgets/quick_mark_sheet.dart';
 
 /// A single, status-agnostic row in the history list. Attendance records and
 /// special days are merged into this shape so they can share one sorted list.
@@ -19,19 +17,13 @@ class _HistoryItem {
   final String? comment;
 
   const _HistoryItem({required this.date, required this.status, this.comment});
-
-  Color get color => status.color;
-  IconData get icon => status.icon;
-  String get label => status.label;
 }
 
-/// Full chronological history of every recorded day (attendance, holiday, sick
-/// leave and not-attended), newest first. Tapping a row opens the day-entry
-/// screen so the entry can be edited or removed.
+/// The History tab: full chronological history of every recorded day
+/// (attendance, leave, holidays, WFH), newest first. Tapping a row opens the
+/// quick-mark sheet so the entry can be edited or removed.
 class HistoryScreen extends ConsumerStatefulWidget {
-  final OfficeLocation office;
-
-  const HistoryScreen({super.key, required this.office});
+  const HistoryScreen({super.key});
 
   @override
   ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
@@ -51,10 +43,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   Future<void> _load() async {
+    final office = ref.read(officeProvider).selectedOffice;
+    if (office == null) {
+      setState(() => _loading = false);
+      return;
+    }
     setState(() => _loading = true);
 
     final records = await DatabaseService.instance.getAllAttendanceRecords(
-      widget.office.id!,
+      office.id!,
     );
     final specialDays = await DatabaseService.instance.getAllSpecialDays();
 
@@ -81,29 +78,26 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   Future<void> _openEntry(_HistoryItem item) async {
-    final changed = await Navigator.push<bool>(
+    final office = ref.read(officeProvider).selectedOffice;
+    if (office == null) return;
+    final changed = await showQuickMarkSheet(
       context,
-      slideRoute(
-        DayEntryScreen(office: widget.office, initialDate: item.date),
-      ),
+      office: office,
+      date: item.date,
     );
-    if (changed == true && mounted) {
-      // Stats elsewhere are keyed off the provider; refresh it for the affected
-      // month so the dashboard stays in sync, then reload this list.
-      await ref.read(attendanceProvider.notifier).loadForMonth(
-        widget.office.id!,
-        item.date.year,
-        item.date.month,
-      );
-      await ref
-          .read(specialDayProvider.notifier)
-          .loadForMonth(item.date.year, item.date.month);
-      await _load();
-    }
+    if (changed && mounted) await _load();
   }
 
   @override
   Widget build(BuildContext context) {
+    final office = ref.watch(officeProvider).selectedOffice;
+    if (office == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('History')),
+        body: const NoOfficePlaceholder(),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('History')),
       body: _loading
@@ -118,12 +112,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, i) {
                       final item = _items[i];
+                      final color = item.status.colorIn(context);
                       final isToday = _keyFmt.format(item.date) ==
                           _keyFmt.format(DateTime.now());
                       return ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: item.color.withValues(alpha: 0.15),
-                          child: Icon(item.icon, color: item.color),
+                          backgroundColor: color.withValues(alpha: 0.15),
+                          child: Icon(item.status.icon, color: color),
                         ),
                         title: Text(
                           _dateFmt.format(item.date),
@@ -137,8 +132,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                             ? Text(item.comment!)
                             : null,
                         trailing: _StatusChip(
-                          label: item.label,
-                          color: item.color,
+                          label: item.status.label,
+                          color: color,
                         ),
                         onTap: () => _openEntry(item),
                       );

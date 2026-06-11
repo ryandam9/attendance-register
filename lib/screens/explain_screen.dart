@@ -8,15 +8,15 @@ import '../models/office_location.dart';
 import '../models/report_period.dart';
 import '../models/special_day.dart';
 import '../providers/explain_provider.dart';
+import '../providers/office_provider.dart';
 import '../providers/settings_provider.dart';
+import '../widgets/no_office_placeholder.dart';
 
-/// Explains how the "Return to office" percentage is calculated for a chosen
-/// month or financial year: every contributing count plus the arithmetic that
-/// turns them into the final percentage.
+/// The Insights tab: explains how the "Return to office" percentage is
+/// calculated for a chosen month or financial year — every contributing count
+/// plus the arithmetic that turns them into the final percentage.
 class ExplainScreen extends ConsumerStatefulWidget {
-  final OfficeLocation office;
-
-  const ExplainScreen({super.key, required this.office});
+  const ExplainScreen({super.key});
 
   @override
   ConsumerState<ExplainScreen> createState() => _ExplainScreenState();
@@ -29,6 +29,14 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final office = ref.watch(officeProvider).selectedOffice;
+    if (office == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Insights')),
+        body: const NoOfficePlaceholder(),
+      );
+    }
+
     final settings = ref.watch(settingsProvider);
     final fyStart = settings.financialYearStart;
     final period = ReportPeriod(
@@ -37,17 +45,17 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
       financialYearStart: fyStart,
     );
     final breakdown = ref.watch(breakdownProvider((
-      officeId: widget.office.id!,
+      officeId: office.id!,
       start: period.start,
       end: period.end,
     )));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Explain')),
+      appBar: AppBar(title: const Text('Insights')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _OfficeChip(office: widget.office),
+          _OfficeChip(office: office),
           const SizedBox(height: 16),
           _periodKindSelector(),
           if (_kind == PeriodKind.year) ...[
@@ -390,7 +398,7 @@ class _CountsCard extends StatelessWidget {
             _sectionTitle(context, Icons.summarize_outlined, 'Day counts'),
             const SizedBox(height: 4),
             _CountRow(
-              color: AppColors.attendance,
+              color: DayTypeColors.of(context).attendance,
               label: 'At office (Mon–Fri)',
               count: b.officeDays,
               tag: 'counts toward %',
@@ -399,7 +407,7 @@ class _CountsCard extends StatelessWidget {
             // weekday-based percentage — surfaced so the numbers add up.
             if (b.weekendOfficeDays > 0)
               _CountRow(
-                color: AppColors.attendance,
+                color: DayTypeColors.of(context).attendance,
                 label: 'At office (weekend)',
                 count: b.weekendOfficeDays,
                 tag: 'not counted',
@@ -415,7 +423,7 @@ class _CountsCard extends StatelessWidget {
               DayType.carersLeave,
             ])
               _CountRow(
-                color: type.color,
+                color: type.colorIn(context),
                 label: type.label,
                 count: b.countOf(type),
                 tag: excludedFromAttendanceDenominator.contains(type)

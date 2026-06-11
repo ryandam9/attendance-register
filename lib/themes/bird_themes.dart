@@ -1,5 +1,48 @@
 import 'package:flutter/material.dart';
 
+import '../app_colors.dart';
+
+/// Theme id that selects the device's Material You palette instead of a bird
+/// palette (Android 12+; elsewhere it falls back to the default bird theme).
+const dynamicThemeId = 'dynamic';
+
+/// Builds the app's ThemeData from any [ColorScheme] — bird palettes and
+/// Material You dynamic schemes share the same component styling, type scale
+/// and day-type colour extension.
+ThemeData buildAppTheme(ColorScheme scheme) {
+  final base = ThemeData(colorScheme: scheme, useMaterial3: true);
+  final dark = scheme.brightness == Brightness.dark;
+  return base.copyWith(
+    appBarTheme: const AppBarTheme(
+      centerTitle: true,
+      elevation: 0,
+      scrolledUnderElevation: 2,
+    ),
+    // Predictive back on Android 14+ (the system back gesture previews the
+    // destination); standard Cupertino slide on iOS.
+    pageTransitionsTheme: const PageTransitionsTheme(builders: {
+      TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+    }),
+    extensions: [dark ? DayTypeColors.dark : DayTypeColors.light],
+    // The big numbers (stat cards, Explain hero) are the app's identity:
+    // heavier weight, tighter tracking, and tabular figures so animated
+    // count-ups don't jiggle as digits change.
+    textTheme: base.textTheme.copyWith(
+      displaySmall: base.textTheme.displaySmall?.copyWith(
+        fontWeight: FontWeight.w800,
+        letterSpacing: -1.0,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+      headlineLarge: base.textTheme.headlineLarge?.copyWith(
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.5,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    ),
+  );
+}
+
 class BirdTheme {
   final String id;
   final String name;
@@ -22,8 +65,8 @@ class BirdTheme {
   static Color _onColor(Color background) =>
       background.computeLuminance() > 0.5 ? Colors.black : Colors.white;
 
-  ThemeData themeData(Brightness brightness) => ThemeData(
-    colorScheme: ColorScheme.fromSeed(
+  ThemeData themeData(Brightness brightness) => buildAppTheme(
+    ColorScheme.fromSeed(
       seedColor: primary,
       primary: primary,
       onPrimary: _onColor(primary),
@@ -32,12 +75,6 @@ class BirdTheme {
       tertiary: tertiary,
       onTertiary: _onColor(tertiary),
       brightness: brightness,
-    ),
-    useMaterial3: true,
-    appBarTheme: const AppBarTheme(
-      centerTitle: true,
-      elevation: 0,
-      scrolledUnderElevation: 2,
     ),
   );
 }
