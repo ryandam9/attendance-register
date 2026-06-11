@@ -360,8 +360,11 @@ class _Dashboard extends ConsumerWidget {
         if (offices.length > 1)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            // initialValue is re-evaluated whenever the selected office
+            // changes because _Dashboard is keyed by the selected office id,
+            // which remounts the whole subtree (including this field).
             child: DropdownButtonFormField<OfficeLocation>(
-              value: selected,
+              initialValue: selected,
               decoration: const InputDecoration(
                 labelText: 'Office',
                 prefixIcon: Icon(Icons.business),
