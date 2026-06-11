@@ -21,6 +21,19 @@ A Flutter mobile app that automatically tracks your return-to-office days using 
 
 ## Getting Started
 
+### Download the app (Android)
+
+No build environment needed — CI builds an APK automatically:
+
+- **Latest build:** grab `app-release.apk` from the
+  [latest release](https://github.com/ryandam9/attendance-register/releases/latest),
+  rebuilt on every push to `main`.
+- **Any branch on demand:** Actions tab → **CI** → *Run workflow*, then
+  download the `attendance-register-apk` artifact from that run.
+
+The APK is debug-signed (fine for personal sideloading, not store
+distribution) and needs Android 8.0+.
+
 ### Prerequisites
 
 - Flutter SDK ≥ 3.38.1 (Dart ≥ 3.8) — [install guide](https://docs.flutter.dev/get-started/install)
@@ -261,7 +274,9 @@ Tests cover:
 
 The database tests use `sqflite_common_ffi` with an in-memory database so they
 run on desktop without a device. CI (GitHub Actions) runs `flutter analyze` and
-`flutter test` on every PR.
+`flutter test` on every PR, and builds a release APK on every push to `main`
+(published to the rolling [latest release](https://github.com/ryandam9/attendance-register/releases/latest))
+or on demand via the Actions tab's *Run workflow* button.
 
 ## Database Schema
 
