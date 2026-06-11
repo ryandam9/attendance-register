@@ -39,7 +39,7 @@ class DatabaseService {
         overridePath ?? join(await getDatabasesPath(), 'attendance.db');
     return openDatabase(
       path,
-      version: 7,
+      version: 8,
       // sqflite does not enforce FOREIGN KEY constraints unless explicitly
       // enabled per connection.
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
@@ -89,6 +89,16 @@ class DatabaseService {
         // the next sync.
         await db.execute('''
           CREATE TABLE dismissed_holidays (
+            date TEXT PRIMARY KEY
+          )
+        ''');
+
+        // Dates the user explicitly deleted an attendance record on. Auto
+        // check-in (geofence + foreground check) skips these so a deleted
+        // check-in is not silently re-recorded while the user is still inside
+        // the office radius.
+        await db.execute('''
+          CREATE TABLE dismissed_checkins (
             date TEXT PRIMARY KEY
           )
         ''');
@@ -160,6 +170,13 @@ class DatabaseService {
             'DELETE FROM attendance_records WHERE office_location_id '
             'NOT IN (SELECT id FROM office_locations)',
           );
+        }
+        if (oldVersion < 8) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS dismissed_checkins (
+              date TEXT PRIMARY KEY
+            )
+          ''');
         }
       },
     );
@@ -485,6 +502,41 @@ class DatabaseService {
     return rows.map((r) => r['date'] as String).toSet();
   }
 
+  // ── Dismissed (auto) check-ins ────────────────────────────────────────────
+
+  /// Remember that the user deleted an attendance record on [date] so auto
+  /// check-in does not re-record the day while they are still at the office.
+  Future<void> dismissAutoCheckIn(String date) async {
+    final db = await database;
+    await db.insert(
+      'dismissed_checkins',
+      {'date': date},
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+  }
+
+  Future<bool> isAutoCheckInDismissed(String date) async {
+    final db = await database;
+    final rows = await db.query(
+      'dismissed_checkins',
+      where: 'date = ?',
+      whereArgs: [date],
+      limit: 1,
+    );
+    return rows.isNotEmpty;
+  }
+
+  /// Forget a dismissal — called when the user manually marks [date] as
+  /// attended again, so a later auto check-in on that day behaves normally.
+  Future<void> undismissAutoCheckIn(String date) async {
+    final db = await database;
+    await db.delete(
+      'dismissed_checkins',
+      where: 'date = ?',
+      whereArgs: [date],
+    );
+  }
+
   // ── App settings (key/value preferences) ──────────────────────────────────
 
   Future<String?> getSetting(String key) async {
@@ -515,5 +567,6 @@ class DatabaseService {
     await db.delete('attendance_records');
     await db.delete('special_days');
     await db.delete('dismissed_holidays');
+    await db.delete('dismissed_checkins');
   }
 }

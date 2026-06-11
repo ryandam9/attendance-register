@@ -118,7 +118,6 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
         dateKey: _keyFmt.format(_selectedDate),
         status: _status,
         note: comment.isEmpty ? null : comment,
-        existingRecord: _existingRecord,
         existingSpecial: _existingSpecialDay,
       );
       unawaited(HapticFeedback.lightImpact());
@@ -165,7 +164,6 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
         ref,
         office: widget.office,
         dateKey: _keyFmt.format(_selectedDate),
-        existingRecord: _existingRecord,
         existingSpecial: _existingSpecialDay,
       );
       unawaited(HapticFeedback.lightImpact());

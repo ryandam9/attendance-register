@@ -171,6 +171,9 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
         timestamp: DateTime.now(),
       ),
     );
+    // Marking the day attended again revokes any earlier "deleted, don't
+    // auto-record me today" dismissal.
+    await DatabaseService.instance.undismissAutoCheckIn(today);
     await loadForMonth(officeId, focusedMonth.year, focusedMonth.month);
     if (id != null && id > 0) return CheckInResult.recorded;
     final existing = await DatabaseService.instance.getAttendanceForDate(today, officeId);
@@ -208,12 +211,18 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
         ),
       );
     }
+    await DatabaseService.instance.undismissAutoCheckIn(date);
     final target = DateTime.parse(date);
     await loadForMonth(officeId, target.year, target.month);
   }
 
   Future<void> deleteRecord(String date, int officeId) async {
     await DatabaseService.instance.deleteAttendanceRecord(date, officeId);
+    // The user explicitly removed this day, so stop auto check-in from
+    // re-recording it — without this, deleting today's auto check-in while
+    // still inside the office radius silently resurrects it on the next
+    // geofence event or app resume.
+    await DatabaseService.instance.dismissAutoCheckIn(date);
     // Reload so counts, weekdays, and percentages are fully recalculated.
     final target = DateTime.parse(date);
     await loadForMonth(officeId, target.year, target.month);
