@@ -18,12 +18,10 @@ ThemeData buildAppTheme(ColorScheme scheme) {
       elevation: 0,
       scrolledUnderElevation: 2,
     ),
-    // Predictive back on Android 14+ (the system back gesture previews the
-    // destination); standard Cupertino slide on iOS.
-    pageTransitionsTheme: const PageTransitionsTheme(builders: {
-      TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
-      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-    }),
+    // No pageTransitionsTheme override: the framework defaults already map
+    // Android to PredictiveBackPageTransitionsBuilder (the 14+ back-gesture
+    // preview, enabled via enableOnBackInvokedCallback in the manifest) and
+    // iOS to the Cupertino slide.
     extensions: [dark ? DayTypeColors.dark : DayTypeColors.light],
     // The big numbers (stat cards, Explain hero) are the app's identity:
     // heavier weight, tighter tracking, and tabular figures so animated

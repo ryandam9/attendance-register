@@ -53,7 +53,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// Reloads attendance and special days for [day]'s month (defaults to the
   /// focused month).
   void _refreshAttendance([DateTime? day]) {
-    final target = day ?? ref.read(calendarFocusProvider);
+    // Read into a local first: inside `day ?? read(...)` the nullable context
+    // type would win generic inference and make the result DateTime?.
+    final focused = ref.read(calendarFocusProvider);
+    final target = day ?? focused;
     final office = ref.read(officeProvider).selectedOffice;
     if (office == null) return;
     ref.read(attendanceProvider.notifier).loadForMonth(
