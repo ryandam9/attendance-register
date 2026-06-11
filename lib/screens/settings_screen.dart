@@ -41,7 +41,7 @@ class SettingsScreen extends ConsumerWidget {
               office: o,
               onEdit: () => Navigator.push(
                 context,
-                slideRoute(SetupScreen(office: o)),
+                appRoute(SetupScreen(office: o)),
               ).then((_) => notifier.load()),
               onDelete: () => _confirmDelete(context, notifier, o),
             ),
@@ -51,7 +51,7 @@ class SettingsScreen extends ConsumerWidget {
             title: const Text('Add Another Office'),
             onTap: () => Navigator.push(
               context,
-              slideRoute(const SetupScreen()),
+              appRoute(const SetupScreen()),
             ).then((_) => notifier.load()),
           ),
 
@@ -62,73 +62,74 @@ class SettingsScreen extends ConsumerWidget {
 
           const Divider(height: 32),
 
-          const _SectionLabel('Theme'),
+          const _SectionLabel('Appearance'),
           ListTile(
             leading: const Icon(Icons.palette_outlined),
-            title: const Text('App Theme'),
+            title: const Text('Theme & Dark Mode'),
+            subtitle: const Text('Bird palettes, Material You, light/dark'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.push(
               context,
-              slideRoute(const ThemeScreen()),
+              appRoute(const ThemeScreen()),
             ),
           ),
 
           const Divider(height: 32),
 
+          // Reference material lives behind expansion tiles so the screen
+          // stays short — most visits are for the actionable sections above.
           const _SectionLabel('How It Works'),
-          const ListTile(
+          const ExpansionTile(
             leading: Icon(Icons.schedule_outlined),
             title: Text('Automatic Check-In'),
-            subtitle: Text(
-              'The OS monitors virtual geofence boundaries around your offices. '
-              'When you enter an office boundary, the OS wakes the app in the background '
-              'to record your attendance automatically once per day. '
-              'Opening the app while at the office records it too.',
-            ),
-            isThreeLine: true,
+            childrenPadding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+            expandedCrossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'The OS monitors virtual geofence boundaries around your '
+                'offices. When you enter an office boundary, the OS wakes the '
+                'app in the background to record your attendance automatically '
+                'once per day. Opening the app while at the office records it '
+                'too.\n\n'
+                'You can also tap "Check-In for Today" on the home screen to '
+                'record today\'s attendance manually.',
+              ),
+            ],
           ),
-          const ListTile(
+          const ExpansionTile(
             leading: Icon(Icons.battery_saver_outlined),
             title: Text('Battery Tip'),
-            subtitle: Text(
-              'For reliable background tracking:\n'
-              '• Grant "Always Allow" location permission\n'
-              '• Disable battery optimisation to keep geofence callbacks reliable',
-            ),
-            isThreeLine: true,
-          ),
-          const ListTile(
-            leading: Icon(Icons.touch_app_outlined),
-            title: Text('Manual Check-In'),
-            subtitle: Text(
-              'You can also tap "Check-In for Today" on the home screen to record today\'s attendance manually.',
-            ),
-            isThreeLine: true,
-          ),
-
-          const Divider(height: 32),
-
-          const _SectionLabel('Public Holidays'),
-          const ListTile(
-            leading: Icon(Icons.beach_access_outlined),
-            title: Text('Automatic Holidays'),
-            subtitle: Text(
-              'Public holidays for your office\'s region are highlighted '
-              'automatically. Anything you mark or remove yourself always takes '
-              'priority and is never overwritten.',
-            ),
-            isThreeLine: true,
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: OutlinedButton.icon(
-              onPressed: () => _syncHolidays(context, ref),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Sync Public Holidays Now'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
+            childrenPadding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+            expandedCrossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'For reliable background tracking:\n'
+                '• Grant "Always Allow" location permission\n'
+                '• Disable battery optimisation to keep geofence callbacks reliable',
               ),
-            ),
+            ],
+          ),
+          ExpansionTile(
+            leading: const Icon(Icons.beach_access_outlined),
+            title: const Text('Public Holidays'),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            expandedCrossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Public holidays for your office\'s region are highlighted '
+                'automatically. Anything you mark or remove yourself always '
+                'takes priority and is never overwritten.',
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => _syncHolidays(context, ref),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Sync Public Holidays Now'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+              ),
+            ],
           ),
 
           const Divider(height: 32),

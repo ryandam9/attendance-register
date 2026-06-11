@@ -1,15 +1,7 @@
 import 'package:flutter/material.dart';
 
-Route<T> slideRoute<T>(Widget page) {
-  return PageRouteBuilder<T>(
-    pageBuilder: (_, _, _) => page,
-    transitionsBuilder: (_, animation, _, child) => SlideTransition(
-      position: Tween<Offset>(
-        begin: const Offset(1.0, 0.0),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-      child: child,
-    ),
-    transitionDuration: const Duration(milliseconds: 280),
-  );
-}
+/// Standard route for pushed screens. Uses MaterialPageRoute so the theme's
+/// PageTransitionsTheme applies — including Android's predictive-back preview,
+/// which a custom PageRouteBuilder would silently opt out of.
+Route<T> appRoute<T>(Widget page) =>
+    MaterialPageRoute<T>(builder: (_) => page);

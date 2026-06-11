@@ -152,7 +152,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         // needs, instead of leaving them silently ungranted.
         Navigator.pushReplacement(
           context,
-          slideRoute(const PermissionSetupScreen()),
+          appRoute(const PermissionSetupScreen()),
         );
       } else {
         Navigator.pop(context);

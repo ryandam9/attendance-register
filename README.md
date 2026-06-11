@@ -8,15 +8,15 @@ A Flutter mobile app that automatically tracks your return-to-office days using 
 - **Auto check-in** — each office is registered as an OS-level geofence; when your phone enters the radius the OS wakes the app (even if it was killed) and attendance is recorded once per day in a local SQLite database. Opening the app while at the office records it too (a safety net for missed geofence events)
 - **Permission setup flow** — after the first office is saved, the app walks you through granting background location, notifications and battery-optimisation exemption, with one-tap requests (also available later under Settings → Permissions)
 - **Push notification** — you get a notification the moment attendance is recorded
-- **Dashboard** — a monthly calendar highlights every recorded day, with monthly and yearly totals and return-to-office percentages
-- **Mark a Day** — pick any past date and mark it as Attended, Public Holiday, Sick / Annual / Carer's / Misc Leave or Work from Home, with an optional comment; entries can be edited or removed later
+- **Dashboard** — a monthly calendar highlights every recorded day, with animated monthly and yearly totals and return-to-office percentages; bottom navigation switches between Home, Insights and History
+- **Quick day marking** — tapping a calendar day opens a bottom sheet with one-tap statuses (Attended, Public Holiday, Sick / Annual / Carer's / Misc Leave, Work from Home) and an optional comment; "All options" opens the full editor
 - **Explain page** — itemises exactly how the return-to-office percentage is calculated for a month or a (financial) year
 - **Configurable target** — set the RTO percentage your employer expects; dashboard stats turn green at or above it
 - **History** — a chronological list of every recorded day
 - **Multi-office** — track multiple office locations independently
 - **Auto public holidays** — public holidays for your office's region are highlighted automatically from a list published in this repo (see [Public Holidays](#public-holidays)); anything you mark or remove yourself always wins
 - **Data export** — copy a CSV of every recorded day to the clipboard as a backup
-- **Themes** — colour palettes inspired by Australian birds
+- **Themes** — colour palettes inspired by Australian birds, Material You dynamic colour ("match my wallpaper", Android 12+), and a light/dark/system toggle
 - **Edit / delete** — update the radius or remove an office at any time
 
 ## Getting Started
@@ -72,7 +72,7 @@ flutter run
 
 ```
 lib/
-├── main.dart                        # App entry point + geofencing init
+├── main.dart                        # App entry point, theming + geofencing init
 ├── app_colors.dart                  # Semantic colour tokens (calendar dots, chips)
 ├── models/
 │   ├── office_location.dart         # Office data model (value equality)
@@ -92,24 +92,29 @@ lib/
 │   ├── office_provider.dart
 │   ├── attendance_provider.dart
 │   ├── special_day_provider.dart
-│   ├── settings_provider.dart       # FY start, theme, name, RTO target
+│   ├── settings_provider.dart       # FY start, theme + mode, name, RTO target
+│   ├── ui_state_provider.dart       # Tab index, calendar focus/format
 │   └── explain_provider.dart
 ├── widgets/
-│   └── permission_cards.dart        # Permission status cards w/ grant buttons
+│   ├── permission_cards.dart        # Permission status cards w/ grant buttons
+│   ├── quick_mark_sheet.dart        # One-tap day-marking bottom sheet
+│   └── no_office_placeholder.dart
 ├── helpers/
 │   ├── day_type_helper.dart         # Labels, icons & colours per day type
+│   ├── day_marking.dart             # Shared save/remove rules for a day
 │   └── route_helper.dart
 ├── themes/
-│   └── bird_themes.dart             # Australian-bird colour palettes
+│   └── bird_themes.dart             # App theme builder + bird palettes
 └── screens/
+    ├── main_shell.dart              # Bottom navigation + app lifecycle work
     ├── home_screen.dart             # Dashboard + calendar
-    ├── day_entry_screen.dart        # Pick a day → status + comment
-    ├── explain_screen.dart          # Percentage breakdown report
-    ├── history_screen.dart          # Chronological list of recorded days
+    ├── day_entry_screen.dart        # Full day editor (status + comment)
+    ├── explain_screen.dart          # Insights tab: percentage breakdown
+    ├── history_screen.dart          # History tab: every recorded day
     ├── setup_screen.dart            # Add / edit office
     ├── permission_setup_screen.dart # First-run permission walkthrough
     ├── settings_screen.dart         # Profile, target, offices, permissions, data
-    └── theme_screen.dart            # Theme picker
+    └── theme_screen.dart            # Appearance: mode, Material You, birds
 ```
 
 ## Key Packages
@@ -124,6 +129,9 @@ lib/
 | `flutter_local_notifications` | Attendance notifications |
 | `permission_handler` | Runtime permission requests & status |
 | `flutter_riverpod` | State management |
+| `animations` | Fade-through tab switches, container transforms |
+| `confetti` | Check-in celebration |
+| `dynamic_color` | Material You wallpaper theming |
 
 ## How Auto Check-In Works
 

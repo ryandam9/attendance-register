@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/report_period.dart';
@@ -12,6 +13,7 @@ class SettingsState {
 
   final FinancialYearStart financialYearStart;
   final String themeId;
+  final ThemeMode themeMode;
   final String userName;
   final int rtoTarget;
   final bool loaded;
@@ -19,6 +21,7 @@ class SettingsState {
   const SettingsState({
     this.financialYearStart = FinancialYearStart.january,
     this.themeId = 'default',
+    this.themeMode = ThemeMode.system,
     this.userName = '',
     this.rtoTarget = defaultRtoTarget,
     this.loaded = false,
@@ -27,6 +30,7 @@ class SettingsState {
   SettingsState copyWith({
     FinancialYearStart? financialYearStart,
     String? themeId,
+    ThemeMode? themeMode,
     String? userName,
     int? rtoTarget,
     bool? loaded,
@@ -34,6 +38,7 @@ class SettingsState {
       SettingsState(
         financialYearStart: financialYearStart ?? this.financialYearStart,
         themeId: themeId ?? this.themeId,
+        themeMode: themeMode ?? this.themeMode,
         userName: userName ?? this.userName,
         rtoTarget: rtoTarget ?? this.rtoTarget,
         loaded: loaded ?? this.loaded,
@@ -45,8 +50,12 @@ class SettingsState {
 class SettingsNotifier extends Notifier<SettingsState> {
   static const _fyStartKey = 'financial_year_start';
   static const _themeKey = 'theme_id';
+  static const _themeModeKey = 'theme_mode';
   static const _userNameKey = 'user_name';
   static const _rtoTargetKey = 'rto_target_percent';
+
+  static ThemeMode _themeModeFromName(String? name) => ThemeMode.values
+      .firstWhere((m) => m.name == name, orElse: () => ThemeMode.system);
 
   @override
   SettingsState build() {
@@ -57,11 +66,13 @@ class SettingsNotifier extends Notifier<SettingsState> {
   Future<void> _load() async {
     final fyStart = await DatabaseService.instance.getSetting(_fyStartKey);
     final themeId = await DatabaseService.instance.getSetting(_themeKey);
+    final themeMode = await DatabaseService.instance.getSetting(_themeModeKey);
     final userName = await DatabaseService.instance.getSetting(_userNameKey);
     final rtoTarget = await DatabaseService.instance.getSetting(_rtoTargetKey);
     state = SettingsState(
       financialYearStart: FinancialYearStart.fromName(fyStart),
       themeId: themeId ?? 'default',
+      themeMode: _themeModeFromName(themeMode),
       userName: userName ?? '',
       rtoTarget: int.tryParse(rtoTarget ?? '') ?? SettingsState.defaultRtoTarget,
       loaded: true,
@@ -76,6 +87,11 @@ class SettingsNotifier extends Notifier<SettingsState> {
   Future<void> setThemeId(String id) async {
     state = state.copyWith(themeId: id, loaded: true);
     await DatabaseService.instance.setSetting(_themeKey, id);
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    state = state.copyWith(themeMode: mode, loaded: true);
+    await DatabaseService.instance.setSetting(_themeModeKey, mode.name);
   }
 
   Future<void> setUserName(String name) async {

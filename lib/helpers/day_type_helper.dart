@@ -48,6 +48,20 @@ extension DayTypeX on DayType {
     DayType.workFromHome => DayStatus.workFromHome,
     DayType.miscLeave => DayStatus.miscLeave,
   };
+
+  /// Theme-aware colour (brighter shades in dark mode). Prefer this over
+  /// [color] anywhere a BuildContext is available.
+  Color colorIn(BuildContext context) {
+    final c = DayTypeColors.of(context);
+    return switch (this) {
+      DayType.holiday => c.holiday,
+      DayType.sickLeave => c.sickLeave,
+      DayType.annualLeave => c.annualLeave,
+      DayType.carersLeave => c.carersLeave,
+      DayType.workFromHome => c.workFromHome,
+      DayType.miscLeave => c.miscLeave,
+    };
+  }
 }
 
 extension DayStatusX on DayStatus {
@@ -100,4 +114,19 @@ extension DayStatusX on DayStatus {
     DayStatus.miscLeave => DayType.miscLeave,
     DayStatus.attended => throw UnimplementedError('No DayType for attended'),
   };
+
+  /// Theme-aware colour (brighter shades in dark mode). Prefer this over
+  /// [color] anywhere a BuildContext is available.
+  Color colorIn(BuildContext context) {
+    final c = DayTypeColors.of(context);
+    return switch (this) {
+      DayStatus.attended => c.attendance,
+      DayStatus.holiday => c.holiday,
+      DayStatus.sickLeave => c.sickLeave,
+      DayStatus.annualLeave => c.annualLeave,
+      DayStatus.carersLeave => c.carersLeave,
+      DayStatus.workFromHome => c.workFromHome,
+      DayStatus.miscLeave => c.miscLeave,
+    };
+  }
 }

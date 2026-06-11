@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:animations/animations.dart';
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -14,11 +17,10 @@ import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/special_day_provider.dart';
+import '../providers/ui_state_provider.dart';
 import '../services/holiday_service.dart';
-import '../services/location_service.dart';
+import '../widgets/quick_mark_sheet.dart';
 import 'day_entry_screen.dart';
-import 'explain_screen.dart';
-import 'history_screen.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
 
@@ -29,80 +31,32 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen>
-    with WidgetsBindingObserver {
-  DateTime _focusedDay = DateTime.now();
-  CalendarFormat _calendarFormat = CalendarFormat.month;
-  bool _foregroundCheckRunning = false;
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  late final ConfettiController _confetti =
+      ConfettiController(duration: const Duration(milliseconds: 1200));
+  bool _justCheckedIn = false;
+  Timer? _checkedInReset;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _init());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshAttendance());
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    _checkedInReset?.cancel();
+    _confetti.dispose();
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // The background native geofence trigger writes attendance to the database from a
-    // separate isolate, so the foreground snapshot held by attendanceProvider
-    // goes stale while the app is backgrounded. Re-read from disk on resume so
-    // the calendar reflects anything recorded automatically while we were away.
-    if (state == AppLifecycleState.resumed) {
-      _refreshAttendance();
-      unawaited(_foregroundCheckIn());
-    }
-  }
-
-  Future<void> _init() async {
-    await ref.read(officeProvider.notifier).load();
-    _refreshAttendance();
-    // Pull public holidays for the registered office's region in the background
-    // and refresh the calendar if any new ones were inserted. Never blocks the
-    // first paint and silently no-ops when offline.
-    unawaited(_syncHolidays());
-    unawaited(_foregroundCheckIn());
-  }
-
-  Future<void> _syncHolidays() async {
-    final inserted = await HolidayService.instance.sync();
-    if (inserted > 0 && mounted) _refreshAttendance();
-  }
-
-  /// Safety net for background geofence triggers (which the OS may have
-  /// missed or restricted): if the user opens the app while standing in the office,
-  /// record today on the spot. Never prompts for permission and never runs twice
-  /// concurrently.
-  Future<void> _foregroundCheckIn() async {
-    if (_foregroundCheckRunning) return;
-    _foregroundCheckRunning = true;
-    try {
-      final office = await LocationService.performForegroundCheck();
-      if (office == null || !mounted) return;
-      _refreshAttendance();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "You're at ${office.name} — attendance recorded for today.",
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } finally {
-      _foregroundCheckRunning = false;
-    }
   }
 
   /// Reloads attendance and special days for [day]'s month (defaults to the
   /// focused month).
   void _refreshAttendance([DateTime? day]) {
-    final target = day ?? _focusedDay;
+    // Read into a local first: inside `day ?? read(...)` the nullable context
+    // type would win generic inference and make the result DateTime?.
+    final focused = ref.read(calendarFocusProvider);
+    final target = day ?? focused;
     final office = ref.read(officeProvider).selectedOffice;
     if (office == null) return;
     ref.read(attendanceProvider.notifier).loadForMonth(
@@ -117,28 +71,78 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _onPageChanged(DateTime day) {
-    setState(() => _focusedDay = day);
+    ref.read(calendarFocusProvider.notifier).set(day);
     _refreshAttendance(day);
   }
 
-  /// Opens the unified day-entry screen for [initialDate] (defaults to today).
-  Future<void> _openDayEntry({DateTime? initialDate}) async {
+  Future<void> _onPullRefresh() async {
+    final inserted = await HolidayService.instance.sync();
+    if (!mounted) return;
+    _refreshAttendance();
+    if (inserted > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Added $inserted public holiday${inserted == 1 ? '' : 's'}.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  /// Tapping a calendar day opens the quick-mark sheet (one-tap statuses);
+  /// "All options" inside it escalates to the full day-entry screen.
+  Future<void> _quickMarkDay(DateTime day) async {
     final office = ref.read(officeProvider).selectedOffice;
     if (office == null) return;
-    final changed = await Navigator.push<bool>(
-      context,
-      slideRoute(DayEntryScreen(office: office, initialDate: initialDate)),
+    final changed = await showQuickMarkSheet(context, office: office, date: day);
+    if (changed && mounted) _refreshAttendance();
+  }
+
+  Future<void> _manualCheckIn() async {
+    final office = ref.read(officeProvider).selectedOffice;
+    if (office == null) return;
+    final result = await ref
+        .read(attendanceProvider.notifier)
+        .manualCheckIn(office.id!, focusedMonth: ref.read(calendarFocusProvider));
+    if (!mounted) return;
+
+    if (result == CheckInResult.recorded) {
+      // The once-a-day moment the app exists for — celebrate it.
+      unawaited(HapticFeedback.mediumImpact());
+      _confetti.play();
+      setState(() => _justCheckedIn = true);
+      _checkedInReset?.cancel();
+      _checkedInReset = Timer(const Duration(milliseconds: 2500), () {
+        if (mounted) setState(() => _justCheckedIn = false);
+      });
+    }
+
+    final msg = switch (result) {
+      CheckInResult.recorded => 'Attendance recorded for today!',
+      CheckInResult.alreadyRecorded => 'Already checked in for today.',
+      CheckInResult.alreadyRecordedByAuto =>
+        'Attendance already recorded by auto check-in.',
+      CheckInResult.specialDayConflict =>
+        'Today is already marked (holiday, sick leave or misc leave) — change it first.',
+    };
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
     );
-    if (changed == true && mounted) _refreshAttendance();
   }
 
   @override
   Widget build(BuildContext context) {
     final officeState = ref.watch(officeProvider);
 
-    // The yearly stat window depends on the financial-year setting (changed on
-    // the Explain page, loaded asynchronously at startup) — reload when it
-    // changes so the dashboard never shows a stale window.
+    // Reload when the selected office first arrives or changes (startup load
+    // completes after this widget mounts), and when the financial-year setting
+    // changes the yearly window.
+    ref.listen(
+      officeProvider.select((s) => s.selectedOffice?.id),
+      (previous, next) {
+        if (next != null && previous != next) _refreshAttendance();
+      },
+    );
     ref.listen(
       settingsProvider.select((s) => s.financialYearStart),
       (previous, next) {
@@ -166,86 +170,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               )
             : const Text('Office Attendance'),
         actions: [
-          if (officeState.hasOffice) ...[
-            IconButton(
-              icon: const Icon(Icons.insights_outlined),
-              tooltip: 'Explain',
-              onPressed: () => Navigator.push(
-                context,
-                slideRoute(
-                  ExplainScreen(office: officeState.selectedOffice!),
-                ),
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.history),
-              tooltip: 'History',
-              onPressed: () => Navigator.push(
-                context,
-                slideRoute(
-                  HistoryScreen(office: officeState.selectedOffice!),
-                ),
-              ).then((_) => _refreshAttendance()),
-            ),
-          ],
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',
             onPressed: () => Navigator.push(
               context,
-              slideRoute(const SettingsScreen()),
-            ).then((_) => _init()),
+              appRoute(const SettingsScreen()),
+            ).then((_) async {
+              await ref.read(officeProvider.notifier).load();
+              if (mounted) _refreshAttendance();
+            }),
           ),
         ],
       ),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        child: officeState.loading
-            ? const Center(key: ValueKey('loading'), child: CircularProgressIndicator())
-            : !officeState.hasOffice
-                ? _EmptyState(
-                    key: const ValueKey('empty'),
-                    onAdd: () => Navigator.push(
-                      context,
-                      slideRoute(const SetupScreen()),
-                    ).then((_) => _init()),
+      body: Stack(
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: officeState.loading
+                ? const Center(
+                    key: ValueKey('loading'),
+                    child: CircularProgressIndicator(),
                   )
-                : _Dashboard(
-                    key: ValueKey(officeState.selectedOffice?.id),
-                    offices: officeState.offices,
-                    selected: officeState.selectedOffice!,
-                    focusedDay: _focusedDay,
-                    calendarFormat: _calendarFormat,
-                    onOfficeChanged: (o) {
-                      ref.read(officeProvider.notifier).selectOffice(o);
-                      _refreshAttendance();
-                    },
-                    onFormatChanged: (f) => setState(() => _calendarFormat = f),
-                    onPageChanged: _onPageChanged,
-                    onManualCheckIn: () async {
-                      final officeId = ref.read(officeProvider).selectedOffice!.id!;
-                      final result = await ref
-                          .read(attendanceProvider.notifier)
-                          .manualCheckIn(officeId, focusedMonth: _focusedDay);
-                      if (!context.mounted) return;
-                      final msg = switch (result) {
-                        CheckInResult.recorded => 'Attendance recorded for today!',
-                        CheckInResult.alreadyRecorded => 'Already checked in for today.',
-                        CheckInResult.alreadyRecordedByAuto =>
-                          'Attendance already recorded by auto check-in.',
-                        CheckInResult.specialDayConflict =>
-                          'Today is already marked (holiday, sick leave or misc leave) — change it first.',
-                      };
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(msg),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
-                    onMarkADay: () => _openDayEntry(),
-                    onDayTapped: (day) => _openDayEntry(initialDate: day),
-                  ),
+                : !officeState.hasOffice
+                    ? _EmptyState(
+                        key: const ValueKey('empty'),
+                        onAdd: () => Navigator.push(
+                          context,
+                          appRoute(const SetupScreen()),
+                        ).then((_) async {
+                          await ref.read(officeProvider.notifier).load();
+                          if (mounted) _refreshAttendance();
+                        }),
+                      )
+                    : _Dashboard(
+                        key: ValueKey(officeState.selectedOffice?.id),
+                        offices: officeState.offices,
+                        selected: officeState.selectedOffice!,
+                        justCheckedIn: _justCheckedIn,
+                        onRefresh: _onPullRefresh,
+                        onOfficeChanged: (o) =>
+                            ref.read(officeProvider.notifier).selectOffice(o),
+                        onPageChanged: _onPageChanged,
+                        onManualCheckIn: _manualCheckIn,
+                        onDayTapped: _quickMarkDay,
+                        onMarkADayClosed: (changed) {
+                          if (changed == true) _refreshAttendance();
+                        },
+                      ),
+          ),
+          // Confetti bursts from the top on a successful check-in.
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confetti,
+              blastDirectionality: BlastDirectionality.explosive,
+              numberOfParticles: 24,
+              maxBlastForce: 24,
+              minBlastForce: 8,
+              gravity: 0.25,
+              shouldLoop: false,
+              colors: [
+                cs.primary,
+                cs.secondary,
+                cs.tertiary,
+                DayStatus.attended.colorIn(context),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -298,27 +291,25 @@ class _EmptyState extends StatelessWidget {
 class _Dashboard extends ConsumerWidget {
   final List<OfficeLocation> offices;
   final OfficeLocation selected;
-  final DateTime focusedDay;
-  final CalendarFormat calendarFormat;
+  final bool justCheckedIn;
+  final Future<void> Function() onRefresh;
   final ValueChanged<OfficeLocation> onOfficeChanged;
-  final ValueChanged<CalendarFormat> onFormatChanged;
   final ValueChanged<DateTime> onPageChanged;
   final VoidCallback onManualCheckIn;
-  final VoidCallback onMarkADay;
   final ValueChanged<DateTime> onDayTapped;
+  final ValueChanged<bool?> onMarkADayClosed;
 
   const _Dashboard({
     super.key,
     required this.offices,
     required this.selected,
-    required this.focusedDay,
-    required this.calendarFormat,
+    required this.justCheckedIn,
+    required this.onRefresh,
     required this.onOfficeChanged,
-    required this.onFormatChanged,
     required this.onPageChanged,
     required this.onManualCheckIn,
-    required this.onMarkADay,
     required this.onDayTapped,
+    required this.onMarkADayClosed,
   });
 
   static final _dayKeyFmt = DateFormat('yyyy-MM-dd');
@@ -328,6 +319,8 @@ class _Dashboard extends ConsumerWidget {
     final ap = ref.watch(attendanceProvider);
     final sp = ref.watch(specialDayProvider);
     final settings = ref.watch(settingsProvider);
+    final focusedDay = ref.watch(calendarFocusProvider);
+    final calendarFormat = ref.watch(calendarFormatProvider);
 
     // O(1) status lookup per calendar cell. Attendance wins over a special day
     // (matching the precedence used everywhere else).
@@ -342,7 +335,11 @@ class _Dashboard extends ConsumerWidget {
     Widget? dayCell(DateTime day, {required bool isToday}) {
       final status = statusFor(day);
       if (status == null) return null;
-      return _DayDot(day: day, color: status.color, isToday: isToday);
+      return _DayDot(
+        day: day,
+        color: status.colorIn(context),
+        isToday: isToday,
+      );
     }
 
     // The yearly stat follows the configured reporting year (calendar or
@@ -353,132 +350,168 @@ class _Dashboard extends ConsumerWidget {
       financialYearStart: settings.financialYearStart,
     );
 
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 32),
-      children: [
-        // Office picker — only shown when more than one office exists.
-        if (offices.length > 1)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            // initialValue is re-evaluated whenever the selected office
-            // changes because _Dashboard is keyed by the selected office id,
-            // which remounts the whole subtree (including this field).
-            child: DropdownButtonFormField<OfficeLocation>(
-              initialValue: selected,
-              decoration: const InputDecoration(
-                labelText: 'Office',
-                prefixIcon: Icon(Icons.business),
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    final cs = Theme.of(context).colorScheme;
+
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 32),
+        children: [
+          // Office picker — only shown when more than one office exists.
+          if (offices.length > 1)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: DropdownButtonFormField<OfficeLocation>(
+                initialValue: selected,
+                decoration: const InputDecoration(
+                  labelText: 'Office',
+                  prefixIcon: Icon(Icons.business),
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                items: offices
+                    .map((o) => DropdownMenuItem(value: o, child: Text(o.name)))
+                    .toList(),
+                onChanged: (o) {
+                  if (o != null) onOfficeChanged(o);
+                },
               ),
-              items: offices
-                  .map((o) => DropdownMenuItem(value: o, child: Text(o.name)))
-                  .toList(),
-              onChanged: (o) {
-                if (o != null) onOfficeChanged(o);
+            ),
+
+          // Stats row — tapping a card jumps to the Insights tab.
+          _StatsRow(
+            month: focusedDay,
+            yearLabel: yearPeriod.label,
+            monthly: ap.monthlyCount,
+            yearly: ap.yearlyCount,
+            monthlyPercentage: ap.monthlyPercentage,
+            yearlyPercentage: ap.yearlyPercentage,
+            target: settings.rtoTarget,
+            onTap: () => ref.read(tabIndexProvider.notifier).set(1),
+          ),
+
+          // Calendar
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            clipBehavior: Clip.antiAlias,
+            child: TableCalendar(
+              firstDay: DateTime(2020),
+              lastDay: DateTime(DateTime.now().year + 5, 12, 31),
+              focusedDay: focusedDay,
+              calendarFormat: calendarFormat,
+              // Always render six week-rows so the calendar's height stays
+              // constant across months — paging between a 5-row and 6-row
+              // month would otherwise resize everything below it.
+              sixWeekMonthsEnforced: true,
+              onFormatChanged: (f) =>
+                  ref.read(calendarFormatProvider.notifier).set(f),
+              onPageChanged: onPageChanged,
+              selectedDayPredicate: (_) => false,
+              onDaySelected: (selectedDay, _) {
+                if (selectedDay.isAfter(DateTime.now())) return;
+                onDayTapped(selectedDay);
               },
-            ),
-          ),
-
-        // Stats row
-        _StatsRow(
-          month: focusedDay,
-          yearLabel: yearPeriod.label,
-          monthly: ap.monthlyCount,
-          yearly: ap.yearlyCount,
-          monthlyPercentage: ap.monthlyPercentage,
-          yearlyPercentage: ap.yearlyPercentage,
-          target: settings.rtoTarget,
-        ),
-
-        // Calendar
-        Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          clipBehavior: Clip.antiAlias,
-          child: TableCalendar(
-            firstDay: DateTime(2020),
-            lastDay: DateTime(DateTime.now().year + 5, 12, 31),
-            focusedDay: focusedDay,
-            calendarFormat: calendarFormat,
-            // Always render six week-rows so the calendar's height stays
-            // constant across months. Without this, months that span only
-            // five weeks are shorter, and paging between a 5-row and a 6-row
-            // month resizes the calendar — shoving everything below it up and
-            // down (the "flickering" the user sees).
-            sixWeekMonthsEnforced: true,
-            onFormatChanged: onFormatChanged,
-            onPageChanged: onPageChanged,
-            selectedDayPredicate: (_) => false,
-            onDaySelected: (selectedDay, _) {
-              if (selectedDay.isAfter(DateTime.now())) return;
-              onDayTapped(selectedDay);
-            },
-            calendarBuilders: CalendarBuilders(
-              defaultBuilder: (context, day, _) => dayCell(day, isToday: false),
-              todayBuilder: (context, day, _) => dayCell(day, isToday: true),
-            ),
-            headerStyle: const HeaderStyle(
-              formatButtonVisible: true,
-              titleCentered: true,
-            ),
-            calendarStyle: CalendarStyle(
-              todayDecoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
+              calendarBuilders: CalendarBuilders(
+                defaultBuilder: (context, day, _) => dayCell(day, isToday: false),
+                todayBuilder: (context, day, _) => dayCell(day, isToday: true),
               ),
-              todayTextStyle: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
+              headerStyle: const HeaderStyle(
+                formatButtonVisible: true,
+                titleCentered: true,
+              ),
+              calendarStyle: CalendarStyle(
+                todayDecoration: BoxDecoration(
+                  color: cs.primary.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                todayTextStyle: TextStyle(
+                  color: cs.primary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
-        ),
 
-        const SizedBox(height: 12),
+          const SizedBox(height: 12),
 
-        // Primary action
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: FilledButton.icon(
-            onPressed: onManualCheckIn,
-            icon: const Icon(Icons.check_circle_outline),
-            label: const Text('Check-In for Today'),
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
-        // Secondary action — one screen handles attendance, holiday & sick leave
-        // for any past date or today. Tapping a calendar day opens it too.
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: OutlinedButton.icon(
-            onPressed: onMarkADay,
-            icon: const Icon(Icons.edit_calendar_outlined),
-            label: const Text('Mark a Day (Attendance / Leave / WFH)'),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
+          // Primary action — morphs into a confirmation for a moment after a
+          // successful check-in.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: FilledButton.icon(
+              onPressed: onManualCheckIn,
+              icon: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                transitionBuilder: (child, anim) =>
+                    ScaleTransition(scale: anim, child: child),
+                child: Icon(
+                  justCheckedIn ? Icons.celebration : Icons.check_circle_outline,
+                  key: ValueKey(justCheckedIn),
+                ),
+              ),
+              label: Text(justCheckedIn ? 'Checked in!' : 'Check-In for Today'),
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
             ),
           ),
-        ),
 
-        const SizedBox(height: 16),
+          const SizedBox(height: 8),
 
-        // Calendar legend — centered.
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 12,
-            runSpacing: 4,
-            children: [
-              for (final s in DayStatus.values)
-                _LegendChip(color: s.color, label: s.label),
-            ],
+          // Secondary action — container-transforms into the full day-entry
+          // screen. Tapping a calendar day opens the quick sheet instead.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: OpenContainer<bool>(
+              transitionType: ContainerTransitionType.fadeThrough,
+              transitionDuration: const Duration(milliseconds: 350),
+              closedElevation: 0,
+              closedColor: cs.surface,
+              closedShape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: BorderSide(color: cs.outline),
+              ),
+              closedBuilder: (context, open) => InkWell(
+                onTap: open,
+                child: SizedBox(
+                  height: 48,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.edit_calendar_outlined, color: cs.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Mark a Day (Attendance / Leave / WFH)',
+                        style: TextStyle(
+                          color: cs.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              openBuilder: (context, _) => DayEntryScreen(office: selected),
+              onClosed: onMarkADayClosed,
+            ),
           ),
-        ),
-      ],
+
+          const SizedBox(height: 16),
+
+          // Calendar legend — centered.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 12,
+              runSpacing: 4,
+              children: [
+                for (final s in DayStatus.values)
+                  _LegendChip(color: s.colorIn(context), label: s.label),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -493,6 +526,7 @@ class _StatsRow extends StatelessWidget {
   final double? monthlyPercentage;
   final double? yearlyPercentage;
   final int target;
+  final VoidCallback onTap;
 
   const _StatsRow({
     required this.month,
@@ -500,6 +534,7 @@ class _StatsRow extends StatelessWidget {
     required this.monthly,
     required this.yearly,
     required this.target,
+    required this.onTap,
     this.monthlyPercentage,
     this.yearlyPercentage,
   });
@@ -514,24 +549,26 @@ class _StatsRow extends StatelessWidget {
           Expanded(
             child: _StatCard(
               label: DateFormat.MMMM().format(month),
-              value: '$monthly',
+              value: monthly,
               percentage: monthlyPercentage,
               target: target,
               color: cs.primaryContainer,
               onColor: cs.onPrimaryContainer,
               icon: Icons.calendar_month_outlined,
+              onTap: onTap,
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: _StatCard(
               label: yearLabel,
-              value: '$yearly',
+              value: yearly,
               percentage: yearlyPercentage,
               target: target,
               color: cs.secondaryContainer,
               onColor: cs.onSecondaryContainer,
               icon: Icons.star_outline,
+              onTap: onTap,
             ),
           ),
         ],
@@ -542,12 +579,13 @@ class _StatsRow extends StatelessWidget {
 
 class _StatCard extends StatelessWidget {
   final String label;
-  final String value;
+  final int value;
   final double? percentage;
   final int target;
   final Color color;
   final Color onColor;
   final IconData icon;
+  final VoidCallback onTap;
 
   const _StatCard({
     required this.label,
@@ -557,92 +595,108 @@ class _StatCard extends StatelessWidget {
     required this.color,
     required this.onColor,
     required this.icon,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final pct = (percentage ?? 0) / 100;
     final pctGood = (percentage ?? 0) >= target;
 
     return Card(
       color: color,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: onColor, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    label,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: onColor.withValues(alpha: 0.8),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  value,
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    color: onColor,
-                    fontWeight: FontWeight.bold,
-                    height: 1,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    'days',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: onColor.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                if (percentage != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: pctGood ? cs.primary : cs.error,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: onColor, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
                     child: Text(
-                      '${percentage!.toStringAsFixed(0)}%',
-                      style: TextStyle(
-                        color: pctGood ? cs.onPrimary : cs.onError,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: onColor.withValues(alpha: 0.8),
                       ),
                     ),
                   ),
-              ],
-            ),
-            if (percentage != null) ...[
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(3),
-                child: LinearProgressIndicator(
-                  value: pct.clamp(0.0, 1.0),
-                  backgroundColor: onColor.withValues(alpha: 0.15),
-                  valueColor: AlwaysStoppedAnimation(
-                    pctGood ? cs.primary : cs.error,
-                  ),
-                  minHeight: 6,
-                ),
+                ],
               ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // Animated count-up; tabular figures in the theme keep the
+                  // digits from jiggling as they change.
+                  TweenAnimationBuilder<int>(
+                    tween: IntTween(begin: 0, end: value),
+                    duration: const Duration(milliseconds: 600),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, v, _) => Text(
+                      '$v',
+                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                        color: onColor,
+                        height: 1,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      'days',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: onColor.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  if (percentage != null)
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 400),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: pctGood ? cs.primary : cs.error,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${percentage!.toStringAsFixed(0)}%',
+                        style: TextStyle(
+                          color: pctGood ? cs.onPrimary : cs.onError,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              if (percentage != null) ...[
+                const SizedBox(height: 10),
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: (percentage! / 100).clamp(0.0, 1.0)),
+                  duration: const Duration(milliseconds: 700),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, v, _) => ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: LinearProgressIndicator(
+                      value: v,
+                      backgroundColor: onColor.withValues(alpha: 0.15),
+                      valueColor: AlwaysStoppedAnimation(
+                        pctGood ? cs.primary : cs.error,
+                      ),
+                      minHeight: 6,
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -660,26 +714,36 @@ class _DayDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        // A contrasting white ring distinguishes "today" from past days.
-        border: isToday
-            ? Border.all(color: Colors.white, width: 2.5)
-            : null,
-        boxShadow: isToday
-            ? [BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 4)]
-            : null,
+    // Subtle scale/fade-in when a month's dots appear.
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutBack,
+      builder: (context, t, child) => Opacity(
+        opacity: t.clamp(0.0, 1.0),
+        child: Transform.scale(scale: 0.7 + 0.3 * t, child: child),
       ),
-      alignment: Alignment.center,
-      child: Text(
-        '${day.day}',
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 13,
+      child: Container(
+        margin: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          // A contrasting white ring distinguishes "today" from past days.
+          border: isToday
+              ? Border.all(color: Colors.white, width: 2.5)
+              : null,
+          boxShadow: isToday
+              ? [BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 4)]
+              : null,
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          '${day.day}',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
         ),
       ),
     );

@@ -1,14 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../helpers/day_marking.dart';
 import '../helpers/day_type_helper.dart';
 import '../models/attendance_record.dart';
 import '../models/office_location.dart';
 import '../models/special_day.dart';
-import '../providers/attendance_provider.dart';
-import '../providers/special_day_provider.dart';
 import '../services/database_service.dart';
 
 /// Unified screen for marking a day. For any past date or today the user picks
@@ -109,36 +111,17 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
   Future<void> _save() async {
     setState(() => _loading = true);
     try {
-      final dateStr = _keyFmt.format(_selectedDate);
       final comment = _commentController.text.trim();
-      final note = comment.isEmpty ? null : comment;
-
-      final attendance = ref.read(attendanceProvider.notifier);
-      final special = ref.read(specialDayProvider.notifier);
-
-      if (_status == DayStatus.attended) {
-        // Marking attendance replaces any holiday / sick-leave entry.
-        if (_existingSpecialDay != null) await special.deleteDay(dateStr);
-        await attendance.saveRecord(
-          widget.office.id!,
-          dateStr,
-          reason: note,
-        );
-      } else {
-        // Marking a special day replaces any attendance record.
-        if (_existingRecord != null) {
-          await attendance.deleteRecord(dateStr, widget.office.id!);
-        }
-        await special.saveDay(
-          SpecialDay(
-            id: _existingSpecialDay?.id,
-            date: dateStr,
-            type: _status.dayType,
-            note: note,
-          ),
-        );
-      }
-
+      await saveDayStatus(
+        ref,
+        office: widget.office,
+        dateKey: _keyFmt.format(_selectedDate),
+        status: _status,
+        note: comment.isEmpty ? null : comment,
+        existingRecord: _existingRecord,
+        existingSpecial: _existingSpecialDay,
+      );
+      unawaited(HapticFeedback.lightImpact());
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
@@ -178,21 +161,14 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
 
     setState(() => _loading = true);
     try {
-      final dateStr = _keyFmt.format(_selectedDate);
-      if (_existingRecord != null) {
-        await ref
-            .read(attendanceProvider.notifier)
-            .deleteRecord(dateStr, widget.office.id!);
-      }
-      if (_existingSpecialDay != null) {
-        // If this was an auto-imported public holiday, remember the removal so
-        // the importer does not resurrect it on the next sync.
-        final wasAutoHoliday = _existingSpecialDay!.type == DayType.holiday &&
-            _existingSpecialDay!.source == DaySource.auto;
-        await ref
-            .read(specialDayProvider.notifier)
-            .deleteDay(dateStr, dismiss: wasAutoHoliday);
-      }
+      await removeDayEntry(
+        ref,
+        office: widget.office,
+        dateKey: _keyFmt.format(_selectedDate),
+        existingRecord: _existingRecord,
+        existingSpecial: _existingSpecialDay,
+      );
+      unawaited(HapticFeedback.lightImpact());
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
@@ -309,7 +285,7 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
                           label: s.label,
                           description: s.description,
                           icon: s.icon,
-                          color: s.color,
+                          color: s.colorIn(context),
                           selected: _status == s,
                           onTap: () => setState(() { _status = s; _dirty = true; }),
                         ),
