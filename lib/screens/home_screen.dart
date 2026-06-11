@@ -5,15 +5,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
-import '../app_colors.dart';
 import '../helpers/day_type_helper.dart';
 import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
+import '../models/report_period.dart';
 import '../models/special_day.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
+import '../providers/settings_provider.dart';
 import '../providers/special_day_provider.dart';
 import '../services/holiday_service.dart';
+import '../services/location_service.dart';
 import 'day_entry_screen.dart';
 import 'explain_screen.dart';
 import 'history_screen.dart';
@@ -31,6 +33,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   DateTime _focusedDay = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
+  bool _foregroundCheckRunning = false;
 
   @override
   void initState() {
@@ -53,6 +56,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // the calendar reflects anything recorded automatically while we were away.
     if (state == AppLifecycleState.resumed) {
       _refreshAttendance();
+      unawaited(_foregroundCheckIn());
     }
   }
 
@@ -63,6 +67,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // and refresh the calendar if any new ones were inserted. Never blocks the
     // first paint and silently no-ops when offline.
     unawaited(_syncHolidays());
+    unawaited(_foregroundCheckIn());
   }
 
   Future<void> _syncHolidays() async {
@@ -70,30 +75,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (inserted > 0 && mounted) _refreshAttendance();
   }
 
-  void _refreshAttendance() {
+  /// Safety net for the 15-minute background task (which the OS may have
+  /// killed): if the user opens the app while standing in the office, record
+  /// today on the spot. Never prompts for permission and never runs twice
+  /// concurrently.
+  Future<void> _foregroundCheckIn() async {
+    if (_foregroundCheckRunning) return;
+    _foregroundCheckRunning = true;
+    try {
+      final office = await LocationService.performForegroundCheck();
+      if (office == null || !mounted) return;
+      _refreshAttendance();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "You're at ${office.name} — attendance recorded for today.",
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      _foregroundCheckRunning = false;
+    }
+  }
+
+  /// Reloads attendance and special days for [day]'s month (defaults to the
+  /// focused month).
+  void _refreshAttendance([DateTime? day]) {
+    final target = day ?? _focusedDay;
     final office = ref.read(officeProvider).selectedOffice;
     if (office == null) return;
     ref.read(attendanceProvider.notifier).loadForMonth(
       office.id!,
-      _focusedDay.year,
-      _focusedDay.month,
+      target.year,
+      target.month,
     );
     ref.read(specialDayProvider.notifier).loadForMonth(
-      _focusedDay.year,
-      _focusedDay.month,
+      target.year,
+      target.month,
     );
   }
 
   void _onPageChanged(DateTime day) {
     setState(() => _focusedDay = day);
-    final office = ref.read(officeProvider).selectedOffice;
-    if (office == null) return;
-    ref.read(attendanceProvider.notifier).loadForMonth(
-      office.id!,
-      day.year,
-      day.month,
-    );
-    ref.read(specialDayProvider.notifier).loadForMonth(day.year, day.month);
+    _refreshAttendance(day);
   }
 
   /// Opens the unified day-entry screen for [initialDate] (defaults to today).
@@ -110,6 +135,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final officeState = ref.watch(officeProvider);
+
+    // The yearly stat window depends on the financial-year setting (changed on
+    // the Explain page, loaded asynchronously at startup) — reload when it
+    // changes so the dashboard never shows a stale window.
+    ref.listen(
+      settingsProvider.select((s) => s.financialYearStart),
+      (previous, next) {
+        if (previous != next) _refreshAttendance();
+      },
+    );
 
     final cs = Theme.of(context).colorScheme;
 
@@ -191,7 +226,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       final officeId = ref.read(officeProvider).selectedOffice!.id!;
                       final result = await ref
                           .read(attendanceProvider.notifier)
-                          .manualCheckIn(officeId);
+                          .manualCheckIn(officeId, focusedMonth: _focusedDay);
                       if (!context.mounted) return;
                       final msg = switch (result) {
                         CheckInResult.recorded => 'Attendance recorded for today!',
@@ -286,17 +321,37 @@ class _Dashboard extends ConsumerWidget {
     required this.onDayTapped,
   });
 
+  static final _dayKeyFmt = DateFormat('yyyy-MM-dd');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ap = ref.watch(attendanceProvider);
-    final attended = ap.attendanceDates;
     final sp = ref.watch(specialDayProvider);
-    final holidays = sp.holidayDates;
-    final sickLeaves = sp.sickLeaveDates;
-    final annualLeaves = sp.annualLeaveDates;
-    final carersLeaves = sp.carersLeaveDates;
-    final workFromHome = sp.workFromHomeDates;
-    final miscLeave = sp.miscLeaveDates;
+    final settings = ref.watch(settingsProvider);
+
+    // O(1) status lookup per calendar cell. Attendance wins over a special day
+    // (matching the precedence used everywhere else).
+    final attendedKeys = ap.attendanceDateKeys;
+    final specialTypes = sp.typeByDate;
+    DayStatus? statusFor(DateTime day) {
+      final key = _dayKeyFmt.format(day);
+      if (attendedKeys.contains(key)) return DayStatus.attended;
+      return specialTypes[key]?.dayStatus;
+    }
+
+    Widget? dayCell(DateTime day, {required bool isToday}) {
+      final status = statusFor(day);
+      if (status == null) return null;
+      return _DayDot(day: day, color: status.color, isToday: isToday);
+    }
+
+    // The yearly stat follows the configured reporting year (calendar or
+    // financial), labelled accordingly ("2026" / "FY 2025–2026").
+    final yearPeriod = ReportPeriod(
+      kind: PeriodKind.year,
+      anchor: focusedDay,
+      financialYearStart: settings.financialYearStart,
+    );
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 32),
@@ -325,10 +380,12 @@ class _Dashboard extends ConsumerWidget {
         // Stats row
         _StatsRow(
           month: focusedDay,
+          yearLabel: yearPeriod.label,
           monthly: ap.monthlyCount,
           yearly: ap.yearlyCount,
           monthlyPercentage: ap.monthlyPercentage,
           yearlyPercentage: ap.yearlyPercentage,
+          target: settings.rtoTarget,
         ),
 
         // Calendar
@@ -354,54 +411,8 @@ class _Dashboard extends ConsumerWidget {
               onDayTapped(selectedDay);
             },
             calendarBuilders: CalendarBuilders(
-              defaultBuilder: (context, day, _) {
-                if (attended.any((d) => isSameDay(d, day))) {
-                  return _DayDot(day: day, color: AppColors.attendance);
-                }
-                if (holidays.any((d) => isSameDay(d, day))) {
-                  return _DayDot(day: day, color: AppColors.holiday);
-                }
-                if (sickLeaves.any((d) => isSameDay(d, day))) {
-                  return _DayDot(day: day, color: AppColors.sickLeave);
-                }
-                if (annualLeaves.any((d) => isSameDay(d, day))) {
-                  return _DayDot(day: day, color: AppColors.annualLeave);
-                }
-                if (carersLeaves.any((d) => isSameDay(d, day))) {
-                  return _DayDot(day: day, color: AppColors.carersLeave);
-                }
-                if (workFromHome.any((d) => isSameDay(d, day))) {
-                  return _DayDot(day: day, color: AppColors.workFromHome);
-                }
-                if (miscLeave.any((d) => isSameDay(d, day))) {
-                  return _DayDot(day: day, color: AppColors.miscLeave);
-                }
-                return null;
-              },
-              todayBuilder: (context, day, _) {
-                if (attended.any((d) => isSameDay(d, day))) {
-                  return _DayDot(day: day, color: AppColors.attendance, isToday: true);
-                }
-                if (holidays.any((d) => isSameDay(d, day))) {
-                  return _DayDot(day: day, color: AppColors.holiday, isToday: true);
-                }
-                if (sickLeaves.any((d) => isSameDay(d, day))) {
-                  return _DayDot(day: day, color: AppColors.sickLeave, isToday: true);
-                }
-                if (annualLeaves.any((d) => isSameDay(d, day))) {
-                  return _DayDot(day: day, color: AppColors.annualLeave, isToday: true);
-                }
-                if (carersLeaves.any((d) => isSameDay(d, day))) {
-                  return _DayDot(day: day, color: AppColors.carersLeave, isToday: true);
-                }
-                if (workFromHome.any((d) => isSameDay(d, day))) {
-                  return _DayDot(day: day, color: AppColors.workFromHome, isToday: true);
-                }
-                if (miscLeave.any((d) => isSameDay(d, day))) {
-                  return _DayDot(day: day, color: AppColors.miscLeave, isToday: true);
-                }
-                return null;
-              },
+              defaultBuilder: (context, day, _) => dayCell(day, isToday: false),
+              todayBuilder: (context, day, _) => dayCell(day, isToday: true),
             ),
             headerStyle: const HeaderStyle(
               formatButtonVisible: true,
@@ -473,15 +484,19 @@ class _Dashboard extends ConsumerWidget {
 
 class _StatsRow extends StatelessWidget {
   final DateTime month;
+  final String yearLabel;
   final int monthly;
   final int yearly;
   final double? monthlyPercentage;
   final double? yearlyPercentage;
+  final int target;
 
   const _StatsRow({
     required this.month,
+    required this.yearLabel,
     required this.monthly,
     required this.yearly,
+    required this.target,
     this.monthlyPercentage,
     this.yearlyPercentage,
   });
@@ -498,6 +513,7 @@ class _StatsRow extends StatelessWidget {
               label: DateFormat.MMMM().format(month),
               value: '$monthly',
               percentage: monthlyPercentage,
+              target: target,
               color: cs.primaryContainer,
               onColor: cs.onPrimaryContainer,
               icon: Icons.calendar_month_outlined,
@@ -506,9 +522,10 @@ class _StatsRow extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: _StatCard(
-              label: '${month.year}',
+              label: yearLabel,
               value: '$yearly',
               percentage: yearlyPercentage,
+              target: target,
               color: cs.secondaryContainer,
               onColor: cs.onSecondaryContainer,
               icon: Icons.star_outline,
@@ -524,6 +541,7 @@ class _StatCard extends StatelessWidget {
   final String label;
   final String value;
   final double? percentage;
+  final int target;
   final Color color;
   final Color onColor;
   final IconData icon;
@@ -532,6 +550,7 @@ class _StatCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.percentage,
+    required this.target,
     required this.color,
     required this.onColor,
     required this.icon,
@@ -541,7 +560,7 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final pct = (percentage ?? 0) / 100;
-    final pctGood = (percentage ?? 0) >= 50;
+    final pctGood = (percentage ?? 0) >= target;
 
     return Card(
       color: color,
@@ -554,10 +573,13 @@ class _StatCard extends StatelessWidget {
               children: [
                 Icon(icon, color: onColor, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: onColor.withValues(alpha: 0.8),
+                Expanded(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: onColor.withValues(alpha: 0.8),
+                    ),
                   ),
                 ),
               ],

@@ -29,7 +29,8 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final fyStart = ref.watch(settingsProvider).financialYearStart;
+    final settings = ref.watch(settingsProvider);
+    final fyStart = settings.financialYearStart;
     final period = ReportPeriod(
       kind: _kind,
       anchor: _anchor,
@@ -65,7 +66,7 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
               padding: const EdgeInsets.symmetric(vertical: 48),
               child: Center(child: Text('Could not load data: $e')),
             ),
-            data: (b) => _report(b),
+            data: (b) => _report(b, settings.rtoTarget),
           ),
         ],
       ),
@@ -159,11 +160,11 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
 
   // ── Report ───────────────────────────────────────────────────────────────
 
-  Widget _report(AttendanceBreakdown b) {
+  Widget _report(AttendanceBreakdown b, int target) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _PercentageHero(breakdown: b),
+        _PercentageHero(breakdown: b, target: target),
         const SizedBox(height: 16),
         _CalculationCard(breakdown: b),
         const SizedBox(height: 16),
@@ -201,13 +202,15 @@ class _OfficeChip extends StatelessWidget {
 
 class _PercentageHero extends StatelessWidget {
   final AttendanceBreakdown breakdown;
-  const _PercentageHero({required this.breakdown});
+  final int target;
+  const _PercentageHero({required this.breakdown, required this.target});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final pct = breakdown.returnToOfficePercentage;
     final text = pct == null ? '—' : '${pct.toStringAsFixed(1)}%';
+    final metTarget = pct != null && pct >= target;
 
     return Card(
       color: cs.primaryContainer,
@@ -240,6 +243,28 @@ class _PercentageHero extends StatelessWidget {
                     color: cs.onPrimaryContainer.withValues(alpha: 0.8),
                   ),
             ),
+            if (pct != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    metTarget ? Icons.check_circle : Icons.flag_outlined,
+                    size: 16,
+                    color: cs.onPrimaryContainer.withValues(alpha: 0.8),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    metTarget
+                        ? 'Target of $target% met'
+                        : 'Below the $target% target',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: cs.onPrimaryContainer.withValues(alpha: 0.8),
+                        ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -366,10 +391,20 @@ class _CountsCard extends StatelessWidget {
             const SizedBox(height: 4),
             _CountRow(
               color: AppColors.attendance,
-              label: 'At office',
+              label: 'At office (Mon–Fri)',
               count: b.officeDays,
               tag: 'counts toward %',
             ),
+            // Weekend check-ins are real attendance but sit outside the
+            // weekday-based percentage — surfaced so the numbers add up.
+            if (b.weekendOfficeDays > 0)
+              _CountRow(
+                color: AppColors.attendance,
+                label: 'At office (weekend)',
+                count: b.weekendOfficeDays,
+                tag: 'not counted',
+                dim: true,
+              ),
             // Special-day types in a stable, readable order.
             for (final type in const [
               DayType.workFromHome,

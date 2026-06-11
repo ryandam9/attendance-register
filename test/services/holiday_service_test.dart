@@ -45,6 +45,28 @@ void main() {
       );
       expect(rows.single.desc, 'Christmas, observed');
     });
+
+    test('skips rows whose date is not YYYY-MM-DD', () {
+      final rows = HolidayService.parseCsv(
+        'country,state,date,desc\n'
+        'AU,Victoria,June 1,Bad format\n'
+        'AU,Victoria,2026-6-1,Unpadded\n'
+        'AU,Victoria,2026-06-01,Good\n',
+      );
+      expect(rows, hasLength(1));
+      expect(rows.single.date, '2026-06-01');
+    });
+
+    test('skips rows whose date is not a real calendar day', () {
+      // DateTime.parse would silently normalise 2026-02-30 to 2026-03-02 —
+      // the row must be rejected, not imported under a shifted date.
+      final rows = HolidayService.parseCsv(
+        'country,state,date,desc\n'
+        'AU,Victoria,2026-02-30,Impossible\n'
+        'AU,Victoria,2026-13-01,Bad month\n',
+      );
+      expect(rows, isEmpty);
+    });
   });
 
   group('officeKeys', () {

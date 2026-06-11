@@ -13,7 +13,3 @@ Route<T> slideRoute<T>(Widget page) {
     transitionDuration: const Duration(milliseconds: 280),
   );
 }
-
-AppBar titledAppBar(String title) {
-  return AppBar(title: Text(title));
-}

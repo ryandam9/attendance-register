@@ -73,5 +73,16 @@ void main() {
       final b = make(weekdays: 5, officeDays: 9, counts: const {});
       expect(b.returnToOfficePercentage, 100.0);
     });
+
+    test('weekend office days do not affect the percentage', () {
+      const withWeekend = AttendanceBreakdown(
+        weekdays: 10,
+        officeDays: 5,
+        weekendOfficeDays: 2,
+        specialDayCounts: {},
+      );
+      expect(withWeekend.returnToOfficePercentage, 50.0); // 5 / 10
+      expect(withWeekend.weekendOfficeDays, 2);
+    });
   });
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
 import '../providers/office_provider.dart';
 import '../services/location_service.dart';
+import 'permission_setup_screen.dart';
 
 class SetupScreen extends ConsumerStatefulWidget {
   /// Pass an existing office to edit it; null means add new.
@@ -134,6 +136,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     );
 
     final notifier = ref.read(officeProvider.notifier);
+    // Whether this save creates the user's very first office — checked before
+    // the insert changes the answer.
+    final isFirstOffice = !_isEditing && !ref.read(officeProvider).hasOffice;
     if (_isEditing) {
       await notifier.updateOffice(office);
     } else {
@@ -142,7 +147,16 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 
     if (mounted) {
       setState(() => _busy = false);
-      Navigator.pop(context);
+      if (isFirstOffice) {
+        // First office registered — walk through the permissions auto check-in
+        // needs, instead of leaving them silently ungranted.
+        Navigator.pushReplacement(
+          context,
+          slideRoute(const PermissionSetupScreen()),
+        );
+      } else {
+        Navigator.pop(context);
+      }
     }
   }
 

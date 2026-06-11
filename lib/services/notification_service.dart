@@ -18,9 +18,11 @@ class NotificationService {
     );
   }
 
-  Future<void> showAttendanceRecorded(String name, String date) async {
+  /// [id] should be unique per office (e.g. the office row id) so same-day
+  /// check-ins at different offices don't overwrite each other's notification.
+  Future<void> showAttendanceRecorded(String name, String date, {int id = 0}) async {
     await _plugin.show(
-      id: 0,
+      id: id,
       title: 'Attendance Recorded ✓',
       body: 'Hey $name, your attendance at office has been recorded for $date.',
       notificationDetails: const NotificationDetails(

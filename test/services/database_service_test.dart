@@ -3,6 +3,8 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:attendance_register/models/attendance_record.dart';
 import 'package:attendance_register/models/office_location.dart';
+import 'package:attendance_register/models/special_day.dart';
+import 'package:attendance_register/services/database_service.dart';
 
 // Helpers that exercise the database schema independently of the singleton,
 // so tests are isolated and repeatable on any desktop environment.
@@ -344,6 +346,114 @@ void main() {
 
       expect(rec1!.reason, isNull);
       expect(rec2!.reason, 'Branch visit');
+    });
+  });
+
+  // ── DatabaseService (full schema, in-memory) ────────────────────────────────
+  //
+  // These run against the real service — schema creation, PRAGMAs, transactions
+  // and query helpers included — using an in-memory database via overridePath.
+
+  group('DatabaseService', () {
+    final service = DatabaseService.instance;
+    final ts = DateTime(2026, 6, 8, 9, 0);
+
+    setUp(() async {
+      // The service opens via sqflite's global factory — point it at ffi.
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+      DatabaseService.overridePath = inMemoryDatabasePath;
+      await service.reset();
+    });
+
+    tearDown(() async {
+      await service.reset();
+      DatabaseService.overridePath = null;
+    });
+
+    Future<int> insertOffice({String name = 'HQ'}) =>
+        service.insertOfficeLocation(OfficeLocation(
+          name: name,
+          address: '1 Main St',
+          latitude: 0,
+          longitude: 0,
+        ));
+
+    Future<void> insertRecordOn(String date, int officeId) =>
+        service.insertAttendanceRecord(AttendanceRecord(
+          date: date,
+          officeLocationId: officeId,
+          timestamp: ts,
+        ));
+
+    group('getAttendanceCount', () {
+      test('weekdaysOnly excludes weekend check-ins', () async {
+        final officeId = await insertOffice();
+        // June 2026: the 5th is a Friday, 6th Saturday, 7th Sunday, 8th Monday.
+        for (final d in ['2026-06-05', '2026-06-06', '2026-06-07', '2026-06-08']) {
+          await insertRecordOn(d, officeId);
+        }
+
+        final all = await service.getAttendanceCount(
+          officeId,
+          from: DateTime(2026, 6, 1),
+          to: DateTime(2026, 6, 30),
+        );
+        final weekdays = await service.getAttendanceCount(
+          officeId,
+          from: DateTime(2026, 6, 1),
+          to: DateTime(2026, 6, 30),
+          weekdaysOnly: true,
+        );
+
+        expect(all, 4);
+        expect(weekdays, 2); // Friday + Monday
+      });
+    });
+
+    group('deleteOfficeLocation', () {
+      test('removes the office and its records, leaving other offices intact',
+          () async {
+        final officeId1 = await insertOffice(name: 'HQ');
+        final officeId2 = await insertOffice(name: 'Branch');
+        await insertRecordOn('2026-06-08', officeId1);
+        await insertRecordOn('2026-06-08', officeId2);
+
+        await service.deleteOfficeLocation(officeId1);
+
+        expect(await service.getOfficeLocation(officeId1), isNull);
+        expect(await service.getAllAttendanceRecords(officeId1), isEmpty);
+        expect(await service.getAllAttendanceRecords(officeId2), hasLength(1));
+      });
+    });
+
+    group('bulk date getters (holiday importer)', () {
+      test('getAllAttendanceDates de-duplicates across offices', () async {
+        final officeId1 = await insertOffice(name: 'HQ');
+        final officeId2 = await insertOffice(name: 'Branch');
+        await insertRecordOn('2026-06-08', officeId1);
+        await insertRecordOn('2026-06-08', officeId2);
+        await insertRecordOn('2026-06-09', officeId1);
+
+        expect(
+          await service.getAllAttendanceDates(),
+          {'2026-06-08', '2026-06-09'},
+        );
+      });
+
+      test('getAllSpecialDayDates returns every special-day date', () async {
+        await service.upsertSpecialDay(
+          const SpecialDay(date: '2026-06-01', type: DayType.holiday),
+        );
+        await service.upsertSpecialDay(
+          const SpecialDay(date: '2026-06-02', type: DayType.sickLeave),
+        );
+
+        expect(
+          await service.getAllSpecialDayDates(),
+          {'2026-06-01', '2026-06-02'},
+        );
+      });
     });
   });
 }

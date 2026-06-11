@@ -1,8 +1,8 @@
-import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
@@ -10,9 +10,10 @@ import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/special_day_provider.dart';
-import '../services/app_settings_service.dart';
 import '../services/database_service.dart';
+import '../services/export_service.dart';
 import '../services/holiday_service.dart';
+import '../widgets/permission_cards.dart';
 import 'setup_screen.dart';
 import 'theme_screen.dart';
 
@@ -30,6 +31,9 @@ class SettingsScreen extends ConsumerWidget {
         children: [
           const _SectionLabel('Profile'),
           const _NameSection(),
+          const Divider(height: 32),
+          const _SectionLabel('Attendance Target'),
+          const _TargetSection(),
           const Divider(height: 32),
           const _SectionLabel('Offices'),
           ...officeState.offices.map(
@@ -54,9 +58,7 @@ class SettingsScreen extends ConsumerWidget {
           const Divider(height: 32),
 
           const _SectionLabel('Permissions'),
-          const _PermissionsSection(),
-
-          const Divider(height: 32),
+          const PermissionsSection(),
 
           const Divider(height: 32),
 
@@ -80,7 +82,8 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: Text(
               'The app checks your GPS position every 15 minutes. '
               'When you are within the detection radius of a registered office, '
-              'your attendance is automatically recorded once per day.',
+              'your attendance is automatically recorded once per day. '
+              'Opening the app while at the office records it too.',
             ),
             isThreeLine: true,
           ),
@@ -90,8 +93,7 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: Text(
               'For reliable background tracking:\n'
               '• Grant "Always Allow" location permission\n'
-              '• Disable battery optimisation for this app\n'
-              '• On Android 12+ allow "Exact Alarm" permission',
+              '• Disable battery optimisation for this app',
             ),
             isThreeLine: true,
           ),
@@ -99,7 +101,7 @@ class SettingsScreen extends ConsumerWidget {
             leading: Icon(Icons.touch_app_outlined),
             title: Text('Manual Check-In'),
             subtitle: Text(
-              'You can also tap "Manual Check-In" on the home screen to record today\'s attendance manually.',
+              'You can also tap "Check-In for Today" on the home screen to record today\'s attendance manually.',
             ),
             isThreeLine: true,
           ),
@@ -131,7 +133,17 @@ class SettingsScreen extends ConsumerWidget {
 
           const Divider(height: 32),
 
-          const _SectionLabel('Developer'),
+          const _SectionLabel('Data'),
+          ListTile(
+            leading: const Icon(Icons.file_download_outlined),
+            title: const Text('Export All Data (CSV)'),
+            subtitle: const Text(
+              'Copies every recorded day — attendance, leave and holidays — to '
+              'the clipboard. Paste into a file or spreadsheet to back it up.',
+            ),
+            isThreeLine: true,
+            onTap: () => _exportData(context),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: OutlinedButton.icon(
@@ -165,6 +177,29 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _exportData(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await ExportService.buildCsv();
+    if (result.rows == 0) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Nothing to export yet.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: result.csv));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Copied ${result.rows} day${result.rows == 1 ? '' : 's'} to the clipboard.',
+        ),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -274,199 +309,6 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// ── Permissions section ───────────────────────────────────────────────────────
-
-enum _PermStatus { granted, denied }
-
-class _PermissionsSection extends StatefulWidget {
-  const _PermissionsSection();
-
-  @override
-  State<_PermissionsSection> createState() => _PermissionsSectionState();
-}
-
-class _PermissionsSectionState extends State<_PermissionsSection>
-    with WidgetsBindingObserver {
-  _PermStatus? _location;
-  _PermStatus? _notifications;
-  _PermStatus? _battery;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _refresh();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _refresh();
-  }
-
-  Future<void> _refresh() async {
-    final loc = await Permission.locationAlways.status;
-    final notif = await Permission.notification.status;
-    _PermStatus? bat;
-    if (Platform.isAndroid) {
-      bat = (await Permission.ignoreBatteryOptimizations.isGranted)
-          ? _PermStatus.granted
-          : _PermStatus.denied;
-    }
-    if (!mounted) return;
-    setState(() {
-      _location = loc.isGranted ? _PermStatus.granted : _PermStatus.denied;
-      _notifications = notif.isGranted ? _PermStatus.granted : _PermStatus.denied;
-      _battery = bat;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_location == null) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 16),
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Column(
-        children: [
-          _PermCard(
-            icon: Icons.location_on,
-            label: 'Location — Always Allow',
-            status: _location!,
-            reason:
-                'The app checks your GPS every 15 minutes while running in the '
-                'background. Without "Always Allow" automatic check-in will not work.',
-            onOpenSettings: AppSettingsService.openLocation,
-          ),
-          const SizedBox(height: 8),
-          _PermCard(
-            icon: Icons.notifications,
-            label: 'Notifications',
-            status: _notifications!,
-            reason: 'Needed to alert you when attendance is automatically recorded.',
-            onOpenSettings: AppSettingsService.openNotifications,
-          ),
-          if (Platform.isAndroid && _battery != null) ...[
-            const SizedBox(height: 8),
-            _PermCard(
-              icon: Icons.battery_charging_full,
-              label: 'Battery Optimisation — Disabled',
-              status: _battery!,
-              reason:
-                  'Prevents Android from killing the background scan. Without this '
-                  'the 15-minute location check may stop firing.',
-              onOpenSettings: AppSettingsService.openBatteryOptimization,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _PermCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final _PermStatus status;
-  final String reason;
-  final VoidCallback onOpenSettings;
-
-  const _PermCard({
-    required this.icon,
-    required this.label,
-    required this.status,
-    required this.reason,
-    required this.onOpenSettings,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final granted = status == _PermStatus.granted;
-    final cs = Theme.of(context).colorScheme;
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 28, color: cs.primary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: granted
-                        ? Colors.green.withValues(alpha: 0.12)
-                        : cs.error.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        granted ? Icons.check_circle : Icons.warning_amber_rounded,
-                        size: 14,
-                        color: granted ? Colors.green : cs.error,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        granted ? 'Granted' : 'Denied',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: granted ? Colors.green : cs.error,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (!granted) ...[
-              const SizedBox(height: 12),
-              Text(
-                reason,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton.tonalIcon(
-                  onPressed: onOpenSettings,
-                  icon: const Icon(Icons.settings, size: 16),
-                  label: const Text('Open Settings'),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-
 class _NameSection extends ConsumerStatefulWidget {
   const _NameSection();
 
@@ -476,17 +318,34 @@ class _NameSection extends ConsumerStatefulWidget {
 
 class _NameSectionState extends ConsumerState<_NameSection> {
   late final TextEditingController _ctrl;
+  late final SettingsNotifier _settings;
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
+    _settings = ref.read(settingsProvider.notifier);
     _ctrl = TextEditingController(text: ref.read(settingsProvider).userName);
   }
 
   @override
   void dispose() {
+    // Flush a pending debounced save so backing out right after typing doesn't
+    // lose the name.
+    if (_debounce?.isActive ?? false) _save(_ctrl.text);
+    _debounce?.cancel();
     _ctrl.dispose();
     super.dispose();
+  }
+
+  void _save(String value) => _settings.setUserName(value.trim());
+
+  // Persist as the user types (debounced) rather than only on the keyboard's
+  // submit action — most people type and navigate back without ever
+  // submitting, which used to discard the name.
+  void _onChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () => _save(value));
   }
 
   @override
@@ -502,8 +361,71 @@ class _NameSectionState extends ConsumerState<_NameSection> {
           prefixIcon: Icon(Icons.person_outline),
         ),
         textCapitalization: TextCapitalization.words,
-        onSubmitted: (v) =>
-            ref.read(settingsProvider.notifier).setUserName(v.trim()),
+        onChanged: _onChanged,
+        onSubmitted: (v) {
+          _debounce?.cancel();
+          _save(v);
+        },
+      ),
+    );
+  }
+}
+
+/// Slider for the return-to-office target: the percentage at which the
+/// dashboard's stat badges and progress bars turn from red to green.
+class _TargetSection extends ConsumerStatefulWidget {
+  const _TargetSection();
+
+  @override
+  ConsumerState<_TargetSection> createState() => _TargetSectionState();
+}
+
+class _TargetSectionState extends ConsumerState<_TargetSection> {
+  // Local value while dragging; persisted on drag end so the database isn't
+  // written on every tick.
+  int? _dragValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final saved = ref.watch(settingsProvider).rtoTarget;
+    final value = _dragValue ?? saved;
+    final cs = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Return-to-office target',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              Chip(label: Text('$value%')),
+            ],
+          ),
+          Text(
+            'The share of eligible weekdays you aim to be at the office. '
+            'Dashboard stats show green at or above this.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          Slider(
+            value: value.toDouble(),
+            min: 10,
+            max: 100,
+            divisions: 18,
+            label: '$value%',
+            onChanged: (v) => setState(() => _dragValue = v.round()),
+            onChangeEnd: (v) {
+              ref.read(settingsProvider.notifier).setRtoTarget(v.round());
+              setState(() => _dragValue = null);
+            },
+          ),
+        ],
       ),
     );
   }

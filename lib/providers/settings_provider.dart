@@ -6,15 +6,21 @@ import '../themes/bird_themes.dart';
 
 /// Persisted app preferences.
 class SettingsState {
+  /// Default return-to-office target — the share of eligible weekdays the
+  /// employer expects in the office. Stat cards turn green at or above it.
+  static const defaultRtoTarget = 50;
+
   final FinancialYearStart financialYearStart;
   final String themeId;
   final String userName;
+  final int rtoTarget;
   final bool loaded;
 
   const SettingsState({
     this.financialYearStart = FinancialYearStart.january,
     this.themeId = 'default',
     this.userName = '',
+    this.rtoTarget = defaultRtoTarget,
     this.loaded = false,
   });
 
@@ -22,12 +28,14 @@ class SettingsState {
     FinancialYearStart? financialYearStart,
     String? themeId,
     String? userName,
+    int? rtoTarget,
     bool? loaded,
   }) =>
       SettingsState(
         financialYearStart: financialYearStart ?? this.financialYearStart,
         themeId: themeId ?? this.themeId,
         userName: userName ?? this.userName,
+        rtoTarget: rtoTarget ?? this.rtoTarget,
         loaded: loaded ?? this.loaded,
       );
 
@@ -38,6 +46,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
   static const _fyStartKey = 'financial_year_start';
   static const _themeKey = 'theme_id';
   static const _userNameKey = 'user_name';
+  static const _rtoTargetKey = 'rto_target_percent';
 
   @override
   SettingsState build() {
@@ -49,10 +58,12 @@ class SettingsNotifier extends Notifier<SettingsState> {
     final fyStart = await DatabaseService.instance.getSetting(_fyStartKey);
     final themeId = await DatabaseService.instance.getSetting(_themeKey);
     final userName = await DatabaseService.instance.getSetting(_userNameKey);
+    final rtoTarget = await DatabaseService.instance.getSetting(_rtoTargetKey);
     state = SettingsState(
       financialYearStart: FinancialYearStart.fromName(fyStart),
       themeId: themeId ?? 'default',
       userName: userName ?? '',
+      rtoTarget: int.tryParse(rtoTarget ?? '') ?? SettingsState.defaultRtoTarget,
       loaded: true,
     );
   }
@@ -70,6 +81,11 @@ class SettingsNotifier extends Notifier<SettingsState> {
   Future<void> setUserName(String name) async {
     state = state.copyWith(userName: name, loaded: true);
     await DatabaseService.instance.setSetting(_userNameKey, name);
+  }
+
+  Future<void> setRtoTarget(int percent) async {
+    state = state.copyWith(rtoTarget: percent, loaded: true);
+    await DatabaseService.instance.setSetting(_rtoTargetKey, '$percent');
   }
 }
 

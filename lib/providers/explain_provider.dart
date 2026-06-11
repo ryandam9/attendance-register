@@ -17,7 +17,15 @@ final breakdownProvider =
     FutureProvider.autoDispose.family<AttendanceBreakdown, BreakdownArgs>((ref, args) async {
   final db = DatabaseService.instance;
 
-  final officeDays = await db.getAttendanceCount(
+  // Weekday-only numerator (matches the weekday-built denominator); weekend
+  // check-ins are reported separately and excluded from the maths.
+  final officeWeekdays = await db.getAttendanceCount(
+    args.officeId,
+    from: args.start,
+    to: args.end,
+    weekdaysOnly: true,
+  );
+  final officeTotal = await db.getAttendanceCount(
     args.officeId,
     from: args.start,
     to: args.end,
@@ -27,7 +35,8 @@ final breakdownProvider =
 
   return AttendanceBreakdown(
     weekdays: countWeekdays(args.start, args.end),
-    officeDays: officeDays,
+    officeDays: officeWeekdays,
+    weekendOfficeDays: officeTotal - officeWeekdays,
     specialDayCounts: specialDayCounts,
   );
 });

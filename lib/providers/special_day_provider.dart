@@ -9,35 +9,10 @@ class SpecialDayState {
 
   const SpecialDayState({this.days = const [], this.loading = false});
 
-  Set<DateTime> get holidayDates => days
-      .where((d) => d.type == DayType.holiday)
-      .map((d) => DateTime.parse(d.date))
-      .toSet();
-
-  Set<DateTime> get sickLeaveDates => days
-      .where((d) => d.type == DayType.sickLeave)
-      .map((d) => DateTime.parse(d.date))
-      .toSet();
-
-  Set<DateTime> get annualLeaveDates => days
-      .where((d) => d.type == DayType.annualLeave)
-      .map((d) => DateTime.parse(d.date))
-      .toSet();
-
-  Set<DateTime> get carersLeaveDates => days
-      .where((d) => d.type == DayType.carersLeave)
-      .map((d) => DateTime.parse(d.date))
-      .toSet();
-
-  Set<DateTime> get workFromHomeDates => days
-      .where((d) => d.type == DayType.workFromHome)
-      .map((d) => DateTime.parse(d.date))
-      .toSet();
-
-  Set<DateTime> get miscLeaveDates => days
-      .where((d) => d.type == DayType.miscLeave)
-      .map((d) => DateTime.parse(d.date))
-      .toSet();
+  /// Day type per YYYY-MM-DD key — one O(1) lookup per calendar cell instead
+  /// of a linear scan over six per-type sets.
+  Map<String, DayType> get typeByDate =>
+      {for (final d in days) d.date: d.type};
 }
 
 class SpecialDayNotifier extends Notifier<SpecialDayState> {
