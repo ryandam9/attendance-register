@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F1F2F6"/></linearGradient><linearGradient id="hdr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF5A6E"/><stop offset="1" stop-color="#E11D48"/></linearGradient><filter id="sh" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="0" stdDeviation="1" flood-color="#000" flood-opacity="0.0"/></filter>
+    <radialGradient id="sheen" cx="0.3" cy="0.12" r="0.95">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient></defs><rect width="512" height="512" rx="112" fill="url(#bg)"/>
+    <rect x="64" y="96" width="384" height="92" rx="34" fill="url(#hdr)"/>
+    <rect x="64" y="150" width="384" height="40" fill="url(#hdr)"/>
+    <text x="256" y="160" text-anchor="middle" fill="#ffffff"
+          font-family="DejaVu Sans, Arial, sans-serif" font-weight="700"
+          font-size="46" letter-spacing="6">MON</text>
+    <text x="256" y="392" text-anchor="middle" fill="#1C1C1E"
+          font-family="DejaVu Sans, Arial, sans-serif" font-weight="800"
+          font-size="208" letter-spacing="-8">12</text><rect width="512" height="512" rx="112" fill="url(#sheen)"/></svg>
