@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34A853"/>
+      <stop offset="1" stop-color="#1E8E3E"/>
+    </linearGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect x="0" y="0" width="512" height="512" rx="115" ry="115" fill="url(#bg)"/>
+  <g filter="url(#sh)">
+    <path d="M256 96 C168 96 104 160 104 246
+             C104 350 256 446 256 446
+             C256 446 408 350 408 246
+             C408 160 344 96 256 96 Z" fill="#FFFFFF"/>
+  </g>
+  <!-- simple swift/martin silhouette -->
+  <path d="M168 214
+           C212 200 244 206 268 228
+           C286 200 318 196 348 206
+           C322 214 308 230 304 250
+           C326 252 340 264 348 282
+           C312 270 286 274 268 292
+           C250 274 214 270 180 282
+           C190 258 200 244 224 238
+           C200 230 182 226 168 214 Z"
+        fill="#1A73E8"/>
+</svg>
