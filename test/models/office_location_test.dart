@@ -90,5 +90,42 @@ void main() {
       expect(office.copyWith(radius: 50.0), isNot(equals(office)));
       expect(office.copyWith(id: 2), isNot(equals(office)));
     });
+
+    group('wifiNames', () {
+      test('defaults to an empty list', () {
+        expect(office.wifiNames, isEmpty);
+      });
+
+      test('encode joins with newlines; empty becomes null', () {
+        expect(
+          OfficeLocation.encodeWifiNames(['A', 'B']),
+          'A\nB',
+        );
+        expect(OfficeLocation.encodeWifiNames([]), isNull);
+        expect(OfficeLocation.encodeWifiNames(['  ', '']), isNull);
+      });
+
+      test('decode trims, drops blanks and de-duplicates case-insensitively', () {
+        expect(
+          OfficeLocation.decodeWifiNames('Office\n office \n\nOFFICE\nGuest'),
+          ['Office', 'Guest'],
+        );
+        expect(OfficeLocation.decodeWifiNames(null), isEmpty);
+        expect(OfficeLocation.decodeWifiNames('   '), isEmpty);
+      });
+
+      test('toMap/fromMap round-trips the Wi-Fi list', () {
+        final withWifi = office.copyWith(wifiNames: ['Net-A', 'Net-B']);
+        final restored = OfficeLocation.fromMap(withWifi.toMap());
+        expect(restored.wifiNames, ['Net-A', 'Net-B']);
+      });
+
+      test('differing Wi-Fi names break equality', () {
+        final a = office.copyWith(wifiNames: ['X']);
+        final b = office.copyWith(wifiNames: ['Y']);
+        expect(a, isNot(equals(b)));
+        expect(a, equals(office.copyWith(wifiNames: ['X'])));
+      });
+    });
   });
 }

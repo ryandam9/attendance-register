@@ -5,6 +5,7 @@ import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
 import '../providers/office_provider.dart';
 import '../services/location_service.dart';
+import '../services/wifi_service.dart';
 import 'permission_setup_screen.dart';
 
 class SetupScreen extends ConsumerStatefulWidget {
@@ -20,11 +21,13 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _addressCtrl;
+  late final TextEditingController _wifiCtrl;
   double _radius = 200;
   double? _lat;
   double? _lng;
   String? _country;
   String? _state;
+  late List<String> _wifiNames;
   bool _busy = false;
 
   bool get _isEditing => widget.office != null;
@@ -35,18 +38,47 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     final o = widget.office;
     _nameCtrl = TextEditingController(text: o?.name ?? '');
     _addressCtrl = TextEditingController(text: o?.address ?? '');
+    _wifiCtrl = TextEditingController();
     _radius = o?.radius ?? 200;
     _lat = o?.latitude;
     _lng = o?.longitude;
     _country = o?.country;
     _state = o?.state;
+    _wifiNames = List.of(o?.wifiNames ?? const []);
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _addressCtrl.dispose();
+    _wifiCtrl.dispose();
     super.dispose();
+  }
+
+  /// Adds [name] to the Wi-Fi list if non-empty and not already present
+  /// (case-insensitive), then clears the input.
+  void _addWifi(String name) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    final exists =
+        _wifiNames.any((w) => w.toLowerCase() == trimmed.toLowerCase());
+    setState(() {
+      if (!exists) _wifiNames.add(trimmed);
+      _wifiCtrl.clear();
+    });
+  }
+
+  Future<void> _addCurrentWifi() async {
+    final ssid = await WifiService.instance.connectedSsid();
+    if (!mounted) return;
+    if (ssid == null) {
+      _showSnack(
+        "Couldn't read the current Wi-Fi network. Connect to it and make sure "
+        'location permission is granted.',
+      );
+      return;
+    }
+    _addWifi(ssid);
   }
 
   Future<void> _useCurrentLocation() async {
@@ -133,6 +165,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       radius: _radius,
       country: _country,
       state: _state,
+      wifiNames: _wifiNames,
     );
 
     final notifier = ref.read(officeProvider.notifier);
@@ -269,6 +302,62 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 Text('50 m', style: TextStyle(fontSize: 12)),
                 Text('500 m', style: TextStyle(fontSize: 12)),
               ],
+            ),
+
+            const SizedBox(height: 32),
+
+            // ── Wi-Fi networks ──────────────────────────────────────────────
+            Text(
+              'Office Wi-Fi Networks',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            Text(
+              'A second way to record attendance: when you connect to any of '
+              'these networks, the day is marked even if GPS is off. Optional.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (_wifiNames.isNotEmpty) ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  for (final name in _wifiNames)
+                    InputChip(
+                      avatar: const Icon(Icons.wifi, size: 18),
+                      label: Text(name),
+                      onDeleted: () => setState(() => _wifiNames.remove(name)),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+            TextField(
+              controller: _wifiCtrl,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                labelText: 'Wi-Fi network name (SSID)',
+                hintText: 'e.g. Office-WiFi, Office-Guest',
+                prefixIcon: const Icon(Icons.wifi_outlined),
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  tooltip: 'Add',
+                  icon: const Icon(Icons.add),
+                  onPressed: () => _addWifi(_wifiCtrl.text),
+                ),
+              ),
+              onSubmitted: _addWifi,
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _busy ? null : _addCurrentWifi,
+                icon: const Icon(Icons.add_link),
+                label: const Text('Add current network'),
+              ),
             ),
 
             const SizedBox(height: 32),

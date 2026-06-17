@@ -39,7 +39,7 @@ class DatabaseService {
         overridePath ?? join(await getDatabasesPath(), 'attendance.db');
     return openDatabase(
       path,
-      version: 8,
+      version: 9,
       // sqflite does not enforce FOREIGN KEY constraints unless explicitly
       // enabled per connection.
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
@@ -53,7 +53,8 @@ class DatabaseService {
             longitude REAL  NOT NULL,
             radius    REAL  NOT NULL DEFAULT 200.0,
             country TEXT,
-            state   TEXT
+            state   TEXT,
+            wifi_names TEXT
           )
         ''');
 
@@ -177,6 +178,13 @@ class DatabaseService {
               date TEXT PRIMARY KEY
             )
           ''');
+        }
+        if (oldVersion < 9) {
+          // Wi-Fi check-in: SSIDs that identify an office, so attendance can be
+          // recorded from the connected network when GPS is off or indoors.
+          await db.execute(
+            'ALTER TABLE office_locations ADD COLUMN wifi_names TEXT',
+          );
         }
       },
     );

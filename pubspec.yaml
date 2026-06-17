@@ -20,6 +20,9 @@ dependencies:
   geocoding: ^4.0.0
   native_geofence: ^1.2.2
 
+  # Wi-Fi network detection (second check-in path when GPS is off)
+  network_info_plus: ^6.0.0
+
   # UI
   table_calendar: ^3.2.0
   cupertino_icons: ^1.0.9

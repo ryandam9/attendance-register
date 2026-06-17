@@ -27,7 +27,8 @@ Future<Database> _openTestDb() async {
             longitude REAL    NOT NULL,
             radius    REAL    NOT NULL DEFAULT 200.0,
             country   TEXT,
-            state     TEXT
+            state     TEXT,
+            wifi_names TEXT
           )
         ''');
         await db.execute('''
@@ -454,6 +455,49 @@ void main() {
           await service.getAllSpecialDayDates(),
           {'2026-06-01', '2026-06-02'},
         );
+      });
+    });
+
+    group('office Wi-Fi names', () {
+      test('round-trip through the wifi_names column', () async {
+        final id = await service.insertOfficeLocation(
+          const OfficeLocation(
+            name: 'HQ',
+            address: '1 Main St',
+            latitude: 0,
+            longitude: 0,
+            wifiNames: ['Office-WiFi', 'Office-Guest'],
+          ),
+        );
+
+        final office = await service.getOfficeLocation(id);
+        expect(office!.wifiNames, ['Office-WiFi', 'Office-Guest']);
+      });
+
+      test('empty list stores null and reads back empty', () async {
+        final id = await insertOffice();
+        final office = await service.getOfficeLocation(id);
+        expect(office!.wifiNames, isEmpty);
+      });
+
+      test('updating an office persists changed Wi-Fi names', () async {
+        final id = await service.insertOfficeLocation(
+          const OfficeLocation(
+            name: 'HQ',
+            address: '1 Main St',
+            latitude: 0,
+            longitude: 0,
+            wifiNames: ['Old-WiFi'],
+          ),
+        );
+        final office = (await service.getOfficeLocation(id))!;
+
+        await service.updateOfficeLocation(
+          office.copyWith(wifiNames: ['New-WiFi', 'New-Guest']),
+        );
+
+        final updated = await service.getOfficeLocation(id);
+        expect(updated!.wifiNames, ['New-WiFi', 'New-Guest']);
       });
     });
 

@@ -7,6 +7,12 @@
     <!-- Required for background location checks (Android 10+) -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
+    <!-- ── Wi-Fi check-in ─────────────────────────────────────────────────── -->
+    <!-- Reading the connected network's SSID (second check-in path). Reading
+         the SSID also requires the location permissions declared above. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- WorkManager / background tasks -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

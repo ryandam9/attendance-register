@@ -177,7 +177,11 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
     await loadForMonth(officeId, focusedMonth.year, focusedMonth.month);
     if (id != null && id > 0) return CheckInResult.recorded;
     final existing = await DatabaseService.instance.getAttendanceForDate(today, officeId);
-    if (existing?.reason == 'Auto check-in') return CheckInResult.alreadyRecordedByAuto;
+    // Both the geofence ("Auto check-in") and Wi-Fi ("Auto check-in (Wi-Fi)")
+    // paths count as automatic here.
+    if (existing?.reason?.startsWith('Auto check-in') ?? false) {
+      return CheckInResult.alreadyRecordedByAuto;
+    }
     return CheckInResult.alreadyRecorded;
   }
 

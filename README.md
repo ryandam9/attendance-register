@@ -138,6 +138,7 @@ lib/
 | `geolocator` | GPS positioning |
 | `geocoding` | Address ↔ coordinate lookup |
 | `native_geofence` | OS-level geofencing (auto check-in) |
+| `network_info_plus` | Connected Wi-Fi SSID (Wi-Fi check-in) |
 | `table_calendar` | Calendar widget |
 | `flutter_local_notifications` | Attendance notifications |
 | `permission_handler` | Runtime permission requests & status |
@@ -175,6 +176,22 @@ Being event-driven, this uses near-zero battery compared to periodic GPS
 polling and fires even when the app process has been killed. The foreground
 check on app open remains as a safety net: if the OS ever misses or suppresses
 a geofence event, opening the app while at the office still records the day.
+
+### Wi-Fi check-in (second path)
+
+GPS can be off, denied, or unreliable deep indoors. As a fallback, each office
+can list its Wi-Fi networks (SSIDs — e.g. the corporate, guest and WLAN
+networks). When the device is connected to any of them, `WifiService` records
+the day using the **same guards** as the geofence path (skip holidays/leave,
+skip dismissed days, once per day per office). The connected SSID is checked on
+every app launch/resume and re-checked every 15 minutes while the app is alive;
+once the day is recorded it stops for the rest of the day.
+
+Reading the connected SSID is governed by `network_info_plus` and, on Android,
+requires the location permission the app already requests plus location
+services switched on. Periodic checks currently run while the app is in the
+foreground; extending them to a killed-app background schedule would need a
+`WorkManager` task and is a possible follow-up.
 
 ## Percentage Rules
 

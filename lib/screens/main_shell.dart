@@ -11,6 +11,7 @@ import '../providers/special_day_provider.dart';
 import '../providers/ui_state_provider.dart';
 import '../services/holiday_service.dart';
 import '../services/location_service.dart';
+import '../services/wifi_service.dart';
 import 'explain_screen.dart';
 import 'history_screen.dart';
 import 'home_screen.dart';
@@ -34,6 +35,13 @@ class _MainShellState extends ConsumerState<MainShell>
     with WidgetsBindingObserver {
   bool _foregroundCheckRunning = false;
 
+  // Wi-Fi re-scan while the app is alive. The OS geofence covers the
+  // background case; this gives the connected-Wi-Fi path a periodic chance to
+  // mark the day (e.g. GPS off) without the user reopening the app. It stops
+  // itself for the day as soon as attendance is recorded.
+  static const _wifiScanInterval = Duration(minutes: 15);
+  Timer? _wifiTimer;
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +51,7 @@ class _MainShellState extends ConsumerState<MainShell>
 
   @override
   void dispose() {
+    _wifiTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -54,6 +63,11 @@ class _MainShellState extends ConsumerState<MainShell>
     if (state == AppLifecycleState.resumed) {
       _refreshFocusedMonth();
       unawaited(_foregroundCheckIn());
+      _startWifiTimer();
+    } else if (state == AppLifecycleState.paused) {
+      // No point scanning while backgrounded — the plugin can't read the SSID
+      // reliably and it would just burn battery.
+      _wifiTimer?.cancel();
     }
   }
 
@@ -62,6 +76,14 @@ class _MainShellState extends ConsumerState<MainShell>
     _refreshFocusedMonth();
     unawaited(_syncHolidays());
     unawaited(_foregroundCheckIn());
+    _startWifiTimer();
+  }
+
+  /// (Re)starts the periodic Wi-Fi scan. Safe to call repeatedly — it replaces
+  /// any existing timer.
+  void _startWifiTimer() {
+    _wifiTimer?.cancel();
+    _wifiTimer = Timer.periodic(_wifiScanInterval, (_) => _wifiCheckIn());
   }
 
   /// Reloads attendance + special days for the month the calendar is focused
@@ -84,12 +106,15 @@ class _MainShellState extends ConsumerState<MainShell>
   }
 
   /// Safety net for missed geofence events: opening the app while standing in
-  /// the office records the day on the spot. Never prompts for permission.
+  /// the office records the day on the spot. Tries GPS first, then falls back
+  /// to the connected Wi-Fi network. Never prompts for permission.
   Future<void> _foregroundCheckIn() async {
     if (_foregroundCheckRunning) return;
     _foregroundCheckRunning = true;
     try {
-      final office = await LocationService.performForegroundCheck();
+      var office = await LocationService.performForegroundCheck();
+      // GPS may be off or the user indoors — the Wi-Fi network is the backup.
+      office ??= await WifiService.performWifiCheck(notify: false);
       if (office == null || !mounted) return;
       _refreshFocusedMonth();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -103,6 +128,14 @@ class _MainShellState extends ConsumerState<MainShell>
     } finally {
       _foregroundCheckRunning = false;
     }
+  }
+
+  /// Periodic Wi-Fi-only check (no permission prompt, no GPS). Shows a system
+  /// notification on a fresh record so the user gets the same confirmation the
+  /// geofence path gives. Refreshes the calendar if the app is still visible.
+  Future<void> _wifiCheckIn() async {
+    final office = await WifiService.performWifiCheck(notify: true);
+    if (office != null && mounted) _refreshFocusedMonth();
   }
 
   @override

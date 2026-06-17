@@ -97,6 +97,24 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
           const ExpansionTile(
+            leading: Icon(Icons.wifi),
+            title: Text('Wi-Fi Check-In'),
+            childrenPadding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+            expandedCrossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'A second check-in path for when GPS is off or you are deep '
+                'indoors. Add your office Wi-Fi networks when editing an office '
+                '(e.g. the corporate, guest and WLAN SSIDs). While the app is '
+                'open it re-checks every 15 minutes, and on each launch or '
+                'resume: if you are connected to one of those networks, the '
+                'day is marked — then it stops for the rest of the day.\n\n'
+                'Reading the connected network name needs location permission '
+                'granted and location services on (an Android requirement).',
+              ),
+            ],
+          ),
+          const ExpansionTile(
             leading: Icon(Icons.battery_saver_outlined),
             title: Text('Battery Tip'),
             childrenPadding: EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -449,7 +467,8 @@ class _OfficeTile extends StatelessWidget {
       leading: const Icon(Icons.business_outlined),
       title: Text(office.name),
       subtitle: Text(
-        '${office.address}  •  ${office.radius.toInt()} m radius',
+        '${office.address}  •  ${office.radius.toInt()} m radius'
+        '${office.wifiNames.isEmpty ? '' : '  •  ${office.wifiNames.length} Wi-Fi'}',
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),
