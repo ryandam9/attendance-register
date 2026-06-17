@@ -195,11 +195,10 @@ class LocationService {
     );
 
     if (id != null && id > 0) {
-      final displayDate = DateFormat('d MMM yyyy, h:mm a').format(DateTime.now());
       final userName = await db.getSetting('user_name');
       await NotificationService.instance.showAttendanceRecorded(
         userName != null && userName.isNotEmpty ? userName : 'there',
-        displayDate,
+        DateTime.now(),
         id: officeId,
       );
     }
@@ -277,12 +276,10 @@ class LocationService {
         if (id != null && id > 0) {
           recordedAt ??= office;
           if (notify) {
-            final displayDate =
-                DateFormat('d MMM yyyy, h:mm a').format(DateTime.now());
             final userName = await db.getSetting('user_name');
             await NotificationService.instance.showAttendanceRecorded(
               userName != null && userName.isNotEmpty ? userName : 'there',
-              displayDate,
+              DateTime.now(),
               id: office.id!,
             );
           }
