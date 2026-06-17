@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgBlue" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#1A73E8"/><stop offset="1" stop-color="#0B57D0"/>
+    </linearGradient>
+    <linearGradient id="bgGreen" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#34A853"/><stop offset="1" stop-color="#1E8E3E"/>
+    </linearGradient>
+    <linearGradient id="bgInk" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#16386B"/><stop offset="1" stop-color="#0A2540"/>
+    </linearGradient>
+    <linearGradient id="chk" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5BD27A"/><stop offset="1" stop-color="#1E8E3E"/>
+    </linearGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="7" stdDeviation="12" flood-color="#000" flood-opacity="0.20"/>
+    </filter>
+  </defs><rect x="0" y="0" width="512" height="512" rx="115" ry="115" fill="url(#bgBlue)"/>
+  <g filter="url(#sh)">
+    <path d="M256 92 C166 92 100 158 100 246 C100 352 256 452 256 452
+             C256 452 412 352 412 246 C412 158 346 92 256 92 Z" fill="#FFFFFF"/>
+  </g>
+  <rect x="206" y="176" width="100" height="132" rx="8" fill="#1A73E8"/>
+  <g fill="#FFFFFF">
+    <rect x="222" y="194" width="20" height="20" rx="3"/>
+    <rect x="270" y="194" width="20" height="20" rx="3"/>
+    <rect x="222" y="230" width="20" height="20" rx="3"/>
+    <rect x="270" y="230" width="20" height="20" rx="3"/>
+    <rect x="244" y="270" width="24" height="38" rx="3"/>
+  </g>
+  <circle cx="316" cy="172" r="40" fill="#34A853"/>
+  <path d="M298 172 l12 13 l24 -28" fill="none" stroke="#FFFFFF"
+        stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
