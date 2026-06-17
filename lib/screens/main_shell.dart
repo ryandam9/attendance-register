@@ -35,11 +35,11 @@ class _MainShellState extends ConsumerState<MainShell>
     with WidgetsBindingObserver {
   bool _foregroundCheckRunning = false;
 
-  // Wi-Fi re-scan while the app is alive. The OS geofence covers the
-  // background case; this gives the connected-Wi-Fi path a periodic chance to
-  // mark the day (e.g. GPS off) without the user reopening the app. It stops
-  // itself for the day as soon as attendance is recorded.
-  static const _wifiScanInterval = Duration(minutes: 15);
+  // Periodic Wi-Fi check while the app is alive. The OS geofence covers the
+  // background case; this passively reads the available-networks list every so
+  // often to mark the day (e.g. GPS off) without the user doing anything. It
+  // stops itself for the day as soon as attendance is recorded.
+  static const _wifiCheckInterval = Duration(minutes: 15);
   Timer? _wifiTimer;
 
   @override
@@ -79,11 +79,11 @@ class _MainShellState extends ConsumerState<MainShell>
     _startWifiTimer();
   }
 
-  /// (Re)starts the periodic Wi-Fi scan. Safe to call repeatedly — it replaces
+  /// (Re)starts the periodic Wi-Fi check. Safe to call repeatedly — it replaces
   /// any existing timer.
   void _startWifiTimer() {
     _wifiTimer?.cancel();
-    _wifiTimer = Timer.periodic(_wifiScanInterval, (_) => _wifiCheckIn());
+    _wifiTimer = Timer.periodic(_wifiCheckInterval, (_) => _wifiCheckIn());
   }
 
   /// Reloads attendance + special days for the month the calendar is focused

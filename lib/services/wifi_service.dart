@@ -20,17 +20,16 @@ class WifiService {
   WifiService._();
   static final WifiService instance = WifiService._();
 
-  /// SSIDs of the Wi-Fi networks currently visible to the device, normalised
-  /// and de-duplicated. Empty when scanning isn't possible (permission denied,
+  /// SSIDs of the Wi-Fi networks the OS currently sees as available, normalised
+  /// and de-duplicated. This *reads the system's existing list* — it does not
+  /// initiate a scan, so there is nothing for the user to trigger and no
+  /// throttling to fight. Empty when the list can't be read (permission denied,
   /// location services off, unsupported platform). Never throws.
-  Future<List<String>> scanNearbySsids() async {
+  Future<List<String>> nearbySsids() async {
     try {
-      // Ask for a fresh scan when allowed. Even when a fresh scan is throttled
-      // or can't start, getScannedResults still returns the OS's cached list,
-      // which is fine for a 15-minute check.
-      if (await WiFiScan.instance.canStartScan() == CanStartScan.yes) {
-        await WiFiScan.instance.startScan();
-      }
+      // Just read what the OS already has from its own periodic scanning. We
+      // deliberately do NOT call startScan(): the app should passively observe
+      // the available-networks list, not force a hardware scan.
       if (await WiFiScan.instance.canGetScannedResults() !=
           CanGetScannedResults.yes) {
         return const [];
@@ -44,7 +43,7 @@ class WifiService {
       }
       return ssids;
     } catch (e) {
-      debugPrint('Wi-Fi scan failed: $e');
+      debugPrint('Reading Wi-Fi networks failed: $e');
       return const [];
     }
   }
@@ -82,20 +81,20 @@ class WifiService {
     return null;
   }
 
-  /// Scans for visible networks and records today's attendance at the first
-  /// office whose Wi-Fi is in range. Returns the office recorded at, or null
-  /// when there is no match or the day is already settled. Never prompts for
-  /// permission. When [notify] is true a system notification is shown (the
-  /// periodic check); the foreground caller passes false and shows in-app
-  /// feedback instead.
+  /// Reads the OS's available-networks list and records today's attendance at
+  /// the first office whose Wi-Fi is in range. Returns the office recorded at,
+  /// or null when there is no match or the day is already settled. Fully
+  /// passive: no scan is triggered, no permission is prompted. When [notify] is
+  /// true a system notification is shown (the periodic check); the foreground
+  /// caller passes false and shows in-app feedback instead.
   static Future<OfficeLocation?> performWifiCheck({required bool notify}) async {
     final db = DatabaseService.instance;
     final offices = await db.getOfficeLocations();
-    // No point scanning if no office opted into Wi-Fi check-in.
+    // No point reading the list if no office opted into Wi-Fi check-in.
     final withWifi = offices.where((o) => o.wifiNames.isNotEmpty).toList();
     if (withWifi.isEmpty) return null;
 
-    final ssids = await instance.scanNearbySsids();
+    final ssids = await instance.nearbySsids();
     final office = matchOffice(ssids, withWifi);
     if (office == null || office.id == null) return null;
 

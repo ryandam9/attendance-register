@@ -138,7 +138,7 @@ lib/
 | `geolocator` | GPS positioning |
 | `geocoding` | Address ↔ coordinate lookup |
 | `native_geofence` | OS-level geofencing (auto check-in) |
-| `wifi_scan` | Scan visible Wi-Fi networks (Wi-Fi check-in) |
+| `wifi_scan` | Read the OS's available Wi-Fi networks (Wi-Fi check-in) |
 | `table_calendar` | Calendar widget |
 | `flutter_local_notifications` | Attendance notifications |
 | `permission_handler` | Runtime permission requests & status |
@@ -181,16 +181,19 @@ a geofence event, opening the app while at the office still records the day.
 
 GPS can be off, denied, or unreliable deep indoors. As a fallback, each office
 can list its Wi-Fi networks (SSIDs — e.g. the corporate, guest and WLAN
-networks). `WifiService` **scans for networks in range** — the device does not
-need to connect to them, so this works even when you stay on mobile data. When
-any configured network is visible, it records the day using the **same guards**
-as the geofence path (skip holidays/leave, skip dismissed days, once per day per
-office). The scan runs on every app launch/resume and every 15 minutes while
+networks). `WifiService` **passively reads the OS's available-networks list**
+(`getScannedResults` — it never calls `startScan`, so nothing is user-triggered
+and there is no scan throttling to fight). The device does not need to connect
+to those networks, so this works even when you stay on mobile data. When any
+configured network is in range, it records the day using the **same guards** as
+the geofence path (skip holidays/leave, skip dismissed days, once per day per
+office). The check runs on every app launch/resume and every 15 minutes while
 the app is alive; once the day is recorded it stops for the rest of the day.
 
-Wi-Fi scanning (`wifi_scan`) is **Android only** — iOS does not expose nearby
-networks. On Android it requires the location permission the app already
-requests plus location services switched on (the OS gates scan results on
+Reading available networks (`wifi_scan`) is **Android only** — iOS does not
+expose the nearby-networks list to apps (only the connected SSID, with
+entitlements). On Android it requires the location permission the app already
+requests plus location services switched on (the OS gates Wi-Fi info on
 location). Periodic checks currently run while the app is in the foreground;
 extending them to a killed-app background schedule would need a `WorkManager`
 task and is a possible follow-up.

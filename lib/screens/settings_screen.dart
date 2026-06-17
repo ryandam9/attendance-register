@@ -105,15 +105,16 @@ class SettingsScreen extends ConsumerWidget {
               Text(
                 'A second check-in path for when GPS is off or you are deep '
                 'indoors. Add your office Wi-Fi networks when editing an office '
-                '(e.g. the corporate, guest and WLAN SSIDs). The app scans for '
-                'networks in range — you do NOT need to connect to them, you '
-                'can stay on mobile data. While the app is open it re-checks '
+                '(e.g. the corporate, guest and WLAN SSIDs). The app quietly '
+                'reads the networks your phone already sees as available — you '
+                'do NOT need to connect to them, you can stay on mobile data, '
+                'and there is nothing to tap. While the app is open it checks '
                 'every 15 minutes, and on each launch or resume: if any office '
-                'network is nearby, the day is marked — then it stops for the '
+                'network is in range, the day is marked — then it stops for the '
                 'rest of the day.\n\n'
-                'Scanning is Android only and needs location permission granted '
-                'and location services switched on (an Android requirement for '
-                'Wi-Fi scans).',
+                'This is Android only and needs location permission granted and '
+                'location services switched on (an Android requirement for '
+                'reading Wi-Fi networks).',
               ),
             ],
           ),

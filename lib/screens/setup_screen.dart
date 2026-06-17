@@ -68,16 +68,17 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     });
   }
 
-  Future<void> _scanForNetworks() async {
+  Future<void> _pickFromAvailableNetworks() async {
     setState(() => _busy = true);
-    final ssids = await WifiService.instance.scanNearbySsids();
+    final ssids = await WifiService.instance.nearbySsids();
     if (!mounted) return;
     setState(() => _busy = false);
 
     if (ssids.isEmpty) {
       _showSnack(
-        'No Wi-Fi networks found. Turn Wi-Fi on, grant location permission, '
-        'and make sure location services are enabled.',
+        'No Wi-Fi networks available. Turn Wi-Fi on, grant location '
+        'permission, and make sure location services are enabled — or just '
+        'type the network name below.',
       );
       return;
     }
@@ -91,7 +92,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
           children: [
             const ListTile(
               dense: true,
-              title: Text('Nearby networks'),
+              title: Text('Available networks'),
               subtitle: Text('Tap one to add it as an office network'),
             ),
             for (final ssid in ssids)
@@ -385,9 +386,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
-                onPressed: _busy ? null : _scanForNetworks,
+                onPressed: _busy ? null : _pickFromAvailableNetworks,
                 icon: const Icon(Icons.wifi_find),
-                label: const Text('Scan nearby networks'),
+                label: const Text('Pick from available networks'),
               ),
             ),
 
