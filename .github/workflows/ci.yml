@@ -3,9 +3,11 @@ name: CI
 on:
   push:
     branches: [main]
+    # Pushing a version tag (e.g. v1.0.0) cuts a versioned GitHub release.
+    tags: ['v*']
   pull_request:
-  # "Run workflow" button in the Actions tab — builds an APK from any branch
-  # on demand.
+  # "Run workflow" button in the Actions tab — builds artifacts from any
+  # branch on demand.
   workflow_dispatch:
 
 jobs:
@@ -26,20 +28,25 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed .
+
       - name: Analyze
         run: flutter analyze
 
       - name: Run tests
         run: flutter test
 
-  # Builds an installable APK on every push to main (published to the rolling
-  # "latest" release) and on manual dispatch. Skipped for pull requests to
-  # keep their feedback loop fast.
-  build-apk:
+  # Builds installable artifacts on every push to main (published to the
+  # rolling "latest" release), on version tags (published to a versioned
+  # release) and on manual dispatch. Skipped for pull requests to keep their
+  # feedback loop fast.
+  build:
     if: github.event_name != 'pull_request'
+    needs: analyze-and-test
     runs-on: ubuntu-latest
     permissions:
-      contents: write # create/update the "latest" release
+      contents: write # create/update releases
     steps:
       - uses: actions/checkout@v4
 
@@ -55,7 +62,8 @@ jobs:
 
       # The repo ships only the hand-written sources; generate the missing
       # Gradle wrapper / platform boilerplate without overwriting anything —
-      # the same step the README's local setup uses.
+      # the same step the README's local setup uses. flutter create only fills
+      # in missing files, so the committed launcher icons are preserved.
       - name: Generate platform scaffolding
         run: flutter create . --project-name attendance_register --org com.example --platforms android
 
@@ -67,22 +75,40 @@ jobs:
       - name: Build release APK
         run: flutter build apk --release
 
-      - name: Upload APK as workflow artifact
+      # App Bundle is the format Google Play requires for uploads.
+      - name: Build release App Bundle
+        run: flutter build appbundle --release
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: attendance-register-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: attendance-register-android
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
           retention-days: 30
 
-      # Keep a single rolling release so there is one stable download URL:
-      # https://github.com/ryandam9/attendance-register/releases/latest
-      - name: Publish rolling "latest" release
-        if: github.ref == 'refs/heads/main'
+      # Versioned release on a tag, rolling "latest" on main. Manual dispatch
+      # only produces the workflow artifact above (no release).
+      - name: Publish release
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete latest --cleanup-tag --yes || true
-          gh release create latest build/app/outputs/flutter-apk/app-release.apk \
-            --title "Latest build (${GITHUB_SHA::7})" \
-            --notes "Automated build from main @ ${GITHUB_SHA}. Download app-release.apk below and install on Android 8.0+ (debug-signed; allow installs from unknown sources)." \
-            --latest
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          AAB=build/app/outputs/bundle/release/app-release.aab
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            gh release create "$TAG" "$APK" "$AAB" \
+              --title "$TAG" \
+              --notes "Release ${TAG} (${GITHUB_SHA::7}). Download app-release.apk and install on Android 8.0+ (debug-signed; allow installs from unknown sources). app-release.aab is for Play Store upload."
+          else
+            # Keep a single rolling release so there is one stable download URL:
+            # https://github.com/ryandam9/attendance-register/releases/latest
+            gh release delete latest --cleanup-tag --yes || true
+            gh release create latest "$APK" "$AAB" \
+              --title "Latest build (${GITHUB_SHA::7})" \
+              --notes "Automated build from main @ ${GITHUB_SHA}. Download app-release.apk and install on Android 8.0+ (debug-signed; allow installs from unknown sources). app-release.aab is for Play Store upload." \
+              --latest
+          fi

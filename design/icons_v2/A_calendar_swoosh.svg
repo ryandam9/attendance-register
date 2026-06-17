@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgBlue" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#1A73E8"/><stop offset="1" stop-color="#0B57D0"/>
+    </linearGradient>
+    <linearGradient id="bgGreen" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#34A853"/><stop offset="1" stop-color="#1E8E3E"/>
+    </linearGradient>
+    <linearGradient id="bgInk" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#16386B"/><stop offset="1" stop-color="#0A2540"/>
+    </linearGradient>
+    <linearGradient id="chk" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5BD27A"/><stop offset="1" stop-color="#1E8E3E"/>
+    </linearGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="7" stdDeviation="12" flood-color="#000" flood-opacity="0.20"/>
+    </filter>
+  </defs><rect x="0" y="0" width="512" height="512" rx="115" ry="115" fill="url(#bgBlue)"/>
+  <g filter="url(#sh)">
+    <rect x="120" y="150" width="272" height="258" rx="38" fill="#FFFFFF"/>
+  </g>
+  <rect x="120" y="150" width="272" height="58" rx="38" fill="#0B57D0"/>
+  <rect x="120" y="180" width="272" height="28" fill="#0B57D0"/>
+  <rect x="166" y="128" width="24" height="58" rx="12" fill="#0B57D0"/>
+  <rect x="322" y="128" width="24" height="58" rx="12" fill="#0B57D0"/>
+  <!-- check that breaks out of the calendar frame -->
+  <path d="M170 300 l52 54 l132 -150" fill="none" stroke="url(#chk)"
+        stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

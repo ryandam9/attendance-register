@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgBlue" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#1A73E8"/><stop offset="1" stop-color="#0B57D0"/>
+    </linearGradient>
+    <linearGradient id="bgGreen" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#34A853"/><stop offset="1" stop-color="#1E8E3E"/>
+    </linearGradient>
+    <linearGradient id="bgInk" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#16386B"/><stop offset="1" stop-color="#0A2540"/>
+    </linearGradient>
+    <linearGradient id="chk" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5BD27A"/><stop offset="1" stop-color="#1E8E3E"/>
+    </linearGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="7" stdDeviation="12" flood-color="#000" flood-opacity="0.20"/>
+    </filter>
+  </defs><rect x="0" y="0" width="512" height="512" rx="115" ry="115" fill="url(#bgInk)"/>
+  <!-- the green "check" is a bird's flight stroke; a swift lifts off its tip -->
+  <path d="M150 296 l66 70 l150 -176" fill="none" stroke="url(#chk)"
+        stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+  <g filter="url(#sh)">
+    <path d="M360 184
+             C338 176 322 178 308 190
+             C300 176 282 172 264 176
+             C282 184 290 196 290 210
+             C300 200 316 196 332 200
+             C322 206 318 216 320 226
+             C336 210 354 202 372 204
+             C360 198 356 190 360 184 Z"
+          fill="#F4C623"/>
+  </g>
+</svg>
