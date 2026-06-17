@@ -1,101 +1,89 @@
 #!/usr/bin/env python3
-"""Export the chosen icon (Concept A — Calendar Breakout Check) into the
-Android resource tree.
+"""Export the chosen icon (Office-Days Ring) into the Android resource tree.
 
-Produces:
-  * Legacy square launcher icons        mipmap-<d>/ic_launcher.png
-  * Adaptive foreground (safe-zone art)  mipmap-<d>/ic_launcher_foreground.png
-  * Monochrome layer (themed icons)      mipmap-<d>/ic_launcher_monochrome.png
-The gradient background + adaptive XML are written as resource files by the
-caller; this script only renders the PNGs.
+Full icon  : graphite squircle + green progress ring (rounded cap + head) + check.
+Foreground : same ring+check, scaled into the adaptive 66% safe zone, transparent.
+Monochrome : single-tone ring+check silhouette for Android 13+ themed icons.
+The graphite gradient is also written to drawable/ic_launcher_background.xml.
 """
-import os
+import os, math
 import cairosvg
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES = os.path.join(ROOT, "android", "app", "src", "main", "res")
+DESIGN = os.path.dirname(os.path.abspath(__file__))
 
-BLUE = "#1A73E8"
-BLUE_DK = "#0B57D0"
-GREEN_LT = "#5BD27A"
-GREEN_DK = "#1E8E3E"
-WHITE = "#FFFFFF"
+DENSITIES = {"mdpi": (48, 108), "hdpi": (72, 162), "xhdpi": (96, 216),
+             "xxhdpi": (144, 324), "xxxhdpi": (192, 432)}
 
-# Density buckets: legacy launcher px, adaptive foreground px (108dp base).
-DENSITIES = {
-    "mdpi":    (48, 108),
-    "hdpi":    (72, 162),
-    "xhdpi":   (96, 216),
-    "xxhdpi":  (144, 324),
-    "xxxhdpi": (192, 432),
-}
+CX = CY = 256
+Rr, SW = 150, 46          # ring radius / stroke width
+A0, A1 = -52, 232          # clockwise sweep, gap at top
 
-COMMON_DEFS = f'''
-  <defs>
-    <linearGradient id="bgBlue" x1="0" y1="0" x2="0.4" y2="1">
-      <stop offset="0" stop-color="{BLUE}"/><stop offset="1" stop-color="{BLUE_DK}"/>
-    </linearGradient>
-    <linearGradient id="chk" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="{GREEN_LT}"/><stop offset="1" stop-color="{GREEN_DK}"/>
-    </linearGradient>
-    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="7" stdDeviation="12" flood-color="#000" flood-opacity="0.20"/>
-    </filter>
-  </defs>'''
+def arc_path(cx, cy, r, a0, a1):
+    p0 = (cx + r*math.cos(math.radians(a0)), cy + r*math.sin(math.radians(a0)))
+    p1 = (cx + r*math.cos(math.radians(a1)), cy + r*math.sin(math.radians(a1)))
+    large = 1 if (a1 - a0) % 360 > 180 else 0
+    return f'M {p0[0]:.2f} {p0[1]:.2f} A {r} {r} 0 {large} 1 {p1[0]:.2f} {p1[1]:.2f}'
 
-# Calendar + breakout check artwork, authored in a 512 viewBox. The artwork
-# spans roughly the centre 55% of the canvas, so it already sits inside the
-# adaptive-icon 66% safe zone when drawn on a transparent ground.
-def calendar_check(shadow=True):
-    sh = ' filter="url(#sh)"' if shadow else ''
-    return f'''
-  <g{sh}>
-    <rect x="120" y="150" width="272" height="258" rx="38" fill="{WHITE}"/>
-  </g>
-  <rect x="120" y="150" width="272" height="58" rx="38" fill="{BLUE_DK}"/>
-  <rect x="120" y="180" width="272" height="28" fill="{BLUE_DK}"/>
-  <rect x="166" y="128" width="24" height="58" rx="12" fill="{BLUE_DK}"/>
-  <rect x="322" y="128" width="24" height="58" rx="12" fill="{BLUE_DK}"/>
-  <path d="M170 300 l52 54 l132 -150" fill="none" stroke="url(#chk)"
-        stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>'''
+RING = arc_path(CX, CY, Rr, A0, A1)
+HX = CX + Rr*math.cos(math.radians(A0))
+HY = CY + Rr*math.sin(math.radians(A0))
+CHECK = "M206 260 l34 36 l72 -84"
+
+DEFS = '''
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#2C2C2E"/><stop offset="1" stop-color="#1C1C1E"/>
+  </linearGradient>
+  <linearGradient id="ring" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#5BE584"/><stop offset="0.5" stop-color="#34C759"/>
+    <stop offset="1" stop-color="#16A34A"/>
+  </linearGradient>
+  <radialGradient id="sheen" cx="0.3" cy="0.12" r="0.95">
+    <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
+    <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+  </radialGradient>
+  <filter id="sh" x="-40%" y="-40%" width="180%" height="180%">
+    <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000" flood-opacity="0.45"/>
+  </filter>'''
+
+def ring_and_check(track=True):
+    track_ring = (f'<circle cx="{CX}" cy="{CY}" r="{Rr}" fill="none" '
+                  f'stroke="#3A3A3C" stroke-width="{SW}"/>') if track else ''
+    return f'''{track_ring}
+    <g filter="url(#sh)">
+      <path d="{RING}" fill="none" stroke="url(#ring)" stroke-width="{SW}" stroke-linecap="round"/>
+    </g>
+    <circle cx="{HX:.1f}" cy="{HY:.1f}" r="{SW/2:.0f}" fill="#5BE584"/>
+    <path d="{CHECK}" fill="none" stroke="#fff" stroke-width="30"
+          stroke-linecap="round" stroke-linejoin="round"/>'''
 
 def svg_full():
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" '
-            f'viewBox="0 0 512 512">{COMMON_DEFS}'
-            f'<rect x="0" y="0" width="512" height="512" rx="115" ry="115" fill="url(#bgBlue)"/>'
-            f'{calendar_check(shadow=True)}</svg>')
+            f'viewBox="0 0 512 512"><defs>{DEFS}</defs>'
+            f'<rect width="512" height="512" rx="112" fill="url(#bg)"/>'
+            f'{ring_and_check(track=True)}'
+            f'<rect width="512" height="512" rx="112" fill="url(#sheen)"/></svg>')
 
 def svg_foreground():
-    # Transparent ground; artwork already within the safe zone. No drop shadow
-    # (the system applies its own elevation) and no calendar-header reliance on
-    # the blue plate, since the adaptive background supplies the blue.
+    # No track ring (reads cleaner small), scaled to 0.80 so the ring's outer
+    # edge stays inside the adaptive safe zone, transparent ground.
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" '
-            f'viewBox="0 0 512 512">{COMMON_DEFS}'
-            f'{calendar_check(shadow=False)}</svg>')
+            f'viewBox="0 0 512 512"><defs>{DEFS}</defs>'
+            f'<g transform="translate({CX},{CY}) scale(0.80) translate(-{CX},-{CY})">'
+            f'{ring_and_check(track=False)}</g></svg>')
 
 def svg_monochrome():
-    # Single-tone silhouette: a solid calendar with the check knocked out, so
-    # it stays legible when the launcher tints it for themed icons.
-    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <defs>
-    <mask id="knock">
-      <rect x="120" y="150" width="272" height="258" rx="38" fill="#fff"/>
-      <rect x="166" y="128" width="24" height="58" rx="12" fill="#fff"/>
-      <rect x="322" y="128" width="24" height="58" rx="12" fill="#fff"/>
-      <path d="M170 300 l52 54 l132 -150" fill="none" stroke="#000"
-            stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
-    </mask>
-  </defs>
-  <g mask="url(#knock)" fill="#000">
-    <rect x="120" y="150" width="272" height="258" rx="38"/>
-    <rect x="166" y="128" width="24" height="58" rx="12"/>
-    <rect x="322" y="128" width="24" height="58" rx="12"/>
-  </g>
-</svg>'''
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" '
+            f'viewBox="0 0 512 512">'
+            f'<g transform="translate({CX},{CY}) scale(0.80) translate(-{CX},-{CY})" '
+            f'fill="none" stroke="#000">'
+            f'<path d="{RING}" stroke-width="{SW}" stroke-linecap="round"/>'
+            f'<circle cx="{HX:.1f}" cy="{HY:.1f}" r="{SW/2:.0f}" fill="#000" stroke="none"/>'
+            f'<path d="{CHECK}" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>'
+            f'</g></svg>')
 
-full = svg_full()
-fg = svg_foreground()
-mono = svg_monochrome()
+full, fg, mono = svg_full(), svg_foreground(), svg_monochrome()
 
 for d, (legacy_px, adaptive_px) in DENSITIES.items():
     folder = os.path.join(RES, f"mipmap-{d}")
@@ -109,11 +97,23 @@ for d, (legacy_px, adaptive_px) in DENSITIES.items():
     cairosvg.svg2png(bytestring=mono.encode(),
                      write_to=os.path.join(folder, "ic_launcher_monochrome.png"),
                      output_width=adaptive_px, output_height=adaptive_px)
-    print(f"mipmap-{d}: ic_launcher={legacy_px}px  foreground/mono={adaptive_px}px")
+    print(f"mipmap-{d}: ic_launcher={legacy_px}px  fg/mono={adaptive_px}px")
 
-# A 512px Play-Store / preview master next to the design assets.
+# Graphite adaptive background to match the icon ground.
+with open(os.path.join(RES, "drawable", "ic_launcher_background.xml"), "w") as f:
+    f.write('''<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive-icon background: graphite gradient matching the ring icon. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:startColor="#2C2C2E"
+        android:endColor="#1C1C1E"
+        android:angle="270" />
+</shape>
+''')
+print("wrote drawable/ic_launcher_background.xml (graphite)")
+
 cairosvg.svg2png(bytestring=full.encode(),
-                 write_to=os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                       "ic_launcher_master_512.png"),
+                 write_to=os.path.join(DESIGN, "ic_launcher_master_512.png"),
                  output_width=512, output_height=512)
-print("master 512px written to design/ic_launcher_master_512.png")
+print("master 512px -> design/ic_launcher_master_512.png")
