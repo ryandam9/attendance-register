@@ -65,8 +65,8 @@ class _MainShellState extends ConsumerState<MainShell>
       unawaited(_foregroundCheckIn());
       _startWifiTimer();
     } else if (state == AppLifecycleState.paused) {
-      // No point scanning while backgrounded — the plugin can't read the SSID
-      // reliably and it would just burn battery.
+      // No point scanning while backgrounded — Wi-Fi scans are unreliable for
+      // a paused app and it would just burn battery.
       _wifiTimer?.cancel();
     }
   }

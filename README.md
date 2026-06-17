@@ -138,7 +138,7 @@ lib/
 | `geolocator` | GPS positioning |
 | `geocoding` | Address ↔ coordinate lookup |
 | `native_geofence` | OS-level geofencing (auto check-in) |
-| `network_info_plus` | Connected Wi-Fi SSID (Wi-Fi check-in) |
+| `wifi_scan` | Scan visible Wi-Fi networks (Wi-Fi check-in) |
 | `table_calendar` | Calendar widget |
 | `flutter_local_notifications` | Attendance notifications |
 | `permission_handler` | Runtime permission requests & status |
@@ -181,17 +181,19 @@ a geofence event, opening the app while at the office still records the day.
 
 GPS can be off, denied, or unreliable deep indoors. As a fallback, each office
 can list its Wi-Fi networks (SSIDs — e.g. the corporate, guest and WLAN
-networks). When the device is connected to any of them, `WifiService` records
-the day using the **same guards** as the geofence path (skip holidays/leave,
-skip dismissed days, once per day per office). The connected SSID is checked on
-every app launch/resume and re-checked every 15 minutes while the app is alive;
-once the day is recorded it stops for the rest of the day.
+networks). `WifiService` **scans for networks in range** — the device does not
+need to connect to them, so this works even when you stay on mobile data. When
+any configured network is visible, it records the day using the **same guards**
+as the geofence path (skip holidays/leave, skip dismissed days, once per day per
+office). The scan runs on every app launch/resume and every 15 minutes while
+the app is alive; once the day is recorded it stops for the rest of the day.
 
-Reading the connected SSID is governed by `network_info_plus` and, on Android,
-requires the location permission the app already requests plus location
-services switched on. Periodic checks currently run while the app is in the
-foreground; extending them to a killed-app background schedule would need a
-`WorkManager` task and is a possible follow-up.
+Wi-Fi scanning (`wifi_scan`) is **Android only** — iOS does not expose nearby
+networks. On Android it requires the location permission the app already
+requests plus location services switched on (the OS gates scan results on
+location). Periodic checks currently run while the app is in the foreground;
+extending them to a killed-app background schedule would need a `WorkManager`
+task and is a possible follow-up.
 
 ## Percentage Rules
 

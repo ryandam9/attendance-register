@@ -5,7 +5,7 @@ import 'package:attendance_register/services/wifi_service.dart';
 
 void main() {
   group('WifiService.normalizeSsid', () {
-    test('strips the quotes Android wraps the SSID in', () {
+    test('strips surrounding quotes', () {
       expect(WifiService.normalizeSsid('"Office-WiFi"'), 'Office-WiFi');
     });
 
@@ -40,17 +40,26 @@ void main() {
       wifiNames: ['Branch-WLAN'],
     );
 
-    test('matches an SSID case-insensitively', () {
-      expect(WifiService.matchOffice('office-guest', [hq, branch]), hq);
-      expect(WifiService.matchOffice('BRANCH-WLAN', [hq, branch]), branch);
+    test('matches when a configured network is in the scan (case-insensitive)',
+        () {
+      // The office network is visible alongside others, but not connected.
+      final nearby = ['Cafe-Free', 'office-guest', 'Neighbour-5G'];
+      expect(WifiService.matchOffice(nearby, [hq, branch]), hq);
     });
 
-    test('returns null when nothing matches', () {
-      expect(WifiService.matchOffice('Cafe-Free', [hq, branch]), isNull);
+    test('matches the right office among several', () {
+      expect(WifiService.matchOffice(['BRANCH-WLAN'], [hq, branch]), branch);
     });
 
-    test('returns null for a null SSID', () {
-      expect(WifiService.matchOffice(null, [hq, branch]), isNull);
+    test('returns null when no configured network is in range', () {
+      expect(
+        WifiService.matchOffice(['Cafe-Free', 'Neighbour-5G'], [hq, branch]),
+        isNull,
+      );
+    });
+
+    test('returns null for an empty scan', () {
+      expect(WifiService.matchOffice(const [], [hq, branch]), isNull);
     });
 
     test('ignores offices with no configured networks', () {
@@ -60,7 +69,7 @@ void main() {
         latitude: 0,
         longitude: 0,
       );
-      expect(WifiService.matchOffice('anything', [noWifi]), isNull);
+      expect(WifiService.matchOffice(['anything'], [noWifi]), isNull);
     });
   });
 }

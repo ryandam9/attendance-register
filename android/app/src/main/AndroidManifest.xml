@@ -8,10 +8,14 @@
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <!-- ── Wi-Fi check-in ─────────────────────────────────────────────────── -->
-    <!-- Reading the connected network's SSID (second check-in path). Reading
-         the SSID also requires the location permissions declared above. -->
+    <!-- Scanning for *visible* office networks (second check-in path) — the
+         device need not connect to them. Scan results also require the location
+         permissions declared above and location services switched on. -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Android 13+ replacement for using location solely to scan Wi-Fi. -->
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
 
     <!-- WorkManager / background tasks -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />

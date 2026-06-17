@@ -1,42 +1,60 @@
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:intl/intl.dart';
-import 'package:network_info_plus/network_info_plus.dart';
+import 'package:wifi_scan/wifi_scan.dart';
 
 import '../models/attendance_record.dart';
 import '../models/office_location.dart';
 import 'database_service.dart';
 import 'notification_service.dart';
 
-/// A second way to record office attendance: when the device is connected to
-/// one of an office's configured Wi-Fi networks, the day is marked even if GPS
-/// is off or the geofence never fired (indoors, location disabled). Mirrors the
-/// guards in LocationService so a Wi-Fi check never overwrites a holiday,
-/// resurrects a deleted day, or double-records.
+/// A second way to record office attendance: when one of an office's configured
+/// Wi-Fi networks is *visible nearby* (it does NOT need to be connected — you
+/// can stay on mobile data), the day is marked even if GPS is off or the
+/// geofence never fired (indoors, location disabled). Mirrors the guards in
+/// LocationService so a Wi-Fi check never overwrites a holiday, resurrects a
+/// deleted day, or double-records.
+///
+/// Android only: scanning visible networks is unsupported on iOS, where this
+/// degrades to a no-op (the geofence path still works there).
 class WifiService {
   WifiService._();
   static final WifiService instance = WifiService._();
 
-  final NetworkInfo _networkInfo = NetworkInfo();
-
-  /// The SSID the device is currently connected to, normalised — or null when
-  /// not on Wi-Fi, or when the OS withholds the name (needs location
-  /// permission + location services on, Android 10+).
-  Future<String?> connectedSsid() async {
+  /// SSIDs of the Wi-Fi networks currently visible to the device, normalised
+  /// and de-duplicated. Empty when scanning isn't possible (permission denied,
+  /// location services off, unsupported platform). Never throws.
+  Future<List<String>> scanNearbySsids() async {
     try {
-      return normalizeSsid(await _networkInfo.getWifiName());
+      // Ask for a fresh scan when allowed. Even when a fresh scan is throttled
+      // or can't start, getScannedResults still returns the OS's cached list,
+      // which is fine for a 15-minute check.
+      if (await WiFiScan.instance.canStartScan() == CanStartScan.yes) {
+        await WiFiScan.instance.startScan();
+      }
+      if (await WiFiScan.instance.canGetScannedResults() !=
+          CanGetScannedResults.yes) {
+        return const [];
+      }
+      final results = await WiFiScan.instance.getScannedResults();
+      final seen = <String>{};
+      final ssids = <String>[];
+      for (final ap in results) {
+        final ssid = normalizeSsid(ap.ssid);
+        if (ssid != null && seen.add(ssid.toLowerCase())) ssids.add(ssid);
+      }
+      return ssids;
     } catch (e) {
-      debugPrint('Wi-Fi SSID lookup failed: $e');
-      return null;
+      debugPrint('Wi-Fi scan failed: $e');
+      return const [];
     }
   }
 
-  /// Cleans a raw SSID for matching: Android wraps it in double quotes, and
-  /// returns sentinel values like `<unknown ssid>` when it can't read it.
-  /// Returns null for anything that isn't a usable network name.
+  /// Cleans a raw SSID for matching: trims, strips the surrounding quotes some
+  /// platforms add, and rejects empty / hidden-network sentinels. Returns null
+  /// for anything that isn't a usable network name.
   static String? normalizeSsid(String? raw) {
     if (raw == null) return null;
     var s = raw.trim();
-    // Strip the surrounding quotes Android adds, e.g. "MyNetwork".
     if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) {
       s = s.substring(1, s.length - 1).trim();
     }
@@ -44,38 +62,41 @@ class WifiService {
     return s;
   }
 
-  /// The first office whose configured Wi-Fi list contains [ssid]
-  /// (case-insensitive), or null. Pure so it can be unit-tested without the
-  /// platform plugin.
+  /// The first office that has at least one configured network present in
+  /// [scannedSsids] (case-insensitive), or null. Pure so it can be unit-tested
+  /// without the platform plugin.
   static OfficeLocation? matchOffice(
-    String? ssid,
+    Iterable<String> scannedSsids,
     List<OfficeLocation> offices,
   ) {
-    if (ssid == null) return null;
-    final target = ssid.toLowerCase();
+    final nearby = scannedSsids
+        .map((s) => s.trim().toLowerCase())
+        .where((s) => s.isNotEmpty)
+        .toSet();
+    if (nearby.isEmpty) return null;
     for (final office in offices) {
       for (final name in office.wifiNames) {
-        if (name.trim().toLowerCase() == target) return office;
+        if (nearby.contains(name.trim().toLowerCase())) return office;
       }
     }
     return null;
   }
 
-  /// Checks the connected network against every office's Wi-Fi list and records
-  /// today's attendance at the first match. Returns the office recorded at, or
-  /// null when there is no match or the day is already settled. Never prompts
-  /// for permission. When [notify] is true a system notification is shown (used
-  /// by the periodic background-style check); the foreground caller passes false
-  /// and shows in-app feedback instead.
+  /// Scans for visible networks and records today's attendance at the first
+  /// office whose Wi-Fi is in range. Returns the office recorded at, or null
+  /// when there is no match or the day is already settled. Never prompts for
+  /// permission. When [notify] is true a system notification is shown (the
+  /// periodic check); the foreground caller passes false and shows in-app
+  /// feedback instead.
   static Future<OfficeLocation?> performWifiCheck({required bool notify}) async {
     final db = DatabaseService.instance;
     final offices = await db.getOfficeLocations();
-    // No point reading the SSID if no office opted into Wi-Fi check-in.
+    // No point scanning if no office opted into Wi-Fi check-in.
     final withWifi = offices.where((o) => o.wifiNames.isNotEmpty).toList();
     if (withWifi.isEmpty) return null;
 
-    final ssid = await instance.connectedSsid();
-    final office = matchOffice(ssid, withWifi);
+    final ssids = await instance.scanNearbySsids();
+    final office = matchOffice(ssids, withWifi);
     if (office == null || office.id == null) return null;
 
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());

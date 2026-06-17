@@ -20,8 +20,9 @@ dependencies:
   geocoding: ^4.0.0
   native_geofence: ^1.2.2
 
-  # Wi-Fi network detection (second check-in path when GPS is off)
-  network_info_plus: ^6.0.0
+  # Wi-Fi network scanning (second check-in path: detect visible office
+  # networks without connecting to them; Android only)
+  wifi_scan: ^0.4.1
 
   # UI
   table_calendar: ^3.2.0

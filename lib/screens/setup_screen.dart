@@ -68,17 +68,47 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     });
   }
 
-  Future<void> _addCurrentWifi() async {
-    final ssid = await WifiService.instance.connectedSsid();
+  Future<void> _scanForNetworks() async {
+    setState(() => _busy = true);
+    final ssids = await WifiService.instance.scanNearbySsids();
     if (!mounted) return;
-    if (ssid == null) {
+    setState(() => _busy = false);
+
+    if (ssids.isEmpty) {
       _showSnack(
-        "Couldn't read the current Wi-Fi network. Connect to it and make sure "
-        'location permission is granted.',
+        'No Wi-Fi networks found. Turn Wi-Fi on, grant location permission, '
+        'and make sure location services are enabled.',
       );
       return;
     }
-    _addWifi(ssid);
+
+    final pick = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const ListTile(
+              dense: true,
+              title: Text('Nearby networks'),
+              subtitle: Text('Tap one to add it as an office network'),
+            ),
+            for (final ssid in ssids)
+              ListTile(
+                leading: const Icon(Icons.wifi),
+                title: Text(ssid),
+                trailing: _wifiNames
+                        .any((w) => w.toLowerCase() == ssid.toLowerCase())
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () => Navigator.pop(ctx, ssid),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (pick != null && mounted) _addWifi(pick);
   }
 
   Future<void> _useCurrentLocation() async {
@@ -312,8 +342,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             Text(
-              'A second way to record attendance: when you connect to any of '
-              'these networks, the day is marked even if GPS is off. Optional.',
+              'A second way to record attendance: when any of these networks '
+              'is in range — even if you stay on mobile data and never connect '
+              '— the day is marked, no GPS needed. Optional. (Android only.)',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
@@ -354,9 +385,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
-                onPressed: _busy ? null : _addCurrentWifi,
-                icon: const Icon(Icons.add_link),
-                label: const Text('Add current network'),
+                onPressed: _busy ? null : _scanForNetworks,
+                icon: const Icon(Icons.wifi_find),
+                label: const Text('Scan nearby networks'),
               ),
             ),
 
