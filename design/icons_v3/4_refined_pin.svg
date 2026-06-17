@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6D5BF0"/><stop offset="0.5" stop-color="#9B5BE4"/><stop offset="1" stop-color="#E2557E"/></linearGradient><linearGradient id="pin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E9ECF5"/></linearGradient><filter id="sh" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#000" flood-opacity="0.3"/></filter>
+    <radialGradient id="sheen" cx="0.3" cy="0.12" r="0.95">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient></defs><rect width="512" height="512" rx="112" fill="url(#bg)"/>
+    <g filter="url(#sh)">
+      <path d="M256 92 C181 92 120 153 120 228
+               C120 322 256 430 256 430 C256 430 392 322 392 228
+               C392 153 331 92 256 92 Z" fill="url(#pin)"/>
+    </g>
+    <circle cx="256" cy="226" r="52" fill="#6D5BF0"/><rect width="512" height="512" rx="112" fill="url(#sheen)"/></svg>
