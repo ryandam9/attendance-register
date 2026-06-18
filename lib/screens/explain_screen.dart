@@ -13,6 +13,7 @@ import '../models/special_day.dart';
 import '../providers/explain_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/settings_provider.dart';
+import '../themes/bird_art.dart';
 import '../widgets/no_office_placeholder.dart';
 import '../widgets/rto_arc_card.dart';
 
@@ -78,7 +79,8 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
               padding: const EdgeInsets.symmetric(vertical: 48),
               child: Center(child: Text('Could not load data: $e')),
             ),
-            data: (b) => _report(b, settings.rtoTarget, office.id!),
+            data: (b) =>
+                _report(b, settings.rtoTarget, office.id!, settings.themeId),
           ),
         ],
       ),
@@ -172,11 +174,16 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
 
   // ── Report ───────────────────────────────────────────────────────────────
 
-  Widget _report(AttendanceBreakdown b, int target, int officeId) {
+  Widget _report(
+      AttendanceBreakdown b, int target, int officeId, String themeId) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        RtoArcCard(breakdown: b, target: target),
+        RtoArcCard(
+          breakdown: b,
+          target: target,
+          birdAsset: birdAssetForTheme(themeId),
+        ),
         const SizedBox(height: 16),
         _BreakdownDonut(breakdown: b),
         const SizedBox(height: 16),

@@ -26,6 +26,7 @@ dependencies:
   animations: ^2.0.11
   confetti: ^0.8.0
   dynamic_color: ^1.7.0
+  flutter_svg: ^2.0.10+1
 
   # Permissions
   permission_handler: ^12.0.3
@@ -45,6 +46,32 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   sqflite_common_ffi: ^2.4.1
+  # App icon + splash generators. Replace assets/branding/app_icon.png with the
+  # real 1024×1024 artwork, then run:
+  #   dart run flutter_launcher_icons
+  #   dart run flutter_native_splash:create
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.1
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/birds/
+    - assets/branding/
+
+# Generated app launcher icons (run: dart run flutter_launcher_icons).
+flutter_launcher_icons:
+  image_path: "assets/branding/app_icon.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  adaptive_icon_background: "#00346E"
+  adaptive_icon_foreground: "assets/branding/app_icon.png"
+
+# Generated splash screen (run: dart run flutter_native_splash:create).
+flutter_native_splash:
+  color: "#00346E"
+  image: "assets/branding/app_icon.png"
+  android_12:
+    color: "#00346E"
+    image: "assets/branding/app_icon.png"

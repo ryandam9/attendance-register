@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../app_colors.dart';
 import '../models/attendance_breakdown.dart';
@@ -16,11 +17,16 @@ class RtoArcCard extends StatelessWidget {
   final int target;
   final VoidCallback? onTap;
 
+  /// Optional bird illustration (SVG asset) that perches on the gauge at the
+  /// current percentage instead of the plain marker dot.
+  final String? birdAsset;
+
   const RtoArcCard({
     super.key,
     required this.breakdown,
     required this.target,
     this.onTap,
+    this.birdAsset,
   });
 
   // Feathers warning + success colours (used as fills, tints, icons and
@@ -88,6 +94,7 @@ class RtoArcCard extends StatelessWidget {
             accent: accent,
             track: cs.surfaceContainerHighest,
             tickColor: cs.onSurfaceVariant,
+            birdAsset: birdAsset,
           ),
           if (pct != null) ...[
             const SizedBox(height: 8),
@@ -171,6 +178,7 @@ class _RtoArc extends StatelessWidget {
   final Color accent;
   final Color track;
   final Color tickColor;
+  final String? birdAsset;
 
   const _RtoArc({
     required this.percentage,
@@ -178,53 +186,95 @@ class _RtoArc extends StatelessWidget {
     required this.accent,
     required this.track,
     required this.tickColor,
+    this.birdAsset,
   });
+
+  static const _height = 132.0;
+  static const _stroke = 14.0;
+  static const _birdSize = 40.0;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final frac = ((percentage ?? 0) / 100).clamp(0.0, 1.0);
+    final showBird = birdAsset != null && percentage != null;
+
     return SizedBox(
-      height: 132,
+      height: _height,
       width: double.infinity,
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: frac),
-        duration: const Duration(milliseconds: 700),
-        curve: Curves.easeOutCubic,
-        builder: (context, animFrac, _) => CustomPaint(
-          painter: _ArcPainter(
-            fraction: animFrac,
-            targetFraction: (target / 100).clamp(0.0, 1.0),
-            accent: accent,
-            track: track,
-            tickColor: tickColor,
-            hasValue: percentage != null,
-          ),
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          final radius = math.min(w / 2, _height) - _stroke;
+          final center = Offset(w / 2, _height - _stroke / 2);
+
+          return TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: frac),
+            duration: const Duration(milliseconds: 700),
+            curve: Curves.easeOutCubic,
+            builder: (context, animFrac, _) {
+              final angle = math.pi + math.pi * animFrac;
+              final marker = Offset(
+                center.dx + radius * math.cos(angle),
+                center.dy + radius * math.sin(angle),
+              );
+              return Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  Text(
-                    percentage == null
-                        ? '—'
-                        : '${percentage!.toStringAsFixed(1)}%',
-                    style: theme.textTheme.displaySmall?.copyWith(
-                      color: accent,
-                      fontWeight: FontWeight.bold,
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _ArcPainter(
+                        fraction: animFrac,
+                        targetFraction: (target / 100).clamp(0.0, 1.0),
+                        accent: accent,
+                        track: track,
+                        tickColor: tickColor,
+                        hasValue: percentage != null,
+                        showMarkerDot: !showBird,
+                      ),
                     ),
                   ),
-                  Text(
-                    '$target% target',
-                    style: theme.textTheme.labelMedium
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  Positioned.fill(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              percentage == null
+                                  ? '—'
+                                  : '${percentage!.toStringAsFixed(1)}%',
+                              style: theme.textTheme.displaySmall?.copyWith(
+                                color: accent,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '$target% target',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
+                  if (showBird)
+                    Positioned(
+                      left: marker.dx - _birdSize / 2,
+                      top: marker.dy - _birdSize + _stroke / 2,
+                      child: SvgPicture.asset(
+                        birdAsset!,
+                        width: _birdSize,
+                        height: _birdSize,
+                      ),
+                    ),
                 ],
-              ),
-            ),
-          ),
-        ),
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -237,6 +287,7 @@ class _ArcPainter extends CustomPainter {
   final Color track;
   final Color tickColor;
   final bool hasValue;
+  final bool showMarkerDot;
 
   _ArcPainter({
     required this.fraction,
@@ -245,6 +296,7 @@ class _ArcPainter extends CustomPainter {
     required this.track,
     required this.tickColor,
     required this.hasValue,
+    this.showMarkerDot = true,
   });
 
   @override
@@ -270,15 +322,17 @@ class _ArcPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round;
       canvas.drawArc(rect, math.pi, math.pi * fraction, false, progressPaint);
 
-      // Marker dot at the current percentage.
-      final markerAngle = math.pi + math.pi * fraction;
-      final markerPos = Offset(
-        center.dx + radius * math.cos(markerAngle),
-        center.dy + radius * math.sin(markerAngle),
-      );
-      canvas.drawCircle(
-          markerPos, stroke / 2 + 2, Paint()..color = Colors.white);
-      canvas.drawCircle(markerPos, stroke / 2 - 1, Paint()..color = accent);
+      // Marker dot at the current percentage (hidden when a bird perches there).
+      if (showMarkerDot) {
+        final markerAngle = math.pi + math.pi * fraction;
+        final markerPos = Offset(
+          center.dx + radius * math.cos(markerAngle),
+          center.dy + radius * math.sin(markerAngle),
+        );
+        canvas.drawCircle(
+            markerPos, stroke / 2 + 2, Paint()..color = Colors.white);
+        canvas.drawCircle(markerPos, stroke / 2 - 1, Paint()..color = accent);
+      }
     }
 
     // Target tick across the band.
@@ -306,5 +360,6 @@ class _ArcPainter extends CustomPainter {
       old.fraction != fraction ||
       old.targetFraction != targetFraction ||
       old.accent != accent ||
-      old.track != track;
+      old.track != track ||
+      old.showMarkerDot != showMarkerDot;
 }

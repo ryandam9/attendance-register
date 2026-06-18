@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <!-- PLACEHOLDER — replace with the real Galah artwork (same filename). -->
+  <circle cx="60" cy="60" r="56" fill="#FBEAF0"/>
+  <g>
+    <path d="M36 76 C32 60 42 44 62 42 C78 41 88 52 88 60 C80 58 72 60 66 66 C72 66 78 68 82 72 C70 72 50 76 44 86 C40 82 38 80 36 76 Z" fill="#D05478"/>
+    <path d="M44 62 C38 68 34 82 40 92 C46 84 52 80 58 80 C54 72 50 66 44 62 Z" fill="#AABDC5"/>
+    <circle cx="74" cy="50" r="13" fill="#E9A7BB"/>
+    <path d="M70 42 C74 38 82 38 86 42 C80 43 76 46 74 50 Z" fill="#F6DDE6"/>
+    <polygon points="86,49 102,52 86,55" fill="#8A8F98"/>
+    <circle cx="78" cy="49" r="2.6" fill="#1A1A1A"/>
+  </g>
+</svg>

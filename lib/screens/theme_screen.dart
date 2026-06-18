@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../app_colors.dart';
 import '../providers/settings_provider.dart';
+import '../themes/bird_art.dart';
 import '../themes/bird_themes.dart';
 
 class ThemeScreen extends ConsumerWidget {
@@ -55,6 +57,7 @@ class ThemeScreen extends ConsumerWidget {
               theme: settings.themeId == dynamicThemeId
                   ? null
                   : settings.theme,
+              birdAsset: birdAssetForTheme(settings.themeId),
             ),
           ),
 
@@ -84,7 +87,7 @@ class ThemeScreen extends ConsumerWidget {
           ),
           for (final theme in birdThemes)
             ListTile(
-              leading: _SwatchRow(theme: theme),
+              leading: _ThemeLeading(theme: theme),
               title: Text(theme.name),
               subtitle: Text(theme.description),
               trailing: settings.themeId == theme.id
@@ -95,6 +98,23 @@ class ThemeScreen extends ConsumerWidget {
           const SizedBox(height: 16),
         ],
       ),
+    );
+  }
+}
+
+/// Row leading: the theme's bird illustration when one exists, otherwise the
+/// overlapping colour swatches.
+class _ThemeLeading extends StatelessWidget {
+  final BirdTheme theme;
+  const _ThemeLeading({required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    final asset = birdAssetForTheme(theme.id);
+    if (asset == null) return _SwatchRow(theme: theme);
+    return SizedBox(
+      width: 50,
+      child: Center(child: SvgPicture.asset(asset, width: 46, height: 46)),
     );
   }
 }
@@ -136,7 +156,8 @@ class _SwatchRow extends StatelessWidget {
 /// scheme when [theme] is null.
 class _ThemePreviewCard extends StatelessWidget {
   final BirdTheme? theme;
-  const _ThemePreviewCard({required this.theme});
+  final String? birdAsset;
+  const _ThemePreviewCard({required this.theme, this.birdAsset});
 
   static Color _on(Color background) =>
       background.computeLuminance() > 0.5 ? Colors.black : Colors.white;
@@ -156,7 +177,7 @@ class _ThemePreviewCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Faux app bar.
+            // Faux app bar (with the theme's bird, when available).
             Container(
               height: 40,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -175,6 +196,9 @@ class _ThemePreviewCard extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  const Spacer(),
+                  if (birdAsset != null)
+                    SvgPicture.asset(birdAsset!, width: 28, height: 28),
                 ],
               ),
             ),

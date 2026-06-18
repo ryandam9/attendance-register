@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -17,6 +18,7 @@ import '../providers/explain_provider.dart';
 import '../providers/special_day_provider.dart';
 import '../providers/ui_state_provider.dart';
 import '../services/holiday_service.dart';
+import '../themes/bird_art.dart';
 import '../widgets/quick_mark_sheet.dart';
 import '../widgets/rto_arc_card.dart';
 import 'settings_screen.dart';
@@ -105,9 +107,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
 
     final appBarTheme = Theme.of(context).appBarTheme;
+    final birdAsset =
+        birdAssetForTheme(ref.watch(settingsProvider.select((s) => s.themeId)));
 
     return Scaffold(
       appBar: AppBar(
+        leading: birdAsset == null
+            ? null
+            : Padding(
+                padding: const EdgeInsets.all(6),
+                child: SvgPicture.asset(birdAsset),
+              ),
         title: officeState.hasOffice
             ? Column(
                 mainAxisSize: MainAxisSize.min,
@@ -149,6 +159,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             : !officeState.hasOffice
                 ? _EmptyState(
                     key: const ValueKey('empty'),
+                    birdAsset: birdAsset,
                     onAdd: () => Navigator.push(
                       context,
                       appRoute(const SetupScreen()),
@@ -176,7 +187,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 class _EmptyState extends StatelessWidget {
   final VoidCallback onAdd;
-  const _EmptyState({super.key, required this.onAdd});
+  final String? birdAsset;
+  const _EmptyState({super.key, required this.onAdd, this.birdAsset});
 
   @override
   Widget build(BuildContext context) {
@@ -187,7 +199,11 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.business_outlined, size: 80, color: cs.primary.withValues(alpha: 0.4)),
+            if (birdAsset != null)
+              SvgPicture.asset(birdAsset!, width: 120, height: 120)
+            else
+              Icon(Icons.business_outlined,
+                  size: 80, color: cs.primary.withValues(alpha: 0.4)),
             const SizedBox(height: 24),
             Text(
               'No Office Registered',
@@ -368,6 +384,7 @@ class _Dashboard extends ConsumerWidget {
               data: (b) => RtoArcCard(
                 breakdown: b,
                 target: settings.rtoTarget,
+                birdAsset: birdAssetForTheme(settings.themeId),
                 onTap: () => ref.read(tabIndexProvider.notifier).set(2),
               ),
             ),
