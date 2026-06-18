@@ -14,6 +14,7 @@ import '../services/location_service.dart';
 import 'explain_screen.dart';
 import 'history_screen.dart';
 import 'home_screen.dart';
+import 'mark_screen.dart';
 
 /// App scaffold: bottom navigation over Home / Insights / History with a
 /// fade-through transition between tabs. Each tab is rebuilt when selected so
@@ -118,8 +119,9 @@ class _MainShellState extends ConsumerState<MainShell>
           child: child,
         ),
         child: switch (index) {
-          1 => const ExplainScreen(key: ValueKey('tab-insights')),
-          2 => const HistoryScreen(key: ValueKey('tab-history')),
+          1 => const MarkScreen(key: ValueKey('tab-mark')),
+          2 => const ExplainScreen(key: ValueKey('tab-insights')),
+          3 => const HistoryScreen(key: ValueKey('tab-history')),
           _ => const HomeScreen(key: ValueKey('tab-home')),
         },
       ),
@@ -134,6 +136,11 @@ class _MainShellState extends ConsumerState<MainShell>
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
             label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.edit_calendar_outlined),
+            selectedIcon: Icon(Icons.edit_calendar),
+            label: 'Mark',
           ),
           NavigationDestination(
             icon: Icon(Icons.insights_outlined),

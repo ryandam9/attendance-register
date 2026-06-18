@@ -1,9 +1,6 @@
 import 'dart:async';
 
-import 'package:animations/animations.dart';
-import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -22,7 +19,6 @@ import '../providers/ui_state_provider.dart';
 import '../services/holiday_service.dart';
 import '../widgets/quick_mark_sheet.dart';
 import '../widgets/rto_arc_card.dart';
-import 'day_entry_screen.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
 
@@ -34,22 +30,10 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  late final ConfettiController _confetti =
-      ConfettiController(duration: const Duration(milliseconds: 1200));
-  bool _justCheckedIn = false;
-  Timer? _checkedInReset;
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _refreshAttendance());
-  }
-
-  @override
-  void dispose() {
-    _checkedInReset?.cancel();
-    _confetti.dispose();
-    super.dispose();
   }
 
   /// Reloads attendance and special days for [day]'s month (defaults to the
@@ -100,38 +84,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (changed && mounted) _refreshAttendance();
   }
 
-  Future<void> _manualCheckIn() async {
-    final office = ref.read(officeProvider).selectedOffice;
-    if (office == null) return;
-    final result = await ref
-        .read(attendanceProvider.notifier)
-        .manualCheckIn(office.id!, focusedMonth: ref.read(calendarFocusProvider));
-    if (!mounted) return;
-
-    if (result == CheckInResult.recorded) {
-      // The once-a-day moment the app exists for — celebrate it.
-      unawaited(HapticFeedback.mediumImpact());
-      _confetti.play();
-      setState(() => _justCheckedIn = true);
-      _checkedInReset?.cancel();
-      _checkedInReset = Timer(const Duration(milliseconds: 2500), () {
-        if (mounted) setState(() => _justCheckedIn = false);
-      });
-    }
-
-    final msg = switch (result) {
-      CheckInResult.recorded => 'Attendance recorded for today!',
-      CheckInResult.alreadyRecorded => 'Already checked in for today.',
-      CheckInResult.alreadyRecordedByAuto =>
-        'Attendance already recorded by auto check-in.',
-      CheckInResult.specialDayConflict =>
-        'Today is already marked (holiday, sick leave or misc leave) — change it first.',
-    };
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final officeState = ref.watch(officeProvider);
@@ -152,7 +104,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
     );
 
-    final cs = Theme.of(context).colorScheme;
     final appBarTheme = Theme.of(context).appBarTheme;
 
     return Scaffold(
@@ -188,62 +139,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: officeState.loading
-                ? const Center(
-                    key: ValueKey('loading'),
-                    child: CircularProgressIndicator(),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: officeState.loading
+            ? const Center(
+                key: ValueKey('loading'),
+                child: CircularProgressIndicator(),
+              )
+            : !officeState.hasOffice
+                ? _EmptyState(
+                    key: const ValueKey('empty'),
+                    onAdd: () => Navigator.push(
+                      context,
+                      appRoute(const SetupScreen()),
+                    ).then((_) async {
+                      await ref.read(officeProvider.notifier).load();
+                      if (mounted) _refreshAttendance();
+                    }),
                   )
-                : !officeState.hasOffice
-                    ? _EmptyState(
-                        key: const ValueKey('empty'),
-                        onAdd: () => Navigator.push(
-                          context,
-                          appRoute(const SetupScreen()),
-                        ).then((_) async {
-                          await ref.read(officeProvider.notifier).load();
-                          if (mounted) _refreshAttendance();
-                        }),
-                      )
-                    : _Dashboard(
-                        key: ValueKey(officeState.selectedOffice?.id),
-                        offices: officeState.offices,
-                        selected: officeState.selectedOffice!,
-                        justCheckedIn: _justCheckedIn,
-                        onRefresh: _onPullRefresh,
-                        onOfficeChanged: (o) =>
-                            ref.read(officeProvider.notifier).selectOffice(o),
-                        onPageChanged: _onPageChanged,
-                        onManualCheckIn: _manualCheckIn,
-                        onDayTapped: _quickMarkDay,
-                        onMarkADayClosed: (changed) {
-                          if (changed == true) _refreshAttendance();
-                        },
-                      ),
-          ),
-          // Confetti bursts from the top on a successful check-in.
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _confetti,
-              blastDirectionality: BlastDirectionality.explosive,
-              numberOfParticles: 24,
-              maxBlastForce: 24,
-              minBlastForce: 8,
-              gravity: 0.25,
-              shouldLoop: false,
-              colors: [
-                cs.primary,
-                cs.secondary,
-                cs.tertiary,
-                DayStatus.attended.colorIn(context),
-              ],
-            ),
-          ),
-        ],
+                : _Dashboard(
+                    key: ValueKey(officeState.selectedOffice?.id),
+                    offices: officeState.offices,
+                    selected: officeState.selectedOffice!,
+                    onRefresh: _onPullRefresh,
+                    onOfficeChanged: (o) =>
+                        ref.read(officeProvider.notifier).selectOffice(o),
+                    onPageChanged: _onPageChanged,
+                    onDayTapped: _quickMarkDay,
+                  ),
       ),
     );
   }
@@ -296,25 +219,19 @@ class _EmptyState extends StatelessWidget {
 class _Dashboard extends ConsumerWidget {
   final List<OfficeLocation> offices;
   final OfficeLocation selected;
-  final bool justCheckedIn;
   final Future<void> Function() onRefresh;
   final ValueChanged<OfficeLocation> onOfficeChanged;
   final ValueChanged<DateTime> onPageChanged;
-  final VoidCallback onManualCheckIn;
   final ValueChanged<DateTime> onDayTapped;
-  final ValueChanged<bool?> onMarkADayClosed;
 
   const _Dashboard({
     super.key,
     required this.offices,
     required this.selected,
-    required this.justCheckedIn,
     required this.onRefresh,
     required this.onOfficeChanged,
     required this.onPageChanged,
-    required this.onManualCheckIn,
     required this.onDayTapped,
-    required this.onMarkADayClosed,
   });
 
   static final _dayKeyFmt = DateFormat('yyyy-MM-dd');
@@ -356,8 +273,6 @@ class _Dashboard extends ConsumerWidget {
       start: yearPeriod.start,
       end: yearPeriod.end,
     )));
-
-    final cs = Theme.of(context).colorScheme;
 
     return RefreshIndicator(
       onRefresh: onRefresh,
@@ -453,70 +368,8 @@ class _Dashboard extends ConsumerWidget {
               data: (b) => RtoArcCard(
                 breakdown: b,
                 target: settings.rtoTarget,
-                onTap: () => ref.read(tabIndexProvider.notifier).set(1),
+                onTap: () => ref.read(tabIndexProvider.notifier).set(2),
               ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Primary action — morphs into a confirmation for a moment after a
-          // successful check-in.
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: FilledButton.icon(
-              onPressed: onManualCheckIn,
-              icon: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                transitionBuilder: (child, anim) =>
-                    ScaleTransition(scale: anim, child: child),
-                child: Icon(
-                  justCheckedIn ? Icons.celebration : Icons.check_circle_outline,
-                  key: ValueKey(justCheckedIn),
-                ),
-              ),
-              label: Text(justCheckedIn ? 'Checked in!' : 'Check-In for Today'),
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // Secondary action — container-transforms into the full day-entry
-          // screen. Tapping a calendar day opens the quick sheet instead.
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: OpenContainer<bool>(
-              transitionType: ContainerTransitionType.fadeThrough,
-              transitionDuration: const Duration(milliseconds: 350),
-              closedElevation: 0,
-              closedColor: cs.surface,
-              closedShape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-                side: BorderSide(color: cs.outline),
-              ),
-              closedBuilder: (context, open) => InkWell(
-                onTap: open,
-                child: SizedBox(
-                  height: 48,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.edit_calendar_outlined, color: cs.primary),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Mark a Day (Attendance / Leave / WFH)',
-                        style: TextStyle(
-                          color: cs.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              openBuilder: (context, _) => DayEntryScreen(office: selected),
-              onClosed: onMarkADayClosed,
             ),
           ),
         ],
