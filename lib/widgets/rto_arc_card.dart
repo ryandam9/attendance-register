@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../app_colors.dart';
 import '../models/attendance_breakdown.dart';
@@ -191,7 +190,8 @@ class _RtoArc extends StatelessWidget {
 
   static const _height = 132.0;
   static const _stroke = 14.0;
-  static const _birdSize = 40.0;
+  static const _birdW = 54.0;
+  static const _birdH = 40.0;
 
   @override
   Widget build(BuildContext context) {
@@ -262,12 +262,13 @@ class _RtoArc extends StatelessWidget {
                   ),
                   if (showBird)
                     Positioned(
-                      left: marker.dx - _birdSize / 2,
-                      top: marker.dy - _birdSize + _stroke / 2,
-                      child: SvgPicture.asset(
+                      left: marker.dx - _birdW / 2,
+                      top: marker.dy - _birdH + _stroke / 2,
+                      child: Image.asset(
                         birdAsset!,
-                        width: _birdSize,
-                        height: _birdSize,
+                        width: _birdW,
+                        height: _birdH,
+                        fit: BoxFit.contain,
                       ),
                     ),
                 ],

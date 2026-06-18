@@ -1,26 +1,27 @@
 # Bird artwork
 
-Per-theme bird illustrations used on the Appearance screen, the Home empty
-state, and as the marker on the "Return to office" gauge.
+Per-theme bird illustrations used on the Appearance screen, the Home app-bar +
+empty state, and as the marker on the "Return to office" gauge.
 
-## How to add / replace a bird
+Files are **transparent PNGs** named after the theme id (see
+`lib/themes/bird_themes.dart`), trimmed and downsized to ~512 px.
 
-1. Drop an **SVG** file in this folder named after the theme id, e.g.:
-   - `bee_eater.svg`  → Rainbow Bee-eater
-   - `galah.svg`      → Galah
-   - `spotted_pardalote.svg`, `plains_wanderer.svg`,
-     `rose_crowned_fruit_dove.svg`, `eastern_rosella.svg`, `cassowary.svg`, …
-   (Theme ids are defined in `lib/themes/bird_themes.dart`.)
-2. Add the same id to the `_withArt` set in `lib/themes/bird_art.dart` so the
-   app knows the file exists.
+## Currently included
+`bee_eater, spotted_pardalote, plains_wanderer, rose_crowned_fruit_dove,
+eastern_rosella, oriole, princess_parrot, superb_fairy_wren, galah,
+blue_winged_kookaburra`
+
+## Missing (fall back to colour swatches)
+- `cassowary` — Cassowary (the supplied "Southern-Cassowary.png" was actually a
+  bee-eater, now used for `bee_eater`)
+- `yellow_robin` — Eastern Yellow Robin
+
+Drop `assets/birds/bee_eater.png` / `yellow_robin.png` (transparent PNG) in and
+add the id to the `_withArt` set in `lib/themes/bird_art.dart`.
 
 The whole folder is bundled (see `pubspec.yaml` → `flutter > assets`), so no
 per-file pubspec entry is needed.
 
-The two files currently here (`bee_eater.svg`, `galah.svg`) are **placeholders**
-— replace them with the real artwork using the same filenames.
-
 ## App icon / splash
-
-Put a square 1024×1024 PNG at `assets/branding/app_icon.png`, then wire up
-`flutter_launcher_icons` / `flutter_native_splash` (see project README/TODO).
+`assets/branding/app_icon.png` is still a placeholder — see
+`assets/branding/README.md`.

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -116,7 +115,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ? null
             : Padding(
                 padding: const EdgeInsets.all(6),
-                child: SvgPicture.asset(birdAsset),
+                child: CircleAvatar(
+                  backgroundColor: Colors.white,
+                  child: Padding(
+                    padding: const EdgeInsets.all(5),
+                    child: Image.asset(birdAsset, fit: BoxFit.contain),
+                  ),
+                ),
               ),
         title: officeState.hasOffice
             ? Column(
@@ -200,7 +205,7 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (birdAsset != null)
-              SvgPicture.asset(birdAsset!, width: 120, height: 120)
+              Image.asset(birdAsset!, width: 180, fit: BoxFit.contain)
             else
               Icon(Icons.business_outlined,
                   size: 80, color: cs.primary.withValues(alpha: 0.4)),

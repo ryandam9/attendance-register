@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../app_colors.dart';
 import '../providers/settings_provider.dart';
@@ -113,8 +112,10 @@ class _ThemeLeading extends StatelessWidget {
     final asset = birdAssetForTheme(theme.id);
     if (asset == null) return _SwatchRow(theme: theme);
     return SizedBox(
-      width: 50,
-      child: Center(child: SvgPicture.asset(asset, width: 46, height: 46)),
+      width: 52,
+      child: Center(
+        child: Image.asset(asset, width: 52, height: 40, fit: BoxFit.contain),
+      ),
     );
   }
 }
@@ -198,7 +199,7 @@ class _ThemePreviewCard extends StatelessWidget {
                   ),
                   const Spacer(),
                   if (birdAsset != null)
-                    SvgPicture.asset(birdAsset!, width: 28, height: 28),
+                    Image.asset(birdAsset!, width: 40, height: 26, fit: BoxFit.contain),
                 ],
               ),
             ),
