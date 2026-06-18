@@ -16,10 +16,12 @@ import '../models/special_day.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/explain_provider.dart';
 import '../providers/special_day_provider.dart';
 import '../providers/ui_state_provider.dart';
 import '../services/holiday_service.dart';
 import '../widgets/quick_mark_sheet.dart';
+import '../widgets/rto_arc_card.dart';
 import 'day_entry_screen.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
@@ -160,7 +162,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Office Attendance'),
+                  const Text('Attendance Register'),
                   Text(
                     officeState.selectedOffice!.name,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -171,7 +173,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ],
               )
-            : const Text('Office Attendance'),
+            : const Text('Attendance Register'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
@@ -337,12 +339,9 @@ class _Dashboard extends ConsumerWidget {
 
     Widget? dayCell(DateTime day, {required bool isToday}) {
       final status = statusFor(day);
-      if (status == null) return null;
-      return _DayDot(
-        day: day,
-        color: status.colorIn(context),
-        isToday: isToday,
-      );
+      // No marker and not today → let table_calendar draw its default number.
+      if (!isToday && status == null) return null;
+      return _DayCell(day: day, status: status, isToday: isToday);
     }
 
     // The yearly stat follows the configured reporting year (calendar or
@@ -352,6 +351,11 @@ class _Dashboard extends ConsumerWidget {
       anchor: focusedDay,
       financialYearStart: settings.financialYearStart,
     );
+    final yearBreakdown = ref.watch(breakdownProvider((
+      officeId: selected.id!,
+      start: yearPeriod.start,
+      end: yearPeriod.end,
+    )));
 
     final cs = Theme.of(context).colorScheme;
 
@@ -359,12 +363,12 @@ class _Dashboard extends ConsumerWidget {
       onRefresh: onRefresh,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 32),
+        padding: const EdgeInsets.only(top: 8, bottom: 32),
         children: [
           // Office picker — only shown when more than one office exists.
           if (offices.length > 1)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: DropdownButtonFormField<OfficeLocation>(
                 initialValue: selected,
                 decoration: const InputDecoration(
@@ -382,27 +386,17 @@ class _Dashboard extends ConsumerWidget {
               ),
             ),
 
-          // Stats row — tapping a card jumps to the Insights tab.
-          _StatsRow(
-            month: focusedDay,
-            yearLabel: yearPeriod.label,
-            monthly: ap.monthlyCount,
-            yearly: ap.yearlyCount,
-            monthlyPercentage: ap.monthlyPercentage,
-            yearlyPercentage: ap.yearlyPercentage,
-            target: settings.rtoTarget,
-            onTap: () => ref.read(tabIndexProvider.notifier).set(1),
-          ),
-
-          // Calendar
+          // Calendar — the home page leads with the month, statuses shown as
+          // icons/markers inside each day cell (Monday-first week).
           Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             clipBehavior: Clip.antiAlias,
             child: TableCalendar(
               firstDay: DateTime(2020),
               lastDay: DateTime(DateTime.now().year + 5, 12, 31),
               focusedDay: focusedDay,
               calendarFormat: calendarFormat,
+              startingDayOfWeek: StartingDayOfWeek.monday,
               // Always render six week-rows so the calendar's height stays
               // constant across months — paging between a 5-row and 6-row
               // month would otherwise resize everything below it.
@@ -420,18 +414,46 @@ class _Dashboard extends ConsumerWidget {
                 todayBuilder: (context, day, _) => dayCell(day, isToday: true),
               ),
               headerStyle: const HeaderStyle(
-                formatButtonVisible: true,
+                formatButtonVisible: false,
                 titleCentered: true,
               ),
-              calendarStyle: CalendarStyle(
-                todayDecoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Status legend in its own card so colours/icons never need to be
+          // memorised (accessibility: icon + label + colour).
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: _LegendCard(),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Return-to-office hero — same gauge as the Insights tab, for the
+          // current reporting year. Tapping it opens the full Insights tab.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: yearBreakdown.when(
+              loading: () => const Card(
+                margin: EdgeInsets.zero,
+                child: SizedBox(
+                  height: 220,
+                  child: Center(child: CircularProgressIndicator()),
                 ),
-                todayTextStyle: TextStyle(
-                  color: cs.primary,
-                  fontWeight: FontWeight.bold,
+              ),
+              error: (e, _) => Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(child: Text('Could not load summary: $e')),
                 ),
+              ),
+              data: (b) => RtoArcCard(
+                breakdown: b,
+                target: settings.rtoTarget,
+                onTap: () => ref.read(tabIndexProvider.notifier).set(1),
               ),
             ),
           ),
@@ -497,278 +519,115 @@ class _Dashboard extends ConsumerWidget {
               onClosed: onMarkADayClosed,
             ),
           ),
-
-          const SizedBox(height: 16),
-
-          // Calendar legend — centered.
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 12,
-              runSpacing: 4,
-              children: [
-                for (final s in DayStatus.values)
-                  _LegendChip(color: s.colorIn(context), label: s.label),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
 }
 
-// ── Stats row ────────────────────────────────────────────────────────────────
 
-class _StatsRow extends StatelessWidget {
-  final DateTime month;
-  final String yearLabel;
-  final int monthly;
-  final int yearly;
-  final double? monthlyPercentage;
-  final double? yearlyPercentage;
-  final int target;
-  final VoidCallback onTap;
+// ── Calendar day cell ─────────────────────────────────────────────────────────
 
-  const _StatsRow({
-    required this.month,
-    required this.yearLabel,
-    required this.monthly,
-    required this.yearly,
-    required this.target,
-    required this.onTap,
-    this.monthlyPercentage,
-    this.yearlyPercentage,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Expanded(
-            child: _StatCard(
-              label: DateFormat.MMMM().format(month),
-              value: monthly,
-              percentage: monthlyPercentage,
-              target: target,
-              color: cs.primaryContainer,
-              onColor: cs.onPrimaryContainer,
-              icon: Icons.calendar_month_outlined,
-              onTap: onTap,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _StatCard(
-              label: yearLabel,
-              value: yearly,
-              percentage: yearlyPercentage,
-              target: target,
-              color: cs.secondaryContainer,
-              onColor: cs.onSecondaryContainer,
-              icon: Icons.star_outline,
-              onTap: onTap,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String label;
-  final int value;
-  final double? percentage;
-  final int target;
-  final Color color;
-  final Color onColor;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.percentage,
-    required this.target,
-    required this.color,
-    required this.onColor,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final pctGood = (percentage ?? 0) >= target;
-
-    return Card(
-      color: color,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(icon, color: onColor, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      label,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: onColor.withValues(alpha: 0.8),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  // Animated count-up; tabular figures in the theme keep the
-                  // digits from jiggling as they change.
-                  TweenAnimationBuilder<int>(
-                    tween: IntTween(begin: 0, end: value),
-                    duration: const Duration(milliseconds: 600),
-                    curve: Curves.easeOutCubic,
-                    builder: (context, v, _) => Text(
-                      '$v',
-                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: onColor,
-                        height: 1,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      'days',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: onColor.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  if (percentage != null)
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 400),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: pctGood ? cs.primary : cs.error,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '${percentage!.toStringAsFixed(0)}%',
-                        style: TextStyle(
-                          color: pctGood ? cs.onPrimary : cs.onError,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              if (percentage != null) ...[
-                const SizedBox(height: 10),
-                TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0, end: (percentage! / 100).clamp(0.0, 1.0)),
-                  duration: const Duration(milliseconds: 700),
-                  curve: Curves.easeOutCubic,
-                  builder: (context, v, _) => ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: LinearProgressIndicator(
-                      value: v,
-                      backgroundColor: onColor.withValues(alpha: 0.15),
-                      valueColor: AlwaysStoppedAnimation(
-                        pctGood ? cs.primary : cs.error,
-                      ),
-                      minHeight: 6,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Calendar day marker ───────────────────────────────────────────────────────
-
-class _DayDot extends StatelessWidget {
+/// A single calendar day rendered per the Feathers spec:
+/// • today           → solid navy (primary) circle with the day number
+/// • attended        → solid green circle with the day number
+/// • sick leave      → orange outlined ring with the day number
+/// • other statuses  → the status' icon in its colour (WFH home, holiday
+///   umbrella, annual suitcase, carer's hands, misc dots)
+/// • no status       → the plain day number
+class _DayCell extends StatelessWidget {
   final DateTime day;
-  final Color color;
+  final DayStatus? status;
   final bool isToday;
 
-  const _DayDot({required this.day, required this.color, this.isToday = false});
+  const _DayCell({required this.day, required this.status, this.isToday = false});
 
   @override
   Widget build(BuildContext context) {
-    // Subtle scale/fade-in when a month's dots appear.
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutBack,
-      builder: (context, t, child) => Opacity(
-        opacity: t.clamp(0.0, 1.0),
-        child: Transform.scale(scale: 0.7 + 0.3 * t, child: child),
-      ),
-      child: Container(
+    final cs = Theme.of(context).colorScheme;
+    final number = '${day.day}';
+
+    Widget filled(Color bg, Color fg) => Container(
+          margin: const EdgeInsets.all(4),
+          decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+          alignment: Alignment.center,
+          child: Text(number,
+              style: TextStyle(
+                  color: fg, fontWeight: FontWeight.bold, fontSize: 14)),
+        );
+
+    // Today always reads as the deep-navy marker (takes visual precedence).
+    if (isToday) return filled(cs.primary, cs.onPrimary);
+
+    // Plain number for no-status days (the day builder returns null before this
+    // for non-today empty days, but keep a safe fallback).
+    final s = status;
+    if (s == null) {
+      return Center(
+        child: Text(number, style: const TextStyle(fontSize: 14)),
+      );
+    }
+
+    if (s == DayStatus.attended) {
+      return filled(s.colorIn(context), Colors.white);
+    }
+
+    if (s == DayStatus.sickLeave) {
+      final color = s.colorIn(context);
+      return Container(
         margin: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: color,
           shape: BoxShape.circle,
-          // A contrasting white ring distinguishes "today" from past days.
-          border: isToday
-              ? Border.all(color: Colors.white, width: 2.5)
-              : null,
-          boxShadow: isToday
-              ? [BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 4)]
-              : null,
+          border: Border.all(color: color, width: 2),
         ),
         alignment: Alignment.center,
-        child: Text(
-          '${day.day}',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
-          ),
+        child: Text(number,
+            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14)),
+      );
+    }
+
+    // Leave / WFH / holiday / misc — show the status icon (no number).
+    return Center(child: Icon(s.icon, color: s.colorIn(context), size: 22));
+  }
+}
+
+// ── Calendar legend ───────────────────────────────────────────────────────────
+
+class _LegendCard extends StatelessWidget {
+  const _LegendCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Wrap(
+          spacing: 16,
+          runSpacing: 10,
+          children: [
+            for (final s in DayStatus.values)
+              _LegendItem(icon: s.icon, color: s.colorIn(context), label: s.label),
+          ],
         ),
       ),
     );
   }
 }
 
-class _LegendChip extends StatelessWidget {
+class _LegendItem extends StatelessWidget {
+  final IconData icon;
   final Color color;
   final String label;
-  const _LegendChip({required this.color, required this.label});
+  const _LegendItem({required this.icon, required this.color, required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 14,
-          height: 14,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 4),
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
         Text(label, style: Theme.of(context).textTheme.bodySmall),
       ],
     );
