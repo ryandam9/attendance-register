@@ -151,19 +151,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
 
     final cs = Theme.of(context).colorScheme;
+    final appBarTheme = Theme.of(context).appBarTheme;
 
     return Scaffold(
       appBar: AppBar(
-        surfaceTintColor: officeState.hasOffice ? cs.primary : null,
         title: officeState.hasOffice
             ? Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Office Attendance'),
                   Text(
                     officeState.selectedOffice!.name,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: cs.onSurface.withValues(alpha: 0.7),
+                      // App bar foreground is onPrimary in light mode (navy bar);
+                      // tint it down a touch for the secondary line.
+                      color: appBarTheme.foregroundColor?.withValues(alpha: 0.75),
                     ),
                   ),
                 ],
