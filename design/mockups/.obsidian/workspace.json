@@ -1,0 +1,199 @@
+{
+  "main": {
+    "id": "1e06cfb997325dd7",
+    "type": "split",
+    "children": [
+      {
+        "id": "eb57b649da166959",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "3b8e2efe113f88f2",
+            "type": "leaf",
+            "state": {
+              "type": "image",
+              "state": {
+                "file": "Southern-Cassowary.png"
+              },
+              "icon": "lucide-image",
+              "title": "Southern-Cassowary"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "9c48f3d3acfc0911",
+    "type": "split",
+    "children": [
+      {
+        "id": "515a454ab245f0cc",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "5d1ddf171a6aa3c3",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "87d18927b5434c66",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "269d28f67f9de8c3",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "47df9cfb435a7f07",
+    "type": "split",
+    "children": [
+      {
+        "id": "3bae9d40241b74dd",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "072c8b6f67c0ca63",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Southern-Cassowary.png",
+                "collapseAll": true,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for Southern-Cassowary"
+            }
+          },
+          {
+            "id": "5b13dd810c67fe03",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Southern-Cassowary.png",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from Southern-Cassowary"
+            }
+          },
+          {
+            "id": "9c7e72f9870edab8",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "7366a8d46ef60a3c",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "f4dd6e4e7716d462",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Southern-Cassowary.png",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of Southern-Cassowary"
+            }
+          }
+        ],
+        "currentTab": 4
+      }
+    ],
+    "direction": "horizontal",
+    "width": 481.5
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "5d1ddf171a6aa3c3",
+  "lastOpenFiles": [
+    "Blue-winged Kookaburra.png",
+    "Southern-Cassowary.png",
+    "spotted-pardalote.png",
+    "superb-fairywren.png",
+    "rose-crowned-fruit-dove.png",
+    "princess-parrot.png",
+    "plains-wanderer.png",
+    "olive-baked-oriole.png",
+    "galah.png",
+    "eastern-rosella.png",
+    "attendance_register_feathers_theme_instructions.md",
+    "ChatGPT Image Jun 18, 2026, 08_05_11 PM.png"
+  ]
+}
