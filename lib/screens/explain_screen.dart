@@ -86,14 +86,15 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
           const SizedBox(height: 16),
           _arcCard(yearBd, '${yearNow.label} · YTD', target, bird),
 
+          const SizedBox(height: 12),
+          // Defines the reporting year for the YTD gauge above and the yearly
+          // breakdown below (Jan–Dec → from Jan 1; Oct–Sep → from Oct 1).
+          _financialYearSelector(fyStart),
+
           const SizedBox(height: 24),
           _sectionTitle(context, Icons.tune, 'Detailed breakdown'),
           const SizedBox(height: 12),
           _periodKindSelector(),
-          if (_kind == PeriodKind.year) ...[
-            const SizedBox(height: 12),
-            _financialYearSelector(fyStart),
-          ],
           const SizedBox(height: 12),
           _periodNavigator(period),
           const SizedBox(height: 16),
