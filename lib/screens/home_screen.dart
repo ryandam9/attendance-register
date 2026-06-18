@@ -282,17 +282,16 @@ class _Dashboard extends ConsumerWidget {
       return _DayCell(day: day, status: status, isToday: isToday);
     }
 
-    // The yearly stat follows the configured reporting year (calendar or
-    // financial), labelled accordingly ("2026" / "FY 2025–2026").
-    final yearPeriod = ReportPeriod(
-      kind: PeriodKind.year,
+    // Home shows the return-to-office gauge for the focused month.
+    final monthPeriod = ReportPeriod(
+      kind: PeriodKind.month,
       anchor: focusedDay,
       financialYearStart: settings.financialYearStart,
     );
-    final yearBreakdown = ref.watch(breakdownProvider((
+    final monthBreakdown = ref.watch(breakdownProvider((
       officeId: selected.id!,
-      start: yearPeriod.start,
-      end: yearPeriod.end,
+      start: monthPeriod.start,
+      end: monthPeriod.end,
     )));
 
     return RefreshIndicator(
@@ -367,11 +366,11 @@ class _Dashboard extends ConsumerWidget {
 
           const SizedBox(height: 12),
 
-          // Return-to-office hero — same gauge as the Insights tab, for the
-          // current reporting year. Tapping it opens the full Insights tab.
+          // Return-to-office gauge for the focused month. Tapping it opens the
+          // Insights tab (which shows both month and year).
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: yearBreakdown.when(
+            child: monthBreakdown.when(
               loading: () => const Card(
                 margin: EdgeInsets.zero,
                 child: SizedBox(
@@ -390,6 +389,7 @@ class _Dashboard extends ConsumerWidget {
                 breakdown: b,
                 target: settings.rtoTarget,
                 birdAsset: birdAssetForTheme(settings.themeId),
+                periodLabel: monthPeriod.label,
                 onTap: () => ref.read(tabIndexProvider.notifier).set(2),
               ),
             ),

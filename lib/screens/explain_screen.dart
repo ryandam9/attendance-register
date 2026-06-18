@@ -44,6 +44,24 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
 
     final settings = ref.watch(settingsProvider);
     final fyStart = settings.financialYearStart;
+    final target = settings.rtoTarget;
+    final bird = birdAssetForTheme(settings.themeId);
+
+    // The two headline gauges: this month and the (financial) year to date.
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final monthNow = ReportPeriod(kind: PeriodKind.month, anchor: now);
+    final yearNow = ReportPeriod(
+        kind: PeriodKind.year, anchor: now, financialYearStart: fyStart);
+    // Cap the year at today so it reads as year-to-date, not the whole year
+    // (future weekdays would otherwise dilute the percentage).
+    final yearEnd = yearNow.end.isAfter(today) ? today : yearNow.end;
+    final monthBd = ref.watch(breakdownProvider(
+        (officeId: office.id!, start: monthNow.start, end: monthNow.end)));
+    final yearBd = ref.watch(breakdownProvider(
+        (officeId: office.id!, start: yearNow.start, end: yearEnd)));
+
+    // The period the detailed breakdown below is shown for.
     final period = ReportPeriod(
       kind: _kind,
       anchor: _anchor,
@@ -62,6 +80,15 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
         children: [
           _OfficeChip(office: office),
           const SizedBox(height: 16),
+
+          // Headline gauges — month then year-to-date, one below another.
+          _arcCard(monthBd, monthNow.label, target, bird),
+          const SizedBox(height: 16),
+          _arcCard(yearBd, '${yearNow.label} · YTD', target, bird),
+
+          const SizedBox(height: 24),
+          _sectionTitle(context, Icons.tune, 'Detailed breakdown'),
+          const SizedBox(height: 12),
           _periodKindSelector(),
           if (_kind == PeriodKind.year) ...[
             const SizedBox(height: 12),
@@ -79,10 +106,33 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
               padding: const EdgeInsets.symmetric(vertical: 48),
               child: Center(child: Text('Could not load data: $e')),
             ),
-            data: (b) =>
-                _report(b, settings.rtoTarget, office.id!, settings.themeId),
+            data: (b) => _details(b, target, office.id!),
           ),
         ],
+      ),
+    );
+  }
+
+  /// A return-to-office gauge card wrapped in its async states.
+  Widget _arcCard(
+      AsyncValue<AttendanceBreakdown> bd, String label, int target, String? bird) {
+    return bd.when(
+      loading: () => const Card(
+        margin: EdgeInsets.zero,
+        child: SizedBox(height: 220, child: Center(child: CircularProgressIndicator())),
+      ),
+      error: (e, _) => Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(child: Text('Could not load $label: $e')),
+        ),
+      ),
+      data: (b) => RtoArcCard(
+        breakdown: b,
+        target: target,
+        periodLabel: label,
+        birdAsset: bird,
       ),
     );
   }
@@ -172,19 +222,12 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
     );
   }
 
-  // ── Report ───────────────────────────────────────────────────────────────
+  // ── Detailed breakdown (for the selected period) ───────────────────────────
 
-  Widget _report(
-      AttendanceBreakdown b, int target, int officeId, String themeId) {
+  Widget _details(AttendanceBreakdown b, int target, int officeId) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        RtoArcCard(
-          breakdown: b,
-          target: target,
-          birdAsset: birdAssetForTheme(themeId),
-        ),
-        const SizedBox(height: 16),
         _BreakdownDonut(breakdown: b),
         const SizedBox(height: 16),
         _TrendCard(officeId: officeId, target: target),
