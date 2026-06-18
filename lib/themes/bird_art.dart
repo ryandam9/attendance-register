@@ -1,14 +1,11 @@
 /// Maps a bird theme id to its illustration asset, when one exists.
 ///
-/// Only ids listed in [_withArt] have artwork bundled under `assets/birds/`.
-/// To add a bird: drop `assets/birds/<id>.png` in (transparent PNG) and add
-/// `<id>` here.
+/// Every bird theme now has artwork under `assets/birds/<id>.png`. To add or
+/// change one: drop a transparent PNG named `<id>.png` in and (if new) add the
+/// id to [_withArt].
 library;
 
 /// Theme ids that have an illustration in `assets/birds/`.
-///
-/// Missing (no artwork supplied yet): `cassowary` and `yellow_robin` — these
-/// fall back to colour swatches / default icons.
 const _withArt = <String>{
   'bee_eater',
   'spotted_pardalote',
@@ -18,12 +15,14 @@ const _withArt = <String>{
   'oriole',
   'princess_parrot',
   'superb_fairy_wren',
+  'cassowary',
+  'yellow_robin',
   'galah',
   'blue_winged_kookaburra',
 };
 
 /// The asset path for a theme's bird illustration, or null when none exists
-/// (e.g. the Material You / "dynamic" theme, or birds without artwork yet).
+/// (e.g. the Material You / "dynamic" theme).
 String? birdAssetForTheme(String themeId) =>
     _withArt.contains(themeId) ? 'assets/birds/$themeId.png' : null;
 
