@@ -20,12 +20,16 @@ class RtoArcCard extends StatelessWidget {
   /// current percentage instead of the plain marker dot.
   final String? birdAsset;
 
+  /// Optional caption under the title, e.g. "June 2026" or "2026".
+  final String? periodLabel;
+
   const RtoArcCard({
     super.key,
     required this.breakdown,
     required this.target,
     this.onTap,
     this.birdAsset,
+    this.periodLabel,
   });
 
   // Feathers warning + success colours (used as fills, tints, icons and
@@ -58,6 +62,12 @@ class RtoArcCard extends StatelessWidget {
                       'Return to office',
                       style: theme.textTheme.titleMedium,
                     ),
+                    if (periodLabel != null)
+                      Text(
+                        periodLabel!,
+                        style: theme.textTheme.labelMedium
+                            ?.copyWith(color: cs.primary, fontWeight: FontWeight.w600),
+                      ),
                     const SizedBox(height: 2),
                     Text(
                       pct == null

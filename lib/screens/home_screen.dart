@@ -282,17 +282,16 @@ class _Dashboard extends ConsumerWidget {
       return _DayCell(day: day, status: status, isToday: isToday);
     }
 
-    // The yearly stat follows the configured reporting year (calendar or
-    // financial), labelled accordingly ("2026" / "FY 2025–2026").
-    final yearPeriod = ReportPeriod(
-      kind: PeriodKind.year,
+    // Home shows the return-to-office gauge for the focused month.
+    final monthPeriod = ReportPeriod(
+      kind: PeriodKind.month,
       anchor: focusedDay,
       financialYearStart: settings.financialYearStart,
     );
-    final yearBreakdown = ref.watch(breakdownProvider((
+    final monthBreakdown = ref.watch(breakdownProvider((
       officeId: selected.id!,
-      start: yearPeriod.start,
-      end: yearPeriod.end,
+      start: monthPeriod.start,
+      end: monthPeriod.end,
     )));
 
     return RefreshIndicator(
@@ -367,11 +366,11 @@ class _Dashboard extends ConsumerWidget {
 
           const SizedBox(height: 12),
 
-          // Return-to-office hero — same gauge as the Insights tab, for the
-          // current reporting year. Tapping it opens the full Insights tab.
+          // Return-to-office gauge for the focused month. Tapping it opens the
+          // Insights tab (which shows both month and year).
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: yearBreakdown.when(
+            child: monthBreakdown.when(
               loading: () => const Card(
                 margin: EdgeInsets.zero,
                 child: SizedBox(
@@ -390,6 +389,7 @@ class _Dashboard extends ConsumerWidget {
                 breakdown: b,
                 target: settings.rtoTarget,
                 birdAsset: birdAssetForTheme(settings.themeId),
+                periodLabel: monthPeriod.label,
                 onTap: () => ref.read(tabIndexProvider.notifier).set(2),
               ),
             ),
@@ -421,6 +421,7 @@ class _DayCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final number = '${day.day}';
+    final s = status;
 
     Widget filled(Color bg, Color fg) => Container(
           margin: const EdgeInsets.all(4),
@@ -431,38 +432,58 @@ class _DayCell extends StatelessWidget {
                   color: fg, fontWeight: FontWeight.bold, fontSize: 14)),
         );
 
-    // Today always reads as the deep-navy marker (takes visual precedence).
-    if (isToday) return filled(cs.primary, cs.onPrimary);
+    // The marker for a given status (no "today" treatment).
+    Widget markerFor(DayStatus st) {
+      if (st == DayStatus.attended) {
+        return filled(st.colorIn(context), Colors.white);
+      }
+      if (st == DayStatus.sickLeave) {
+        final color = st.colorIn(context);
+        return Container(
+          margin: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: color, width: 2),
+          ),
+          alignment: Alignment.center,
+          child: Text(number,
+              style: TextStyle(
+                  color: color, fontWeight: FontWeight.bold, fontSize: 14)),
+        );
+      }
+      // Leave / WFH / holiday / misc — show the status icon (no number).
+      return Center(child: Icon(st.icon, color: st.colorIn(context), size: 22));
+    }
 
-    // Plain number for no-status days (the day builder returns null before this
-    // for non-today empty days, but keep a safe fallback).
-    final s = status;
+    if (isToday) {
+      // Today keeps its real status visible; a primary ring marks it as today.
+      // With no status it's just the solid "today" circle.
+      if (s == null) return filled(cs.primary, cs.onPrimary);
+      return Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: Container(
+              margin: const EdgeInsets.all(1),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: cs.primary, width: 2),
+              ),
+            ),
+          ),
+          markerFor(s),
+        ],
+      );
+    }
+
+    // Non-today days: the builder returns null for empty days, so a status is
+    // present here — but keep a safe fallback to the plain number.
     if (s == null) {
       return Center(
         child: Text(number, style: const TextStyle(fontSize: 14)),
       );
     }
-
-    if (s == DayStatus.attended) {
-      return filled(s.colorIn(context), Colors.white);
-    }
-
-    if (s == DayStatus.sickLeave) {
-      final color = s.colorIn(context);
-      return Container(
-        margin: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: color, width: 2),
-        ),
-        alignment: Alignment.center,
-        child: Text(number,
-            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14)),
-      );
-    }
-
-    // Leave / WFH / holiday / misc — show the status icon (no number).
-    return Center(child: Icon(s.icon, color: s.colorIn(context), size: 22));
+    return markerFor(s);
   }
 }
 
