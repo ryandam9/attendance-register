@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../app_colors.dart';
 import '../helpers/day_type_helper.dart';
@@ -10,7 +13,9 @@ import '../models/special_day.dart';
 import '../providers/explain_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/settings_provider.dart';
+import '../themes/bird_art.dart';
 import '../widgets/no_office_placeholder.dart';
+import '../widgets/rto_arc_card.dart';
 
 /// The Insights tab: explains how the "Return to office" percentage is
 /// calculated for a chosen month or financial year — every contributing count
@@ -74,7 +79,8 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
               padding: const EdgeInsets.symmetric(vertical: 48),
               child: Center(child: Text('Could not load data: $e')),
             ),
-            data: (b) => _report(b, settings.rtoTarget),
+            data: (b) =>
+                _report(b, settings.rtoTarget, office.id!, settings.themeId),
           ),
         ],
       ),
@@ -168,11 +174,20 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
 
   // ── Report ───────────────────────────────────────────────────────────────
 
-  Widget _report(AttendanceBreakdown b, int target) {
+  Widget _report(
+      AttendanceBreakdown b, int target, int officeId, String themeId) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _PercentageHero(breakdown: b, target: target),
+        RtoArcCard(
+          breakdown: b,
+          target: target,
+          birdAsset: birdAssetForTheme(themeId),
+        ),
+        const SizedBox(height: 16),
+        _BreakdownDonut(breakdown: b),
+        const SizedBox(height: 16),
+        _TrendCard(officeId: officeId, target: target),
         const SizedBox(height: 16),
         _CalculationCard(breakdown: b),
         const SizedBox(height: 16),
@@ -206,78 +221,344 @@ class _OfficeChip extends StatelessWidget {
   }
 }
 
-// ── Percentage hero ───────────────────────────────────────────────────────────
+// ── Work-style donut ──────────────────────────────────────────────────────────
 
-class _PercentageHero extends StatelessWidget {
+class _BreakdownDonut extends StatelessWidget {
   final AttendanceBreakdown breakdown;
-  final int target;
-  const _PercentageHero({required this.breakdown, required this.target});
+  const _BreakdownDonut({required this.breakdown});
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final pct = breakdown.returnToOfficePercentage;
-    final text = pct == null ? '—' : '${pct.toStringAsFixed(1)}%';
-    final metTarget = pct != null && pct >= target;
+    final b = breakdown;
+    final leave = b.countOf(DayType.sickLeave) +
+        b.countOf(DayType.annualLeave) +
+        b.countOf(DayType.carersLeave) +
+        b.countOf(DayType.miscLeave);
+    final segments = <_DonutSegment>[
+      _DonutSegment('Attended', b.officeDays,
+          DayTypeColors.of(context).attendance),
+      _DonutSegment('WFH', b.countOf(DayType.workFromHome),
+          DayType.workFromHome.colorIn(context)),
+      _DonutSegment('Leave', leave, DayType.annualLeave.colorIn(context)),
+      _DonutSegment('Holiday', b.countOf(DayType.holiday),
+          DayType.holiday.colorIn(context)),
+    ];
+    final total = segments.fold<int>(0, (s, seg) => s + seg.value);
 
     return Card(
-      color: cs.primaryContainer,
+      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Return to office',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: cs.onPrimaryContainer,
-                  ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              text,
-              style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    color: cs.onPrimaryContainer,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              pct == null
-                  ? 'No eligible working days in this period'
-                  : '${breakdown.officeDays} of ${breakdown.eligibleWorkingDays} '
-                      'eligible working days at the office',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: cs.onPrimaryContainer.withValues(alpha: 0.8),
-                  ),
-            ),
-            if (pct != null) ...[
-              const SizedBox(height: 8),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    metTarget ? Icons.check_circle : Icons.flag_outlined,
-                    size: 16,
-                    color: cs.onPrimaryContainer.withValues(alpha: 0.8),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    metTarget
-                        ? 'Target of $target% met'
-                        : 'Below the $target% target',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: cs.onPrimaryContainer.withValues(alpha: 0.8),
+            _sectionTitle(context, Icons.donut_large_outlined,
+                'Work style breakdown'),
+            const SizedBox(height: 16),
+            if (total == 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Text(
+                    'No recorded days in this period yet.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
+                  ),
+                ),
+              )
+            else
+              Row(
+                children: [
+                  SizedBox(
+                    width: 120,
+                    height: 120,
+                    child: CustomPaint(
+                      painter: _DonutPainter(segments, total),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '$total',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              'days',
+                              style:
+                                  Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                      ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final seg in segments)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: seg.color,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text(seg.label)),
+                                Text(
+                                  '${seg.value} · ${(seg.value / total * 100).toStringAsFixed(1)}%',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelMedium
+                                      ?.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ],
           ],
         ),
       ),
     );
   }
+}
+
+class _DonutSegment {
+  final String label;
+  final int value;
+  final Color color;
+  const _DonutSegment(this.label, this.value, this.color);
+}
+
+class _DonutPainter extends CustomPainter {
+  final List<_DonutSegment> segments;
+  final int total;
+  _DonutPainter(this.segments, this.total);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 18.0;
+    final rect = Rect.fromCircle(
+      center: size.center(Offset.zero),
+      radius: size.width / 2 - stroke / 2,
+    );
+    var start = -math.pi / 2; // 12 o'clock
+    const gap = 0.04;
+    for (final seg in segments) {
+      if (seg.value == 0) continue;
+      final sweep = (seg.value / total) * (2 * math.pi);
+      canvas.drawArc(
+        rect,
+        start + gap / 2,
+        sweep - gap,
+        false,
+        Paint()
+          ..color = seg.color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..strokeCap = StrokeCap.round,
+      );
+      start += sweep;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DonutPainter old) =>
+      old.total != total || old.segments != segments;
+}
+
+// ── 8-week trend ──────────────────────────────────────────────────────────────
+
+class _TrendCard extends ConsumerWidget {
+  final int officeId;
+  final int target;
+  const _TrendCard({required this.officeId, required this.target});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final trend = ref.watch(weeklyTrendProvider(officeId));
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionTitle(context, Icons.show_chart, 'Trend (last 8 weeks)'),
+            const SizedBox(height: 16),
+            trend.when(
+              loading: () => const SizedBox(
+                height: 140,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (e, _) => SizedBox(
+                height: 140,
+                child: Center(child: Text('Could not load trend: $e')),
+              ),
+              data: (points) => _TrendChart(points: points, target: target),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TrendChart extends StatelessWidget {
+  final List<TrendPoint> points;
+  final int target;
+  const _TrendChart({required this.points, required this.target});
+
+  static final _weekFmt = DateFormat('d MMM');
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final hasData = points.any((p) => p.percentage != null);
+    if (!hasData) {
+      return SizedBox(
+        height: 100,
+        child: Center(
+          child: Text(
+            'Not enough data yet — keep marking your days.',
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: cs.onSurfaceVariant),
+          ),
+        ),
+      );
+    }
+    return Column(
+      children: [
+        SizedBox(
+          height: 140,
+          width: double.infinity,
+          child: CustomPaint(
+            painter: _TrendPainter(
+              points: points,
+              targetFraction: (target / 100).clamp(0.0, 1.0),
+              line: cs.primary,
+              fill: cs.primary.withValues(alpha: 0.12),
+              targetColor: AppColors.attendance,
+              grid: cs.outlineVariant,
+              dot: cs.primary,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(_weekFmt.format(points.first.weekStart),
+                style: Theme.of(context).textTheme.labelSmall),
+            Text(_weekFmt.format(points.last.weekStart),
+                style: Theme.of(context).textTheme.labelSmall),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _TrendPainter extends CustomPainter {
+  final List<TrendPoint> points;
+  final double targetFraction;
+  final Color line;
+  final Color fill;
+  final Color targetColor;
+  final Color grid;
+  final Color dot;
+
+  _TrendPainter({
+    required this.points,
+    required this.targetFraction,
+    required this.line,
+    required this.fill,
+    required this.targetColor,
+    required this.grid,
+    required this.dot,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const pad = 6.0;
+    final h = size.height - pad * 2;
+    final w = size.width - pad * 2;
+    double x(int i) =>
+        pad + (points.length == 1 ? w / 2 : w * i / (points.length - 1));
+    double y(double pct) => pad + h * (1 - pct / 100);
+
+    // Target line.
+    final ty = pad + h * (1 - targetFraction);
+    final dashPaint = Paint()
+      ..color = targetColor.withValues(alpha: 0.7)
+      ..strokeWidth = 1.5;
+    for (var dx = pad; dx < size.width - pad; dx += 10) {
+      canvas.drawLine(Offset(dx, ty), Offset(dx + 5, ty), dashPaint);
+    }
+
+    // Build the line through known points (skip null weeks by bridging).
+    final pts = <Offset>[];
+    for (var i = 0; i < points.length; i++) {
+      final pct = points[i].percentage;
+      if (pct != null) pts.add(Offset(x(i), y(pct)));
+    }
+    if (pts.isEmpty) return;
+
+    final linePath = Path()..moveTo(pts.first.dx, pts.first.dy);
+    for (final p in pts.skip(1)) {
+      linePath.lineTo(p.dx, p.dy);
+    }
+
+    // Area fill under the line.
+    final fillPath = Path.from(linePath)
+      ..lineTo(pts.last.dx, pad + h)
+      ..lineTo(pts.first.dx, pad + h)
+      ..close();
+    canvas.drawPath(fillPath, Paint()..color = fill);
+
+    canvas.drawPath(
+      linePath,
+      Paint()
+        ..color = line
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeJoin = StrokeJoin.round,
+    );
+
+    for (final p in pts) {
+      canvas.drawCircle(p, 4, Paint()..color = Colors.white);
+      canvas.drawCircle(p, 3, Paint()..color = dot);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrendPainter old) =>
+      old.points != points || old.targetFraction != targetFraction;
 }
 
 // ── Calculation card ─────────────────────────────────────────────────────────

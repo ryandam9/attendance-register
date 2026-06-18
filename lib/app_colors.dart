@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 
 /// Semantic colour tokens shared across the whole app.
 ///
-/// Using slightly deeper shades than bare Material primaries to ensure
-/// readable contrast on white/light surfaces and in calendar dots.
+/// These are the exact Feathers "Rainbow Bee-eater" status colours — kept in
+/// one place so calendar dots, chips, the day-entry selector and the Insights
+/// legend all stay in sync. Each status also carries an icon + label elsewhere
+/// (see day_type_helper.dart) so meaning never relies on colour alone.
 abstract final class AppColors {
-  static const Color attendance  = Color(0xFF2E7D32); // green[800]
-  static const Color holiday     = Color(0xFF1565C0); // blue[800]
-  static const Color sickLeave   = Color(0xFFE65100); // deepOrange[900]
-  static const Color annualLeave = Color(0xFF6A1B9A); // purple[800]
-  static const Color carersLeave = Color(0xFF00838F); // cyan[800]
-  static const Color workFromHome = Color(0xFFAD1457); // pink[800]
-  static const Color miscLeave = Color(0xFF616161); // grey[700]
+  static const Color attendance   = Color(0xFF6D8600); // olive green
+  static const Color holiday      = Color(0xFF007CBF); // bright blue
+  static const Color sickLeave    = Color(0xFFF5A200); // orange
+  static const Color annualLeave  = Color(0xFF7090C9); // soft blue-purple
+  static const Color carersLeave  = Color(0xFF3EBCB6); // teal
+  static const Color workFromHome = Color(0xFFBD338F); // magenta
+  static const Color miscLeave    = Color(0xFF727B98); // grey-slate
 }
 
 /// Day-type colours as a theme extension, so dark mode can use brighter
@@ -48,14 +50,16 @@ class DayTypeColors extends ThemeExtension<DayTypeColors> {
     miscLeave: AppColors.miscLeave,
   );
 
+  // Brighter shades of the Feathers status colours, lifted for legibility on
+  // the dark navy surfaces (#061522 / #0B2236) without becoming neon.
   static const dark = DayTypeColors(
-    attendance: Color(0xFF81C784), // green[300]
-    holiday: Color(0xFF64B5F6), // blue[300]
-    sickLeave: Color(0xFFFF8A65), // deepOrange[300]
-    annualLeave: Color(0xFFBA68C8), // purple[300]
-    carersLeave: Color(0xFF4DD0E1), // cyan[300]
-    workFromHome: Color(0xFFF06292), // pink[300]
-    miscLeave: Color(0xFFBDBDBD), // grey[400]
+    attendance: Color(0xFFAFD135), // lifted olive
+    holiday: Color(0xFF45B6E8), // lifted bright blue
+    sickLeave: Color(0xFFFFC04D), // lifted orange
+    annualLeave: Color(0xFF9DB4E0), // lifted blue-purple
+    carersLeave: Color(0xFF5FD6CF), // lifted teal
+    workFromHome: Color(0xFFE673BD), // lifted magenta
+    miscLeave: Color(0xFF9AA3BC), // lifted grey-slate
   );
 
   @override

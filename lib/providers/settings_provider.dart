@@ -20,7 +20,7 @@ class SettingsState {
 
   const SettingsState({
     this.financialYearStart = FinancialYearStart.january,
-    this.themeId = 'default',
+    this.themeId = 'bee_eater',
     this.themeMode = ThemeMode.system,
     this.userName = '',
     this.rtoTarget = defaultRtoTarget,
@@ -71,7 +71,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
     final rtoTarget = await DatabaseService.instance.getSetting(_rtoTargetKey);
     state = SettingsState(
       financialYearStart: FinancialYearStart.fromName(fyStart),
-      themeId: themeId ?? 'default',
+      themeId: themeId ?? 'bee_eater',
       themeMode: _themeModeFromName(themeMode),
       userName: userName ?? '',
       rtoTarget: int.tryParse(rtoTarget ?? '') ?? SettingsState.defaultRtoTarget,
