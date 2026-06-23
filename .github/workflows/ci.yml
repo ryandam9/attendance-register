@@ -22,7 +22,9 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          # Pinned so the `dart format` gate is deterministic — a newer stable
+          # Flutter can change the formatter and silently break this check.
+          flutter-version: 3.44.3
           cache: true
 
       - name: Install dependencies
@@ -37,26 +39,22 @@ jobs:
       - name: Run tests
         run: flutter test
 
-  # Builds a portable Windows desktop app on every push to main (published to
-  # the rolling "latest" release), on version tags (versioned release) and on
-  # manual dispatch. Skipped for pull requests to keep their feedback loop fast.
+  # Builds portable desktop apps on their native runners (in parallel), on every
+  # push to main, on version tags and on manual dispatch. A separate release job
+  # collects both. Skipped for pull requests to keep their feedback loop fast.
   build-windows:
     if: github.event_name != 'pull_request'
     needs: analyze-and-test
     runs-on: windows-latest
-    permissions:
-      contents: write # create/update releases
     steps:
       - uses: actions/checkout@v4
 
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: 3.44.3
           cache: true
 
-      # The repo ships only the hand-written sources; generate the missing
-      # Windows runner boilerplate. flutter create only fills in missing files,
-      # so the committed sources are preserved.
+      # flutter create only fills in missing files, so committed sources are kept.
       - name: Generate Windows scaffolding
         run: flutter create . --project-name attendance_register --org com.example --platforms windows
 
@@ -66,8 +64,7 @@ jobs:
       - name: Build Windows release
         run: flutter build windows --release
 
-      # The build output is a self-contained folder (exe + DLLs + data\). Zip it
-      # so it downloads as a single, ready-to-run archive — no installer.
+      # Self-contained folder (exe + DLLs + data\); zip into one archive.
       - name: Package
         run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath attendance-register-windows.zip
 
@@ -78,25 +75,72 @@ jobs:
           path: attendance-register-windows.zip
           retention-days: 30
 
-      # Versioned release on a tag, rolling "latest" on main. Manual dispatch
-      # only produces the workflow artifact above (no release).
+  build-macos:
+    if: github.event_name != 'pull_request'
+    needs: analyze-and-test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.3
+          cache: true
+
+      - name: Generate macOS scaffolding
+        run: flutter create . --project-name attendance_register --org com.example --platforms macos
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build macOS release
+        run: flutter build macos --release
+
+      # The .app is unsigned (no Apple Developer cert), so first launch needs a
+      # right-click → Open to get past Gatekeeper. Zip with -y to keep symlinks.
+      - name: Package
+        run: |
+          cd build/macos/Build/Products/Release
+          zip -r -y "$GITHUB_WORKSPACE/attendance-register-macos.zip" *.app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: attendance-register-macos
+          path: attendance-register-macos.zip
+          retention-days: 30
+
+  # Collect both desktop builds into one release: versioned on a tag, rolling
+  # "latest" on a push to main. Manual dispatch only produces the artifacts.
+  release:
+    if: github.event_name == 'push'
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create/update releases
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
       - name: Publish release
-        if: github.event_name == 'push'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          ZIP=attendance-register-windows.zip
-          NOTES="Portable Windows build (${GITHUB_SHA::7}). Unzip and run attendance_register.exe — no installer and no admin rights needed. Keep the .exe together with the DLLs and the data folder."
+          FILES=$(find dist -name '*.zip')
+          NOTES="Portable desktop builds (${GITHUB_SHA::7}). Windows: unzip and run attendance_register.exe (no installer, no admin). macOS: unzip and open the .app (unsigned — first launch: right-click -> Open). Keep each app's files together."
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             TAG="${GITHUB_REF#refs/tags/}"
-            gh release create "$TAG" "$ZIP" --title "$TAG" --notes "$NOTES"
+            gh release create "$TAG" $FILES --title "$TAG" --notes "$NOTES"
           else
-            # Keep a single rolling release so there is one stable download URL:
+            # One rolling release with a stable URL:
             # https://github.com/ryandam9/attendance-register/releases/latest
             gh release delete latest --cleanup-tag --yes || true
-            gh release create latest "$ZIP" \
+            gh release create latest $FILES \
               --title "Latest build (${GITHUB_SHA::7})" \
               --notes "$NOTES" \
               --latest
