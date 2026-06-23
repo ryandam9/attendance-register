@@ -57,6 +57,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref
         .read(specialDayProvider.notifier)
         .loadForMonth(target.year, target.month);
+    // The dashboard's return-to-office gauge, work-style donut, KPI cards and
+    // 8-week trend read the breakdown straight from the database, so reloading
+    // the month providers above doesn't refresh them — invalidate them so they
+    // recompute after a day is marked or edited.
+    ref.invalidate(breakdownProvider);
+    ref.invalidate(weeklyTrendProvider);
   }
 
   void _onPageChanged(DateTime day) {
@@ -685,7 +691,10 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
         .read(attendanceProvider.notifier)
         .manualCheckIn(widget.selected.id!, focusedMonth: DateTime.now());
     if (!mounted) return;
-    if (result == CheckInResult.recorded) ref.invalidate(breakdownProvider);
+    if (result == CheckInResult.recorded) {
+      ref.invalidate(breakdownProvider);
+      ref.invalidate(weeklyTrendProvider);
+    }
     final msg = switch (result) {
       CheckInResult.recorded => 'Attendance recorded for today!',
       CheckInResult.alreadyRecorded => 'Already checked in for today.',
