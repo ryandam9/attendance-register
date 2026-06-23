@@ -62,6 +62,12 @@ jobs:
         run: flutter pub get
 
       - name: Build Windows release
+        # The windows-latest runner's MSVC turned the deprecated
+        # <experimental/coroutine> (used by permission_handler_windows and
+        # flutter_local_notifications_windows) into a hard error. Silence it via
+        # the CL env var until those plugins migrate to C++20 <coroutine>.
+        env:
+          CL: /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
         run: flutter build windows --release
 
       # Self-contained folder (exe + DLLs + data\); zip into one archive.
@@ -113,7 +119,9 @@ jobs:
   # Collect both desktop builds into one release: versioned on a tag, rolling
   # "latest" on a push to main. Manual dispatch only produces the artifacts.
   release:
-    if: github.event_name == 'push'
+    # Run as long as the build jobs finished (even if one failed) so a working
+    # platform still publishes; only skipped if the run was cancelled.
+    if: ${{ !cancelled() && github.event_name == 'push' }}
     needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     permissions:
@@ -131,7 +139,11 @@ jobs:
       - name: Publish release
         run: |
           set -euo pipefail
-          FILES=$(find dist -name '*.zip')
+          FILES=$(find dist -name '*.zip' || true)
+          if [[ -z "$FILES" ]]; then
+            echo "No build artifacts produced — nothing to release."
+            exit 0
+          fi
           NOTES="Portable desktop builds (${GITHUB_SHA::7}). Windows: unzip and run attendance_register.exe (no installer, no admin). macOS: unzip and open the .app (unsigned — first launch: right-click -> Open). Keep each app's files together."
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             TAG="${GITHUB_REF#refs/tags/}"

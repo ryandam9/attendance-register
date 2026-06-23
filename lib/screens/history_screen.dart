@@ -112,22 +112,36 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         body = const _EmptyHistory();
       } else {
         final selected = _selected ?? _items.first;
-        body = Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Card(
+        body = LayoutBuilder(
+          builder: (context, constraints) {
+            // Master-detail needs room for both panes. Below that (narrow
+            // window, or the sidebar expanded) the list would be crushed, so
+            // fall back to a full-width list that opens the entry sheet on tap.
+            if (constraints.maxWidth < 720) {
+              return Card(
                 margin: EdgeInsets.zero,
                 clipBehavior: Clip.antiAlias,
-                child: _list(
-                  onTap: (item) => setState(() => _selected = item),
-                  selectedDate: selected.date,
+                child: _list(onTap: _openEntry),
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: Card(
+                    margin: EdgeInsets.zero,
+                    clipBehavior: Clip.antiAlias,
+                    child: _list(
+                      onTap: (item) => setState(() => _selected = item),
+                      selectedDate: selected.date,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 24),
-            SizedBox(width: 360, child: _detailPanel(selected)),
-          ],
+                const SizedBox(width: 24),
+                SizedBox(width: 340, child: _detailPanel(selected)),
+              ],
+            );
+          },
         );
       }
       return Scaffold(
