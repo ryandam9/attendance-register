@@ -56,9 +56,14 @@ class LocationService {
 
   /// True when a position can be read right now without prompting the user.
   static Future<bool> _hasPermissionSilently() async {
-    final perm = await Geolocator.checkPermission();
-    return perm == LocationPermission.always ||
-        perm == LocationPermission.whileInUse;
+    try {
+      final perm = await Geolocator.checkPermission();
+      return perm == LocationPermission.always ||
+          perm == LocationPermission.whileInUse;
+    } catch (_) {
+      // geolocator has no Linux/Windows implementation — treat as no access.
+      return false;
+    }
   }
 
   Future<Position?> getCurrentPosition() async {
