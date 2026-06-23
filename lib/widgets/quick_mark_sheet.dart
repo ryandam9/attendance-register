@@ -8,6 +8,7 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../helpers/day_marking.dart';
 import '../helpers/day_type_helper.dart';
+import '../helpers/layout.dart';
 import '../helpers/route_helper.dart';
 import '../models/attendance_record.dart';
 import '../models/office_location.dart';
@@ -35,19 +36,42 @@ Future<bool> showQuickMarkSheet(
       await DatabaseService.instance.getSpecialDayForDate(dateKey);
   if (!context.mounted) return false;
 
-  final result = await showModalBottomSheet<_SheetResult>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    showDragHandle: true,
-    builder: (_) => _QuickMarkSheet(
-      office: office,
-      date: date,
-      dateKey: dateKey,
-      existingRecord: existingRecord,
-      existingSpecial: existingSpecial,
-    ),
+  final sheet = _QuickMarkSheet(
+    office: office,
+    date: date,
+    dateKey: dateKey,
+    existingRecord: existingRecord,
+    existingSpecial: existingSpecial,
   );
+
+  final _SheetResult? result;
+  if (isDesktopWidth(context)) {
+    // A bottom-docked sheet sits awkwardly at the foot of a tall desktop
+    // window; show a centred dialog instead.
+    result = await showDialog<_SheetResult>(
+      context: context,
+      builder: (_) => Dialog(
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 20),
+              child: sheet,
+            ),
+          ),
+        ),
+      ),
+    );
+  } else {
+    result = await showModalBottomSheet<_SheetResult>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => sheet,
+    );
+  }
 
   if (result == _SheetResult.openFull && context.mounted) {
     final changed = await Navigator.push<bool>(
