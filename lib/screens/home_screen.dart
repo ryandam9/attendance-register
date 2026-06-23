@@ -20,6 +20,7 @@ import '../providers/special_day_provider.dart';
 import '../providers/ui_state_provider.dart';
 import '../services/holiday_service.dart';
 import '../themes/bird_art.dart';
+import '../widgets/charts.dart';
 import '../widgets/quick_mark_sheet.dart';
 import '../widgets/responsive_body.dart';
 import '../widgets/rto_arc_card.dart';
@@ -705,6 +706,11 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
                       ),
                       const SizedBox(height: 16),
                       const _LegendCard(),
+                      const SizedBox(height: 16),
+                      TrendCard(
+                        officeId: widget.selected.id!,
+                        target: settings.rtoTarget,
+                      ),
                     ],
                   ),
                 ),
@@ -723,6 +729,10 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
                       ),
                       const SizedBox(height: 16),
                       _dayDetailCard(context),
+                      if (monthBreakdown.asData != null) ...[
+                        const SizedBox(height: 16),
+                        BreakdownDonut(breakdown: monthBreakdown.asData!.value),
+                      ],
                     ],
                   ),
                 ),

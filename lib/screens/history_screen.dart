@@ -38,6 +38,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   List<_HistoryItem> _items = const [];
   bool _loading = true;
+  _HistoryItem? _selected; // desktop master-detail selection
 
   @override
   void initState() {
@@ -101,17 +102,34 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       );
     }
 
-    // Desktop: a full-width table-style list in a card under a page header.
+    // Desktop: master-detail — a table-style list on the left, the selected
+    // day's details on the right.
     if (isDesktopWidth(context)) {
-      final Widget body = _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _items.isEmpty
-              ? const _EmptyHistory()
-              : Card(
-                  margin: EdgeInsets.zero,
-                  clipBehavior: Clip.antiAlias,
-                  child: _list(),
-                );
+      final Widget body;
+      if (_loading) {
+        body = const Center(child: CircularProgressIndicator());
+      } else if (_items.isEmpty) {
+        body = const _EmptyHistory();
+      } else {
+        final selected = _selected ?? _items.first;
+        body = Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Card(
+                margin: EdgeInsets.zero,
+                clipBehavior: Clip.antiAlias,
+                child: _list(
+                  onTap: (item) => setState(() => _selected = item),
+                  selectedDate: selected.date,
+                ),
+              ),
+            ),
+            const SizedBox(width: 24),
+            SizedBox(width: 360, child: _detailPanel(selected)),
+          ],
+        );
+      }
       return Scaffold(
         backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
         body: DesktopPage(
@@ -119,7 +137,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           subtitle: _items.isEmpty
               ? 'Every recorded day'
               : '${_items.length} recorded day${_items.length == 1 ? '' : 's'}',
-          maxContentWidth: 1000,
           child: body,
         ),
       );
@@ -132,11 +149,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
               ? const _EmptyHistory()
-              : RefreshIndicator(onRefresh: _load, child: _list())),
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: _list(onTap: _openEntry),
+                )),
     );
   }
 
-  Widget _list() {
+  Widget _list({
+    required ValueChanged<_HistoryItem> onTap,
+    DateTime? selectedDate,
+  }) {
+    final cs = Theme.of(context).colorScheme;
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: _items.length,
@@ -146,7 +170,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         final color = item.status.colorIn(context);
         final isToday =
             _keyFmt.format(item.date) == _keyFmt.format(DateTime.now());
+        final selected = selectedDate != null &&
+            _keyFmt.format(item.date) == _keyFmt.format(selectedDate);
         return ListTile(
+          selected: selected,
+          selectedTileColor: cs.primaryContainer.withValues(alpha: 0.35),
           leading: CircleAvatar(
             backgroundColor: color.withValues(alpha: 0.15),
             child: Icon(item.status.icon, color: color),
@@ -161,9 +189,67 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               ? Text(item.comment!)
               : null,
           trailing: _StatusChip(label: item.status.label, color: color),
-          onTap: () => _openEntry(item),
+          onTap: () => onTap(item),
         );
       },
+    );
+  }
+
+  Widget _detailPanel(_HistoryItem item) {
+    final cs = Theme.of(context).colorScheme;
+    final color = item.status.colorIn(context);
+    final hasNote = item.comment != null && item.comment!.isNotEmpty;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: CircleAvatar(
+                radius: 32,
+                backgroundColor: color.withValues(alpha: 0.15),
+                child: Icon(item.status.icon, color: color, size: 30),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Text(
+                _dateFmt.format(item.date),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Center(child: _StatusChip(label: item.status.label, color: color)),
+            const SizedBox(height: 24),
+            Text(
+              'Note',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              hasNote ? item.comment! : 'No note for this day.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: hasNote ? null : cs.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: 24),
+            FilledButton.tonalIcon(
+              onPressed: () => _openEntry(item),
+              icon: const Icon(Icons.edit_calendar_outlined),
+              label: const Text('Edit / Remove'),
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(46)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
