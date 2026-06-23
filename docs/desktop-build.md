@@ -67,19 +67,34 @@ Output: `build/macos/Build/Products/Release/attendance_register.app`
 
 ### 5. Install + add to the Dock (the "shortcut")
 
+**No admin rights required.** A `.app` is a relocatable bundle, so install it into
+your **per-user** Applications folder — no password prompt, and it still shows in
+Launchpad/Finder:
+
 ```bash
-# Copy into Applications
-cp -R build/macos/Build/Products/Release/attendance_register.app /Applications/
-open /Applications      # then drag the app onto the Dock to pin it
+mkdir -p ~/Applications
+cp -R build/macos/Build/Products/Release/attendance_register.app ~/Applications/
+xattr -dr com.apple.quarantine ~/Applications/attendance_register.app   # clear Gatekeeper
+open ~/Applications/attendance_register.app
 ```
 
-- To pin: launch it, then **right-click its Dock icon → Options → Keep in Dock**.
-- The build is **unsigned** (no Apple Developer certificate), so the **first**
-  launch is blocked by Gatekeeper. Open it once with **right-click → Open →
-  Open**, or run:
-  ```bash
-  xattr -dr com.apple.quarantine /Applications/attendance_register.app
-  ```
+- Any folder you own works (`~/Applications`, `~/Desktop`, a custom `~/Apps/…`) —
+  just keep the whole `.app` together and run it from a **writable** location (not
+  the read-only mounted zip), since it writes its database under
+  `~/Library/Application Support/…`.
+- **Pin to the Dock:** launch it, then right-click its Dock icon →
+  **Options → Keep in Dock**.
+- *With* admin you can instead copy it into the system-wide `/Applications/`.
+
+**Gatekeeper:** the build is **unsigned** (no Apple Developer certificate), so the
+first launch is blocked. The `xattr` line above clears it (it only touches files
+in your home dir → no admin); alternatively right-click the app →
+**Open → Open** once.
+
+> **Managed (MDM) Macs:** if your organisation enforces a policy that only allows
+> signed/notarised apps, an unsigned build is blocked and `xattr` / right-click
+> **won't** override it — that requires signing & notarising the app with a paid
+> Apple Developer account.
 
 ---
 

@@ -34,7 +34,10 @@ automatically:
   the `attendance-register-windows` / `attendance-register-macos` artifact.
 
 Windows: unzip and run `attendance_register.exe` (no installer, no admin rights).
-macOS: unzip and open the `.app` (unsigned — first launch: right-click → Open).
+macOS: unzip the `.app` into `~/Applications` (**no admin needed**) and open it
+(unsigned — first launch: right-click → Open, or
+`xattr -dr com.apple.quarantine <app>`). Full no-admin / managed-Mac notes are in
+**[docs/desktop-build.md](docs/desktop-build.md)**.
 
 To build it yourself — with an **app icon** and a **desktop shortcut** — see
 **[docs/desktop-build.md](docs/desktop-build.md)**.
