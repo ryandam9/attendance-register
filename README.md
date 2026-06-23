@@ -21,18 +21,23 @@ A Flutter mobile app that automatically tracks your return-to-office days using 
 
 ## Getting Started
 
-### Download the app (Android)
+### Download the app (desktop)
 
-No build environment needed — CI builds an APK automatically:
+No build environment needed — CI builds portable **Windows** and **macOS** apps
+automatically:
 
-- **Latest build:** grab `app-release.apk` from the
+- **Latest build:** grab `attendance-register-windows.zip` /
+  `attendance-register-macos.zip` from the
   [latest release](https://github.com/ryandam9/attendance-register/releases/latest),
   rebuilt on every push to `main`.
-- **Any branch on demand:** Actions tab → **CI** → *Run workflow*, then
-  download the `attendance-register-apk` artifact from that run.
+- **Any branch on demand:** Actions tab → **CI** → *Run workflow*, then download
+  the `attendance-register-windows` / `attendance-register-macos` artifact.
 
-The APK is debug-signed (fine for personal sideloading, not store
-distribution) and needs Android 8.0+.
+Windows: unzip and run `attendance_register.exe` (no installer, no admin rights).
+macOS: unzip and open the `.app` (unsigned — first launch: right-click → Open).
+
+To build it yourself — with an **app icon** and a **desktop shortcut** — see
+**[docs/desktop-build.md](docs/desktop-build.md)**.
 
 ### Prerequisites
 
@@ -106,6 +111,15 @@ flutter run
    (accuracy ~tens of metres — usually fine for an office radius). Keep Wi-Fi on
    and **System Settings → Privacy & Security → Location Services** enabled.
 4. Ensure the macOS deployment target is **10.15+** (required by `geolocator`).
+
+### Linux & Windows
+
+> **Manual only.** There's no geofencing or (on Linux) location stack, so these
+> run as a desktop UI: add an office by name and record days manually or with
+> **Check-In for Today**. The database, notifications and the full UI work.
+
+Build steps, app icon and desktop-shortcut instructions are in
+**[docs/desktop-build.md](docs/desktop-build.md)**.
 
 ---
 
