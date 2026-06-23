@@ -67,6 +67,16 @@ class SettingsScreen extends ConsumerWidget {
         trailing: const Icon(Icons.chevron_right),
         onTap: () => Navigator.push(context, appRoute(const ThemeScreen())),
       ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+        child: Text(
+          'Bird colour palettes inspired by shandiya/feathers '
+          '(github.com/shandiya/feathers), reinterpreted with a different style.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+        ),
+      ),
     ]);
     final howItWorks = block('How It Works', [
       const ExpansionTile(
