@@ -50,12 +50,14 @@ void main() {
   setUp(() async {
     DatabaseService.overridePath = inMemoryDatabasePath;
     await service.reset();
-    final id = await service.insertOfficeLocation(const OfficeLocation(
-      name: 'HQ',
-      address: '1 Main St',
-      latitude: 0,
-      longitude: 0,
-    ));
+    final id = await service.insertOfficeLocation(
+      const OfficeLocation(
+        name: 'HQ',
+        address: '1 Main St',
+        latitude: 0,
+        longitude: 0,
+      ),
+    );
     office = OfficeLocation(
       id: id,
       name: 'HQ',
@@ -76,15 +78,20 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(ProviderScope(
-      child: MaterialApp(home: _Host(office: office, date: date)),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: _Host(office: office, date: date),
+        ),
+      ),
+    );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
   }
 
-  testWidgets('saving Attended creates an attendance record with the comment',
-      (tester) async {
+  testWidgets('saving Attended creates an attendance record with the comment', (
+    tester,
+  ) async {
     await pumpEntryScreen(tester);
 
     await tester.enterText(find.byType(TextField), 'Client visit');
@@ -100,14 +107,17 @@ void main() {
     expect(await service.getSpecialDayForDate(dateKey), isNull);
   });
 
-  testWidgets('switching an attended day to Sick Leave replaces the record',
-      (tester) async {
-    await service.insertAttendanceRecord(AttendanceRecord(
-      date: dateKey,
-      officeLocationId: office.id!,
-      timestamp: DateTime(2026, 6, 10, 9),
-      reason: 'Team meeting',
-    ));
+  testWidgets('switching an attended day to Sick Leave replaces the record', (
+    tester,
+  ) async {
+    await service.insertAttendanceRecord(
+      AttendanceRecord(
+        date: dateKey,
+        officeLocationId: office.id!,
+        timestamp: DateTime(2026, 6, 10, 9),
+        reason: 'Team meeting',
+      ),
+    );
 
     await pumpEntryScreen(tester);
 
@@ -127,13 +137,16 @@ void main() {
     expect(special!.type, DayType.sickLeave);
   });
 
-  testWidgets('Remove Entry deletes the existing record after confirmation',
-      (tester) async {
-    await service.insertAttendanceRecord(AttendanceRecord(
-      date: dateKey,
-      officeLocationId: office.id!,
-      timestamp: DateTime(2026, 6, 10, 9),
-    ));
+  testWidgets('Remove Entry deletes the existing record after confirmation', (
+    tester,
+  ) async {
+    await service.insertAttendanceRecord(
+      AttendanceRecord(
+        date: dateKey,
+        officeLocationId: office.id!,
+        timestamp: DateTime(2026, 6, 10, 9),
+      ),
+    );
 
     await pumpEntryScreen(tester);
 

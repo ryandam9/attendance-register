@@ -11,8 +11,7 @@ class SpecialDayState {
 
   /// Day type per YYYY-MM-DD key — one O(1) lookup per calendar cell instead
   /// of a linear scan over six per-type sets.
-  Map<String, DayType> get typeByDate =>
-      {for (final d in days) d.date: d.type};
+  Map<String, DayType> get typeByDate => {for (final d in days) d.date: d.type};
 }
 
 class SpecialDayNotifier extends Notifier<SpecialDayState> {
@@ -21,8 +20,10 @@ class SpecialDayNotifier extends Notifier<SpecialDayState> {
 
   Future<void> loadForMonth(int year, int month) async {
     state = SpecialDayState(days: state.days, loading: true);
-    final days =
-        await DatabaseService.instance.getSpecialDaysForMonth(year, month);
+    final days = await DatabaseService.instance.getSpecialDaysForMonth(
+      year,
+      month,
+    );
     state = SpecialDayState(days: days);
   }
 
@@ -48,5 +49,5 @@ class SpecialDayNotifier extends Notifier<SpecialDayState> {
 
 final specialDayProvider =
     NotifierProvider<SpecialDayNotifier, SpecialDayState>(
-  SpecialDayNotifier.new,
-);
+      SpecialDayNotifier.new,
+    );

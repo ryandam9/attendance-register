@@ -84,7 +84,9 @@ class NotificationService {
 
     // The selected theme's bird, shown as the notification's icon/image.
     final birdPath = await _birdImagePath();
-    final birdBitmap = birdPath == null ? null : FilePathAndroidBitmap(birdPath);
+    final birdBitmap = birdPath == null
+        ? null
+        : FilePathAndroidBitmap(birdPath);
 
     // iOS and macOS share the same Darwin details (with the bird as an
     // attachment when available).

@@ -42,8 +42,11 @@ class ReportPeriod {
   factory ReportPeriod.current(
     PeriodKind kind, {
     FinancialYearStart fyStart = FinancialYearStart.january,
-  }) =>
-      ReportPeriod(kind: kind, anchor: DateTime.now(), financialYearStart: fyStart);
+  }) => ReportPeriod(
+    kind: kind,
+    anchor: DateTime.now(),
+    financialYearStart: fyStart,
+  );
 
   /// The financial year that [anchor] falls in, expressed as the calendar year
   /// the year *starts* in. For an October start, Jan–Sep belongs to the prior
@@ -57,27 +60,32 @@ class ReportPeriod {
 
   /// First day of the window (inclusive).
   DateTime get start => switch (kind) {
-        PeriodKind.month => DateTime(anchor.year, anchor.month, 1),
-        PeriodKind.year =>
-          DateTime(_fyStartYear, financialYearStart.startMonth, 1),
-      };
+    PeriodKind.month => DateTime(anchor.year, anchor.month, 1),
+    PeriodKind.year => DateTime(_fyStartYear, financialYearStart.startMonth, 1),
+  };
 
   /// Last day of the window (inclusive).
   DateTime get end => switch (kind) {
-        // Day 0 of next month == last day of this month.
-        PeriodKind.month => DateTime(anchor.year, anchor.month + 1, 0),
-        PeriodKind.year => financialYearStart == FinancialYearStart.january
-            ? DateTime(_fyStartYear, 12, 31)
-            // Day before the next financial year starts.
-            : DateTime(_fyStartYear + 1, FinancialYearStart.october.startMonth, 0),
-      };
+    // Day 0 of next month == last day of this month.
+    PeriodKind.month => DateTime(anchor.year, anchor.month + 1, 0),
+    PeriodKind.year =>
+      financialYearStart == FinancialYearStart.january
+          ? DateTime(_fyStartYear, 12, 31)
+          // Day before the next financial year starts.
+          : DateTime(
+              _fyStartYear + 1,
+              FinancialYearStart.october.startMonth,
+              0,
+            ),
+  };
 
   String get label => switch (kind) {
-        PeriodKind.month => DateFormat('MMMM yyyy').format(start),
-        PeriodKind.year => financialYearStart == FinancialYearStart.january
-            ? '$_fyStartYear'
-            : 'FY $_fyStartYear–${_fyStartYear + 1}',
-      };
+    PeriodKind.month => DateFormat('MMMM yyyy').format(start),
+    PeriodKind.year =>
+      financialYearStart == FinancialYearStart.january
+          ? '$_fyStartYear'
+          : 'FY $_fyStartYear–${_fyStartYear + 1}',
+  };
 
   /// The same window shifted by [delta] units (months or years).
   ReportPeriod _shifted(int delta) {
@@ -95,8 +103,11 @@ class ReportPeriod {
   ReportPeriod get previous => _shifted(-1);
   ReportPeriod get next => _shifted(1);
 
-  ReportPeriod withKind(PeriodKind newKind) =>
-      ReportPeriod(kind: newKind, anchor: anchor, financialYearStart: financialYearStart);
+  ReportPeriod withKind(PeriodKind newKind) => ReportPeriod(
+    kind: newKind,
+    anchor: anchor,
+    financialYearStart: financialYearStart,
+  );
 
   ReportPeriod withFinancialYearStart(FinancialYearStart fyStart) =>
       ReportPeriod(kind: kind, anchor: anchor, financialYearStart: fyStart);

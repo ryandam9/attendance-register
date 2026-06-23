@@ -69,8 +69,9 @@ class _PermissionsSectionState extends State<PermissionsSection>
       if (!mounted) return;
       setState(() {
         _location = loc.isGranted ? _PermStatus.granted : _PermStatus.denied;
-        _notifications =
-            notif.isGranted ? _PermStatus.granted : _PermStatus.denied;
+        _notifications = notif.isGranted
+            ? _PermStatus.granted
+            : _PermStatus.denied;
         _battery = bat;
       });
     } catch (e) {
@@ -100,8 +101,8 @@ class _PermissionsSectionState extends State<PermissionsSection>
         child: Text(
           'Background check-in permissions apply on mobile and macOS only.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       );
     }
@@ -129,7 +130,8 @@ class _PermissionsSectionState extends State<PermissionsSection>
             icon: Icons.notifications,
             label: 'Notifications',
             status: _notifications!,
-            reason: 'Needed to alert you when attendance is automatically recorded.',
+            reason:
+                'Needed to alert you when attendance is automatically recorded.',
             onGrant: () => _grant(PermissionService.requestNotifications),
           ),
           if (Platform.isAndroid && _battery != null) ...[
@@ -191,7 +193,10 @@ class _PermCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: granted
                         ? Colors.green.withValues(alpha: 0.12)
@@ -202,7 +207,9 @@ class _PermCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        granted ? Icons.check_circle : Icons.warning_amber_rounded,
+                        granted
+                            ? Icons.check_circle
+                            : Icons.warning_amber_rounded,
                         size: 14,
                         color: granted ? Colors.green : cs.error,
                       ),
@@ -223,9 +230,9 @@ class _PermCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 reason,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
               ),
               const SizedBox(height: 8),
               Align(

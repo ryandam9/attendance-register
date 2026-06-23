@@ -142,10 +142,10 @@ class _MainShellState extends ConsumerState<MainShell>
     final content = PageTransitionSwitcher(
       transitionBuilder: (child, animation, secondaryAnimation) =>
           FadeThroughTransition(
-        animation: animation,
-        secondaryAnimation: secondaryAnimation,
-        child: child,
-      ),
+            animation: animation,
+            secondaryAnimation: secondaryAnimation,
+            child: child,
+          ),
       child: switch (index) {
         1 => const MarkScreen(key: ValueKey('tab-mark')),
         2 => const ExplainScreen(key: ValueKey('tab-insights')),

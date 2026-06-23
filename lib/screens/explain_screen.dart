@@ -53,14 +53,27 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
     final today = DateTime(now.year, now.month, now.day);
     final monthNow = ReportPeriod(kind: PeriodKind.month, anchor: now);
     final yearNow = ReportPeriod(
-        kind: PeriodKind.year, anchor: now, financialYearStart: fyStart);
+      kind: PeriodKind.year,
+      anchor: now,
+      financialYearStart: fyStart,
+    );
     // Cap the year at today so it reads as year-to-date, not the whole year
     // (future weekdays would otherwise dilute the percentage).
     final yearEnd = yearNow.end.isAfter(today) ? today : yearNow.end;
-    final monthBd = ref.watch(breakdownProvider(
-        (officeId: office.id!, start: monthNow.start, end: monthNow.end)));
-    final yearBd = ref.watch(breakdownProvider(
-        (officeId: office.id!, start: yearNow.start, end: yearEnd)));
+    final monthBd = ref.watch(
+      breakdownProvider((
+        officeId: office.id!,
+        start: monthNow.start,
+        end: monthNow.end,
+      )),
+    );
+    final yearBd = ref.watch(
+      breakdownProvider((
+        officeId: office.id!,
+        start: yearNow.start,
+        end: yearEnd,
+      )),
+    );
 
     // The period the detailed breakdown below is shown for.
     final period = ReportPeriod(
@@ -68,11 +81,13 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
       anchor: _anchor,
       financialYearStart: fyStart,
     );
-    final breakdown = ref.watch(breakdownProvider((
-      officeId: office.id!,
-      start: period.start,
-      end: period.end,
-    )));
+    final breakdown = ref.watch(
+      breakdownProvider((
+        officeId: office.id!,
+        start: period.start,
+        end: period.end,
+      )),
+    );
 
     // Desktop: gauges side by side under a page header, no app bar.
     if (isDesktopWidth(context)) {
@@ -88,10 +103,17 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: _arcCard(monthBd, monthNow.label, target, bird)),
+                  Expanded(
+                    child: _arcCard(monthBd, monthNow.label, target, bird),
+                  ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _arcCard(yearBd, '${yearNow.label} · YTD', target, bird),
+                    child: _arcCard(
+                      yearBd,
+                      '${yearNow.label} · YTD',
+                      target,
+                      bird,
+                    ),
                   ),
                 ],
               ),
@@ -125,51 +147,59 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
       appBar: AppBar(title: const Text('Insights')),
       body: ResponsiveBody(
         child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _OfficeChip(office: office),
-          const SizedBox(height: 16),
+          padding: const EdgeInsets.all(16),
+          children: [
+            _OfficeChip(office: office),
+            const SizedBox(height: 16),
 
-          // Headline gauges — month then year-to-date, one below another.
-          _arcCard(monthBd, monthNow.label, target, bird),
-          const SizedBox(height: 16),
-          _arcCard(yearBd, '${yearNow.label} · YTD', target, bird),
+            // Headline gauges — month then year-to-date, one below another.
+            _arcCard(monthBd, monthNow.label, target, bird),
+            const SizedBox(height: 16),
+            _arcCard(yearBd, '${yearNow.label} · YTD', target, bird),
 
-          const SizedBox(height: 12),
-          // Defines the reporting year for the YTD gauge above and the yearly
-          // breakdown below (Jan–Dec → from Jan 1; Oct–Sep → from Oct 1).
-          _financialYearSelector(fyStart),
+            const SizedBox(height: 12),
+            // Defines the reporting year for the YTD gauge above and the yearly
+            // breakdown below (Jan–Dec → from Jan 1; Oct–Sep → from Oct 1).
+            _financialYearSelector(fyStart),
 
-          const SizedBox(height: 24),
-          _sectionTitle(context, Icons.tune, 'Detailed breakdown'),
-          const SizedBox(height: 12),
-          _periodKindSelector(),
-          const SizedBox(height: 12),
-          _periodNavigator(period),
-          const SizedBox(height: 16),
-          breakdown.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.symmetric(vertical: 48),
-              child: Center(child: CircularProgressIndicator()),
+            const SizedBox(height: 24),
+            _sectionTitle(context, Icons.tune, 'Detailed breakdown'),
+            const SizedBox(height: 12),
+            _periodKindSelector(),
+            const SizedBox(height: 12),
+            _periodNavigator(period),
+            const SizedBox(height: 16),
+            breakdown.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 48),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (e, _) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 48),
+                child: Center(child: Text('Could not load data: $e')),
+              ),
+              data: (b) => _details(b, target, office.id!),
             ),
-            error: (e, _) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 48),
-              child: Center(child: Text('Could not load data: $e')),
-            ),
-            data: (b) => _details(b, target, office.id!),
-          ),
-        ],
-      )),
+          ],
+        ),
+      ),
     );
   }
 
   /// A return-to-office gauge card wrapped in its async states.
   Widget _arcCard(
-      AsyncValue<AttendanceBreakdown> bd, String label, int target, String? bird) {
+    AsyncValue<AttendanceBreakdown> bd,
+    String label,
+    int target,
+    String? bird,
+  ) {
     return bd.when(
       loading: () => const Card(
         margin: EdgeInsets.zero,
-        child: SizedBox(height: 220, child: Center(child: CircularProgressIndicator())),
+        child: SizedBox(
+          height: 220,
+          child: Center(child: CircularProgressIndicator()),
+        ),
       ),
       error: (e, _) => Card(
         margin: EdgeInsets.zero,
@@ -220,8 +250,10 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
               children: [
                 Icon(Icons.event_repeat_outlined, size: 18, color: cs.primary),
                 const SizedBox(width: 8),
-                Text('Financial year',
-                    style: Theme.of(context).textTheme.titleSmall),
+                Text(
+                  'Financial year',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -254,10 +286,9 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
           child: Text(
             period.label,
             textAlign: TextAlign.center,
-            style: Theme.of(context)
-                .textTheme
-                .titleLarge
-                ?.copyWith(fontWeight: FontWeight.w600),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
         IconButton.filledTonal(
@@ -369,7 +400,11 @@ class _CalculationCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _sectionTitle(context, Icons.calculate_outlined, 'How it’s calculated'),
+            _sectionTitle(
+              context,
+              Icons.calculate_outlined,
+              'How it’s calculated',
+            ),
             const SizedBox(height: 12),
             _CalcLine(
               label: 'Eligible working days',
@@ -392,8 +427,8 @@ class _CalculationCard extends StatelessWidget {
               'and misc leave \u2014 are removed from the working-day total. '
               'Work-from-home days stay in it, so they lower the percentage.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -418,13 +453,12 @@ class _CalcLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final resultStyle = (emphasise
-            ? theme.textTheme.titleLarge
-            : theme.textTheme.titleMedium)
-        ?.copyWith(
-      fontWeight: FontWeight.bold,
-      color: emphasise ? theme.colorScheme.primary : null,
-    );
+    final resultStyle =
+        (emphasise ? theme.textTheme.titleLarge : theme.textTheme.titleMedium)
+            ?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: emphasise ? theme.colorScheme.primary : null,
+            );
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -547,9 +581,7 @@ class _CountRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(
-            child: Text(label, style: theme.textTheme.bodyLarge),
-          ),
+          Expanded(child: Text(label, style: theme.textTheme.bodyLarge)),
           Text(
             tag,
             style: theme.textTheme.labelSmall?.copyWith(
@@ -562,8 +594,9 @@ class _CountRow extends StatelessWidget {
             child: Text(
               '$count',
               textAlign: TextAlign.end,
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],

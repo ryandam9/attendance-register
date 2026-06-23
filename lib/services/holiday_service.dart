@@ -67,12 +67,14 @@ class HolidayService {
       if (country.toLowerCase() == 'country') continue;
       final date = parts[2].trim();
       if (!_isValidDate(date)) continue;
-      rows.add(HolidayRow(
-        country: country,
-        state: parts[1].trim(),
-        date: date,
-        desc: parts.length > 3 ? parts.sublist(3).join(',').trim() : '',
-      ));
+      rows.add(
+        HolidayRow(
+          country: country,
+          state: parts[1].trim(),
+          date: date,
+          desc: parts.length > 3 ? parts.sublist(3).join(',').trim() : '',
+        ),
+      );
     }
     return rows;
   }
@@ -84,7 +86,10 @@ class HolidayService {
   /// The distinct country+state keys covered by [offices] (those with both
   /// fields populated).
   static Set<String> officeKeys(List<OfficeLocation> offices) => offices
-      .where((o) => (o.country?.isNotEmpty ?? false) && (o.state?.isNotEmpty ?? false))
+      .where(
+        (o) =>
+            (o.country?.isNotEmpty ?? false) && (o.state?.isNotEmpty ?? false),
+      )
       .map((o) => _key(o.country, o.state))
       .toSet();
 
@@ -103,8 +108,7 @@ class HolidayService {
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 10);
     try {
-      final req =
-          await client.getUrl(Uri.parse(csvUrl)).timeout(_fetchTimeout);
+      final req = await client.getUrl(Uri.parse(csvUrl)).timeout(_fetchTimeout);
       final resp = await req.close().timeout(_fetchTimeout);
       if (resp.statusCode != 200) return null;
       return await resp.transform(utf8.decoder).join().timeout(_fetchTimeout);
@@ -143,12 +147,14 @@ class HolidayService {
       if (existingSpecial.contains(h.date)) continue;
       if (attendance.contains(h.date)) continue;
 
-      await db.upsertSpecialDay(SpecialDay(
-        date: h.date,
-        type: DayType.holiday,
-        note: h.desc.isEmpty ? null : h.desc,
-        source: DaySource.auto,
-      ));
+      await db.upsertSpecialDay(
+        SpecialDay(
+          date: h.date,
+          type: DayType.holiday,
+          note: h.desc.isEmpty ? null : h.desc,
+          source: DaySource.auto,
+        ),
+      );
       // So a duplicate date later in the CSV is skipped, like it was when the
       // existence check re-queried the database for every row.
       existingSpecial.add(h.date);

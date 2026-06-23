@@ -51,15 +51,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final target = day ?? focused;
     final office = ref.read(officeProvider).selectedOffice;
     if (office == null) return;
-    ref.read(attendanceProvider.notifier).loadForMonth(
-      office.id!,
-      target.year,
-      target.month,
-    );
-    ref.read(specialDayProvider.notifier).loadForMonth(
-      target.year,
-      target.month,
-    );
+    ref
+        .read(attendanceProvider.notifier)
+        .loadForMonth(office.id!, target.year, target.month);
+    ref
+        .read(specialDayProvider.notifier)
+        .loadForMonth(target.year, target.month);
   }
 
   void _onPageChanged(DateTime day) {
@@ -74,7 +71,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (inserted > 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Added $inserted public holiday${inserted == 1 ? '' : 's'}.'),
+          content: Text(
+            'Added $inserted public holiday${inserted == 1 ? '' : 's'}.',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -86,7 +85,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _quickMarkDay(DateTime day) async {
     final office = ref.read(officeProvider).selectedOffice;
     if (office == null) return;
-    final changed = await showQuickMarkSheet(context, office: office, date: day);
+    final changed = await showQuickMarkSheet(
+      context,
+      office: office,
+      date: day,
+    );
     if (changed && mounted) _refreshAttendance();
   }
 
@@ -97,22 +100,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Reload when the selected office first arrives or changes (startup load
     // completes after this widget mounts), and when the financial-year setting
     // changes the yearly window.
-    ref.listen(
-      officeProvider.select((s) => s.selectedOffice?.id),
-      (previous, next) {
-        if (next != null && previous != next) _refreshAttendance();
-      },
-    );
-    ref.listen(
-      settingsProvider.select((s) => s.financialYearStart),
-      (previous, next) {
-        if (previous != next) _refreshAttendance();
-      },
-    );
+    ref.listen(officeProvider.select((s) => s.selectedOffice?.id), (
+      previous,
+      next,
+    ) {
+      if (next != null && previous != next) _refreshAttendance();
+    });
+    ref.listen(settingsProvider.select((s) => s.financialYearStart), (
+      previous,
+      next,
+    ) {
+      if (previous != next) _refreshAttendance();
+    });
 
     final appBarTheme = Theme.of(context).appBarTheme;
-    final birdAsset =
-        birdAssetForTheme(ref.watch(settingsProvider.select((s) => s.themeId)));
+    final birdAsset = birdAssetForTheme(
+      ref.watch(settingsProvider.select((s) => s.themeId)),
+    );
 
     // Desktop: a two-pane dashboard that fills the window. The navigation shell
     // supplies the sidebar, so this screen has no app bar of its own. The
@@ -158,7 +162,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       // App bar foreground is onPrimary in light mode (navy bar);
                       // tint it down a touch for the secondary line.
-                      color: appBarTheme.foregroundColor?.withValues(alpha: 0.75),
+                      color: appBarTheme.foregroundColor?.withValues(
+                        alpha: 0.75,
+                      ),
                     ),
                   ),
                 ],
@@ -168,47 +174,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',
-            onPressed: () => Navigator.push(
-              context,
-              appRoute(const SettingsScreen()),
-            ).then((_) async {
-              await ref.read(officeProvider.notifier).load();
-              if (mounted) _refreshAttendance();
-            }),
+            onPressed: () =>
+                Navigator.push(context, appRoute(const SettingsScreen())).then((
+                  _,
+                ) async {
+                  await ref.read(officeProvider.notifier).load();
+                  if (mounted) _refreshAttendance();
+                }),
           ),
         ],
       ),
       body: ResponsiveBody(
         child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        child: officeState.loading
-            ? const Center(
-                key: ValueKey('loading'),
-                child: CircularProgressIndicator(),
-              )
-            : !officeState.hasOffice
-                ? _EmptyState(
-                    key: const ValueKey('empty'),
-                    birdAsset: birdAsset,
-                    onAdd: () => Navigator.push(
-                      context,
-                      appRoute(const SetupScreen()),
-                    ).then((_) async {
-                      await ref.read(officeProvider.notifier).load();
-                      if (mounted) _refreshAttendance();
-                    }),
-                  )
-                : _Dashboard(
-                    key: ValueKey(officeState.selectedOffice?.id),
-                    offices: officeState.offices,
-                    selected: officeState.selectedOffice!,
-                    onRefresh: _onPullRefresh,
-                    onOfficeChanged: (o) =>
-                        ref.read(officeProvider.notifier).selectOffice(o),
-                    onPageChanged: _onPageChanged,
-                    onDayTapped: _quickMarkDay,
-                  ),
-      )),
+          duration: const Duration(milliseconds: 300),
+          child: officeState.loading
+              ? const Center(
+                  key: ValueKey('loading'),
+                  child: CircularProgressIndicator(),
+                )
+              : !officeState.hasOffice
+              ? _EmptyState(
+                  key: const ValueKey('empty'),
+                  birdAsset: birdAsset,
+                  onAdd: () =>
+                      Navigator.push(
+                        context,
+                        appRoute(const SetupScreen()),
+                      ).then((_) async {
+                        await ref.read(officeProvider.notifier).load();
+                        if (mounted) _refreshAttendance();
+                      }),
+                )
+              : _Dashboard(
+                  key: ValueKey(officeState.selectedOffice?.id),
+                  offices: officeState.offices,
+                  selected: officeState.selectedOffice!,
+                  onRefresh: _onPullRefresh,
+                  onOfficeChanged: (o) =>
+                      ref.read(officeProvider.notifier).selectOffice(o),
+                  onPageChanged: _onPageChanged,
+                  onDayTapped: _quickMarkDay,
+                ),
+        ),
+      ),
     );
   }
 }
@@ -232,8 +240,11 @@ class _EmptyState extends StatelessWidget {
             if (birdAsset != null)
               Image.asset(birdAsset!, width: 180, fit: BoxFit.contain)
             else
-              Icon(Icons.business_outlined,
-                  size: 80, color: cs.primary.withValues(alpha: 0.4)),
+              Icon(
+                Icons.business_outlined,
+                size: 80,
+                color: cs.primary.withValues(alpha: 0.4),
+              ),
             const SizedBox(height: 24),
             Text(
               'No Office Registered',
@@ -313,11 +324,13 @@ class _Dashboard extends ConsumerWidget {
       anchor: focusedDay,
       financialYearStart: settings.financialYearStart,
     );
-    final monthBreakdown = ref.watch(breakdownProvider((
-      officeId: selected.id!,
-      start: monthPeriod.start,
-      end: monthPeriod.end,
-    )));
+    final monthBreakdown = ref.watch(
+      breakdownProvider((
+        officeId: selected.id!,
+        start: monthPeriod.start,
+        end: monthPeriod.end,
+      )),
+    );
 
     return RefreshIndicator(
       onRefresh: onRefresh,
@@ -335,7 +348,10 @@ class _Dashboard extends ConsumerWidget {
                   labelText: 'Office',
                   prefixIcon: Icon(Icons.business),
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                 ),
                 items: offices
                     .map((o) => DropdownMenuItem(value: o, child: Text(o.name)))
@@ -370,7 +386,8 @@ class _Dashboard extends ConsumerWidget {
                 onDayTapped(selectedDay);
               },
               calendarBuilders: CalendarBuilders(
-                defaultBuilder: (context, day, _) => dayCell(day, isToday: false),
+                defaultBuilder: (context, day, _) =>
+                    dayCell(day, isToday: false),
                 todayBuilder: (context, day, _) => dayCell(day, isToday: true),
               ),
               headerStyle: const HeaderStyle(
@@ -425,7 +442,6 @@ class _Dashboard extends ConsumerWidget {
   }
 }
 
-
 // ── Calendar day cell ─────────────────────────────────────────────────────────
 
 /// A single calendar day rendered per the Feathers spec:
@@ -440,7 +456,11 @@ class _DayCell extends StatelessWidget {
   final DayStatus? status;
   final bool isToday;
 
-  const _DayCell({required this.day, required this.status, this.isToday = false});
+  const _DayCell({
+    required this.day,
+    required this.status,
+    this.isToday = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -449,13 +469,14 @@ class _DayCell extends StatelessWidget {
     final s = status;
 
     Widget filled(Color bg, Color fg) => Container(
-          margin: const EdgeInsets.all(4),
-          decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-          alignment: Alignment.center,
-          child: Text(number,
-              style: TextStyle(
-                  color: fg, fontWeight: FontWeight.bold, fontSize: 14)),
-        );
+      margin: const EdgeInsets.all(4),
+      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+      alignment: Alignment.center,
+      child: Text(
+        number,
+        style: TextStyle(color: fg, fontWeight: FontWeight.bold, fontSize: 14),
+      ),
+    );
 
     // The marker for a given status (no "today" treatment).
     Widget markerFor(DayStatus st) {
@@ -471,9 +492,14 @@ class _DayCell extends StatelessWidget {
             border: Border.all(color: color, width: 2),
           ),
           alignment: Alignment.center,
-          child: Text(number,
-              style: TextStyle(
-                  color: color, fontWeight: FontWeight.bold, fontSize: 14)),
+          child: Text(
+            number,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
         );
       }
       // Leave / WFH / holiday / misc — show the status icon (no number).
@@ -504,9 +530,7 @@ class _DayCell extends StatelessWidget {
     // Non-today days: the builder returns null for empty days, so a status is
     // present here — but keep a safe fallback to the plain number.
     if (s == null) {
-      return Center(
-        child: Text(number, style: const TextStyle(fontSize: 14)),
-      );
+      return Center(child: Text(number, style: const TextStyle(fontSize: 14)));
     }
     return markerFor(s);
   }
@@ -528,7 +552,11 @@ class _LegendCard extends StatelessWidget {
           runSpacing: 10,
           children: [
             for (final s in DayStatus.values)
-              _LegendItem(icon: s.icon, color: s.colorIn(context), label: s.label),
+              _LegendItem(
+                icon: s.icon,
+                color: s.colorIn(context),
+                label: s.label,
+              ),
           ],
         ),
       ),
@@ -540,7 +568,11 @@ class _LegendItem extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String label;
-  const _LegendItem({required this.icon, required this.color, required this.label});
+  const _LegendItem({
+    required this.icon,
+    required this.color,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -676,11 +708,13 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
       anchor: focusedDay,
       financialYearStart: settings.financialYearStart,
     );
-    final monthBreakdown = ref.watch(breakdownProvider((
-      officeId: widget.selected.id!,
-      start: monthPeriod.start,
-      end: monthPeriod.end,
-    )));
+    final monthBreakdown = ref.watch(
+      breakdownProvider((
+        officeId: widget.selected.id!,
+        start: monthPeriod.start,
+        end: monthPeriod.end,
+      )),
+    );
     final bird = birdAssetForTheme(settings.themeId);
 
     return Padding(
@@ -757,15 +791,15 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
               Text(
                 'Dashboard',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
                 '${widget.selected.name} · ${monthPeriod.label}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
               ),
             ],
           ),
@@ -845,7 +879,9 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
         return Wrap(
           spacing: 16,
           runSpacing: 16,
-          children: [for (final card in cards) SizedBox(width: itemW, child: card)],
+          children: [
+            for (final card in cards) SizedBox(width: itemW, child: card),
+          ],
         );
       },
     );
@@ -861,7 +897,10 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
     return bd.when(
       loading: () => const Card(
         margin: EdgeInsets.zero,
-        child: SizedBox(height: 220, child: Center(child: CircularProgressIndicator())),
+        child: SizedBox(
+          height: 220,
+          child: Center(child: CircularProgressIndicator()),
+        ),
       ),
       error: (e, _) => Card(
         margin: EdgeInsets.zero,
@@ -904,9 +943,9 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
                 const SizedBox(width: 8),
                 Text(
                   'Selected day',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -917,20 +956,27 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
             ),
             const SizedBox(height: 12),
             if (status != null)
-              Align(alignment: Alignment.centerLeft, child: _StatusBadge(status: status))
+              Align(
+                alignment: Alignment.centerLeft,
+                child: _StatusBadge(status: status),
+              )
             else
               Text(
                 'No attendance recorded for this day.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
               ),
             const SizedBox(height: 16),
             FilledButton.tonalIcon(
-              onPressed: isFuture ? null : () => widget.onDayTapped(_selectedDay),
+              onPressed: isFuture
+                  ? null
+                  : () => widget.onDayTapped(_selectedDay),
               icon: const Icon(Icons.edit_calendar_outlined),
               label: Text(status == null ? 'Mark this day' : 'Edit this day'),
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(46)),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(46),
+              ),
             ),
           ],
         ),
@@ -961,9 +1007,9 @@ class _StatusBadge extends StatelessWidget {
           Text(
             status.label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

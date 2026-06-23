@@ -88,6 +88,13 @@ class OfficeLocation {
 
   @override
   int get hashCode => Object.hash(
-    id, name, address, latitude, longitude, radius, country, state,
+    id,
+    name,
+    address,
+    latitude,
+    longitude,
+    radius,
+    country,
+    state,
   );
 }

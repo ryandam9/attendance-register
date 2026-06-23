@@ -32,18 +32,28 @@ class BreakdownDonut extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final b = breakdown;
-    final leave = b.countOf(DayType.sickLeave) +
+    final leave =
+        b.countOf(DayType.sickLeave) +
         b.countOf(DayType.annualLeave) +
         b.countOf(DayType.carersLeave) +
         b.countOf(DayType.miscLeave);
     final segments = <_DonutSegment>[
-      _DonutSegment('Attended', b.officeDays,
-          DayTypeColors.of(context).attendance),
-      _DonutSegment('WFH', b.countOf(DayType.workFromHome),
-          DayType.workFromHome.colorIn(context)),
+      _DonutSegment(
+        'Attended',
+        b.officeDays,
+        DayTypeColors.of(context).attendance,
+      ),
+      _DonutSegment(
+        'WFH',
+        b.countOf(DayType.workFromHome),
+        DayType.workFromHome.colorIn(context),
+      ),
       _DonutSegment('Leave', leave, DayType.annualLeave.colorIn(context)),
-      _DonutSegment('Holiday', b.countOf(DayType.holiday),
-          DayType.holiday.colorIn(context)),
+      _DonutSegment(
+        'Holiday',
+        b.countOf(DayType.holiday),
+        DayType.holiday.colorIn(context),
+      ),
     ];
     final total = segments.fold<int>(0, (s, seg) => s + seg.value);
 
@@ -54,16 +64,19 @@ class BreakdownDonut extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _sectionTitle(context, Icons.donut_large_outlined,
-                'Work style breakdown'),
+            _sectionTitle(
+              context,
+              Icons.donut_large_outlined,
+              'Work style breakdown',
+            ),
             if (total > 0) ...[
               const SizedBox(height: 4),
               Text(
                 'Share of your $total recorded ${total == 1 ? 'day' : 'days'} '
                 '(not the return-to-office rate)',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
             const SizedBox(height: 16),
@@ -74,8 +87,8 @@ class BreakdownDonut extends StatelessWidget {
                   child: Text(
                     'No recorded days in this period yet.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               )
@@ -93,19 +106,17 @@ class BreakdownDonut extends StatelessWidget {
                           children: [
                             Text(
                               '$total',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineSmall
+                              style: Theme.of(context).textTheme.headlineSmall
                                   ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             Text(
                               'days',
-                              style:
-                                  Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
-                                      ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
                             ),
                           ],
                         ),
@@ -134,13 +145,11 @@ class BreakdownDonut extends StatelessWidget {
                                 Expanded(child: Text(seg.label)),
                                 Text(
                                   '${seg.value} · ${(seg.value / total * 100).toStringAsFixed(1)}%',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelMedium
+                                  style: Theme.of(context).textTheme.labelMedium
                                       ?.copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                       ),
                                 ),
                               ],
@@ -258,10 +267,9 @@ class _TrendChart extends StatelessWidget {
         child: Center(
           child: Text(
             'Not enough data yet — keep marking your days.',
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: cs.onSurfaceVariant),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
           ),
         ),
       );
@@ -287,10 +295,14 @@ class _TrendChart extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(_weekFmt.format(points.first.weekStart),
-                style: Theme.of(context).textTheme.labelSmall),
-            Text(_weekFmt.format(points.last.weekStart),
-                style: Theme.of(context).textTheme.labelSmall),
+            Text(
+              _weekFmt.format(points.first.weekStart),
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+            Text(
+              _weekFmt.format(points.last.weekStart),
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
           ],
         ),
       ],

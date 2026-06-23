@@ -7,13 +7,13 @@ import 'package:flutter/material.dart';
 /// legend all stay in sync. Each status also carries an icon + label elsewhere
 /// (see day_type_helper.dart) so meaning never relies on colour alone.
 abstract final class AppColors {
-  static const Color attendance   = Color(0xFF6D8600); // olive green
-  static const Color holiday      = Color(0xFF007CBF); // bright blue
-  static const Color sickLeave    = Color(0xFFF5A200); // orange
-  static const Color annualLeave  = Color(0xFF7090C9); // soft blue-purple
-  static const Color carersLeave  = Color(0xFF3EBCB6); // teal
+  static const Color attendance = Color(0xFF6D8600); // olive green
+  static const Color holiday = Color(0xFF007CBF); // bright blue
+  static const Color sickLeave = Color(0xFFF5A200); // orange
+  static const Color annualLeave = Color(0xFF7090C9); // soft blue-purple
+  static const Color carersLeave = Color(0xFF3EBCB6); // teal
   static const Color workFromHome = Color(0xFFBD338F); // magenta
-  static const Color miscLeave    = Color(0xFF727B98); // grey-slate
+  static const Color miscLeave = Color(0xFF727B98); // grey-slate
 }
 
 /// Day-type colours as a theme extension, so dark mode can use brighter
@@ -71,16 +71,15 @@ class DayTypeColors extends ThemeExtension<DayTypeColors> {
     Color? carersLeave,
     Color? workFromHome,
     Color? miscLeave,
-  }) =>
-      DayTypeColors(
-        attendance: attendance ?? this.attendance,
-        holiday: holiday ?? this.holiday,
-        sickLeave: sickLeave ?? this.sickLeave,
-        annualLeave: annualLeave ?? this.annualLeave,
-        carersLeave: carersLeave ?? this.carersLeave,
-        workFromHome: workFromHome ?? this.workFromHome,
-        miscLeave: miscLeave ?? this.miscLeave,
-      );
+  }) => DayTypeColors(
+    attendance: attendance ?? this.attendance,
+    holiday: holiday ?? this.holiday,
+    sickLeave: sickLeave ?? this.sickLeave,
+    annualLeave: annualLeave ?? this.annualLeave,
+    carersLeave: carersLeave ?? this.carersLeave,
+    workFromHome: workFromHome ?? this.workFromHome,
+    miscLeave: miscLeave ?? this.miscLeave,
+  );
 
   @override
   DayTypeColors lerp(DayTypeColors? other, double t) {

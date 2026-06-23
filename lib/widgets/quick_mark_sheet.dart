@@ -30,10 +30,13 @@ Future<bool> showQuickMarkSheet(
   required DateTime date,
 }) async {
   final dateKey = DateFormat('yyyy-MM-dd').format(date);
-  final existingRecord =
-      await DatabaseService.instance.getAttendanceForDate(dateKey, office.id!);
-  final existingSpecial =
-      await DatabaseService.instance.getSpecialDayForDate(dateKey);
+  final existingRecord = await DatabaseService.instance.getAttendanceForDate(
+    dateKey,
+    office.id!,
+  );
+  final existingSpecial = await DatabaseService.instance.getSpecialDayForDate(
+    dateKey,
+  );
   if (!context.mounted) return false;
 
   final sheet = _QuickMarkSheet(

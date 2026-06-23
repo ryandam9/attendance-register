@@ -30,8 +30,9 @@ class MarkScreen extends ConsumerStatefulWidget {
 }
 
 class _MarkScreenState extends ConsumerState<MarkScreen> {
-  late final ConfettiController _confetti =
-      ConfettiController(duration: const Duration(milliseconds: 1200));
+  late final ConfettiController _confetti = ConfettiController(
+    duration: const Duration(milliseconds: 1200),
+  );
   bool _justCheckedIn = false;
   Timer? _checkedInReset;
 
@@ -56,7 +57,9 @@ class _MarkScreenState extends ConsumerState<MarkScreen> {
     final office = ref.read(officeProvider).selectedOffice;
     if (office == null) return;
     final now = DateTime.now();
-    ref.read(attendanceProvider.notifier).loadForMonth(office.id!, now.year, now.month);
+    ref
+        .read(attendanceProvider.notifier)
+        .loadForMonth(office.id!, now.year, now.month);
     ref.read(specialDayProvider.notifier).loadForMonth(now.year, now.month);
   }
 
@@ -124,110 +127,119 @@ class _MarkScreenState extends ConsumerState<MarkScreen> {
 
     final content = Stack(
       children: [
-          ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Office context.
-              Card(
-                margin: EdgeInsets.zero,
-                child: ListTile(
-                  leading: Icon(Icons.business_outlined, color: cs.primary),
-                  title: Text(office.name),
-                  subtitle: Text(
-                    office.address,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+        ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Office context.
+            Card(
+              margin: EdgeInsets.zero,
+              child: ListTile(
+                leading: Icon(Icons.business_outlined, color: cs.primary),
+                title: Text(office.name),
+                subtitle: Text(
+                  office.address,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(height: 16),
+            ),
+            const SizedBox(height: 16),
 
-              // Today summary.
-              _TodayCard(status: todayStatus, dateLabel: _dateFmt.format(DateTime.now())),
-              const SizedBox(height: 20),
+            // Today summary.
+            _TodayCard(
+              status: todayStatus,
+              dateLabel: _dateFmt.format(DateTime.now()),
+            ),
+            const SizedBox(height: 20),
 
-              // Primary action — morphs into a confirmation for a moment after a
-              // successful check-in.
-              FilledButton.icon(
-                onPressed: _manualCheckIn,
-                icon: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  transitionBuilder: (child, anim) =>
-                      ScaleTransition(scale: anim, child: child),
-                  child: Icon(
-                    _justCheckedIn ? Icons.celebration : Icons.check_circle_outline,
-                    key: ValueKey(_justCheckedIn),
-                  ),
+            // Primary action — morphs into a confirmation for a moment after a
+            // successful check-in.
+            FilledButton.icon(
+              onPressed: _manualCheckIn,
+              icon: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                transitionBuilder: (child, anim) =>
+                    ScaleTransition(scale: anim, child: child),
+                child: Icon(
+                  _justCheckedIn
+                      ? Icons.celebration
+                      : Icons.check_circle_outline,
+                  key: ValueKey(_justCheckedIn),
                 ),
-                label: Text(_justCheckedIn ? 'Checked in!' : 'Check-In for Today'),
-                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
               ),
-              const SizedBox(height: 12),
+              label: Text(
+                _justCheckedIn ? 'Checked in!' : 'Check-In for Today',
+              ),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+              ),
+            ),
+            const SizedBox(height: 12),
 
-              // Secondary action — container-transforms into the full day-entry
-              // screen for any date / status.
-              OpenContainer<bool>(
-                transitionType: ContainerTransitionType.fadeThrough,
-                transitionDuration: const Duration(milliseconds: 350),
-                closedElevation: 0,
-                closedColor: cs.surface,
-                closedShape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  side: BorderSide(color: cs.outline),
-                ),
-                closedBuilder: (context, open) => InkWell(
-                  onTap: open,
-                  child: SizedBox(
-                    height: 52,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.edit_calendar_outlined, color: cs.primary),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Mark a Day (Attendance / Leave / WFH)',
-                          style: TextStyle(
-                            color: cs.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
+            // Secondary action — container-transforms into the full day-entry
+            // screen for any date / status.
+            OpenContainer<bool>(
+              transitionType: ContainerTransitionType.fadeThrough,
+              transitionDuration: const Duration(milliseconds: 350),
+              closedElevation: 0,
+              closedColor: cs.surface,
+              closedShape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: BorderSide(color: cs.outline),
+              ),
+              closedBuilder: (context, open) => InkWell(
+                onTap: open,
+                child: SizedBox(
+                  height: 52,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.edit_calendar_outlined, color: cs.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Mark a Day (Attendance / Leave / WFH)',
+                        style: TextStyle(
+                          color: cs.primary,
+                          fontWeight: FontWeight.w600,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-                openBuilder: (context, _) => DayEntryScreen(office: office),
-                onClosed: _onMarkADayClosed,
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Tip: you can also tap any day on the Home calendar to mark it.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
-              ),
+              openBuilder: (context, _) => DayEntryScreen(office: office),
+              onClosed: _onMarkADayClosed,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Tip: you can also tap any day on the Home calendar to mark it.',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+            ),
+          ],
+        ),
+        // Confetti bursts from the top on a successful check-in.
+        Align(
+          alignment: Alignment.topCenter,
+          child: ConfettiWidget(
+            confettiController: _confetti,
+            blastDirectionality: BlastDirectionality.explosive,
+            numberOfParticles: 24,
+            maxBlastForce: 24,
+            minBlastForce: 8,
+            gravity: 0.25,
+            shouldLoop: false,
+            colors: [
+              cs.primary,
+              cs.secondary,
+              cs.tertiary,
+              DayStatus.attended.colorIn(context),
             ],
           ),
-          // Confetti bursts from the top on a successful check-in.
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _confetti,
-              blastDirectionality: BlastDirectionality.explosive,
-              numberOfParticles: 24,
-              maxBlastForce: 24,
-              minBlastForce: 8,
-              gravity: 0.25,
-              shouldLoop: false,
-              colors: [
-                cs.primary,
-                cs.secondary,
-                cs.tertiary,
-                DayStatus.attended.colorIn(context),
-              ],
-            ),
-          ),
-        ],
+        ),
+      ],
     );
 
     if (isDesktopWidth(context)) {
@@ -276,17 +288,24 @@ class _TodayCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Today', style: Theme.of(context).textTheme.labelMedium
-                      ?.copyWith(color: cs.onSurfaceVariant)),
+                  Text(
+                    'Today',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(dateLabel, style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    dateLabel,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     s == null ? 'Not recorded yet' : s.label,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: color,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      color: color,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),

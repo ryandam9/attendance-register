@@ -81,7 +81,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     if (addr.isEmpty) return;
     setState(() => _busy = true);
 
-    final locations = await LocationService.instance.coordinatesFromAddress(addr);
+    final locations = await LocationService.instance.coordinatesFromAddress(
+      addr,
+    );
     if (!mounted) return;
     if (locations == null || locations.isEmpty) {
       setState(() => _busy = false);
@@ -163,126 +165,130 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       appBar: AppBar(title: Text(_isEditing ? 'Edit Office' : 'Add Office')),
       body: ResponsiveBody(
         child: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Name
-            TextFormField(
-              controller: _nameCtrl,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Office Name *',
-                hintText: 'e.g. HQ, Downtown Office',
-                prefixIcon: Icon(Icons.business_outlined),
-                border: OutlineInputBorder(),
-              ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Enter an office name' : null,
-            ),
-            const SizedBox(height: 16),
-
-            // Address
-            TextFormField(
-              controller: _addressCtrl,
-              maxLines: 2,
-              decoration: InputDecoration(
-                labelText: 'Office Address (optional)',
-                hintText: 'Only needed for automatic check-in',
-                helperText: 'Leave blank for a manual-only office',
-                prefixIcon: const Icon(Icons.location_on_outlined),
-                border: const OutlineInputBorder(),
-                suffixIcon: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      tooltip: 'Search address',
-                      icon: const Icon(Icons.search),
-                      onPressed: _busy ? null : _lookupAddress,
-                    ),
-                    IconButton(
-                      tooltip: 'Use my current location',
-                      icon: const Icon(Icons.my_location),
-                      onPressed: _busy ? null : _useCurrentLocation,
-                    ),
-                  ],
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Name
+              TextFormField(
+                controller: _nameCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Office Name *',
+                  hintText: 'e.g. HQ, Downtown Office',
+                  prefixIcon: Icon(Icons.business_outlined),
+                  border: OutlineInputBorder(),
                 ),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Enter an office name'
+                    : null,
               ),
-            ),
+              const SizedBox(height: 16),
 
-            if (_busy) ...[
-              const SizedBox(height: 8),
-              const LinearProgressIndicator(),
-            ],
-
-            if (_lat != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                'Resolved: ${_lat!.toStringAsFixed(5)}, ${_lng!.toStringAsFixed(5)}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              if (_state != null || _country != null)
-                Text(
-                  'Region: ${[_state, _country].where((s) => s != null && s.isNotEmpty).join(', ')}'
-                  ' — public holidays for this region are highlighted automatically.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+              // Address
+              TextFormField(
+                controller: _addressCtrl,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: 'Office Address (optional)',
+                  hintText: 'Only needed for automatic check-in',
+                  helperText: 'Leave blank for a manual-only office',
+                  prefixIcon: const Icon(Icons.location_on_outlined),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Search address',
+                        icon: const Icon(Icons.search),
+                        onPressed: _busy ? null : _lookupAddress,
+                      ),
+                      IconButton(
+                        tooltip: 'Use my current location',
+                        icon: const Icon(Icons.my_location),
+                        onPressed: _busy ? null : _useCurrentLocation,
+                      ),
+                    ],
                   ),
                 ),
-            ],
-
-            const SizedBox(height: 28),
-
-            // Radius slider
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Detection Radius',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                Chip(label: Text('${_radius.toInt()} m')),
-              ],
-            ),
-            Text(
-              'Attendance is recorded when you are within this distance from the office.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
-            ),
-            Slider(
-              value: _radius,
-              min: 50,
-              max: 500,
-              divisions: 9,
-              label: '${_radius.toInt()} m',
-              onChanged: (v) => setState(() => _radius = v),
-            ),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('50 m', style: TextStyle(fontSize: 12)),
-                Text('500 m', style: TextStyle(fontSize: 12)),
+
+              if (_busy) ...[
+                const SizedBox(height: 8),
+                const LinearProgressIndicator(),
               ],
-            ),
 
-            const SizedBox(height: 32),
+              if (_lat != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Resolved: ${_lat!.toStringAsFixed(5)}, ${_lng!.toStringAsFixed(5)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                if (_state != null || _country != null)
+                  Text(
+                    'Region: ${[_state, _country].where((s) => s != null && s.isNotEmpty).join(', ')}'
+                    ' — public holidays for this region are highlighted automatically.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
 
-            FilledButton(
-              onPressed: _busy ? null : _save,
-              child: _busy
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_isEditing ? 'Save Changes' : 'Add Office'),
-            ),
-          ],
+              const SizedBox(height: 28),
+
+              // Radius slider
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Detection Radius',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  Chip(label: Text('${_radius.toInt()} m')),
+                ],
+              ),
+              Text(
+                'Attendance is recorded when you are within this distance from the office.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+              Slider(
+                value: _radius,
+                min: 50,
+                max: 500,
+                divisions: 9,
+                label: '${_radius.toInt()} m',
+                onChanged: (v) => setState(() => _radius = v),
+              ),
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('50 m', style: TextStyle(fontSize: 12)),
+                  Text('500 m', style: TextStyle(fontSize: 12)),
+                ],
+              ),
+
+              const SizedBox(height: 32),
+
+              FilledButton(
+                onPressed: _busy ? null : _save,
+                child: _busy
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(_isEditing ? 'Save Changes' : 'Add Office'),
+              ),
+            ],
+          ),
         ),
-      )),
+      ),
     );
   }
 }

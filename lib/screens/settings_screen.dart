@@ -31,10 +31,10 @@ class SettingsScreen extends ConsumerWidget {
     // Each settings section as a self-contained block (label + content) so it
     // can be laid out as one column (phone) or two columns (desktop).
     Widget block(String label, List<Widget> children) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [_SectionLabel(label), ...children],
-        );
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [_SectionLabel(label), ...children],
+    );
 
     final profile = block('Profile', const [_NameSection()]);
     final target = block('Attendance Target', const [_TargetSection()]);
@@ -73,8 +73,8 @@ class SettingsScreen extends ConsumerWidget {
           'Bird colour palettes inspired by shandiya/feathers '
           '(github.com/shandiya/feathers), reinterpreted with a different style.',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ),
     ]);
@@ -169,21 +169,21 @@ class SettingsScreen extends ConsumerWidget {
         '(Claude Opus 4.8) and may not represent the statistics accurately.',
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
     );
 
     // A column of blocks separated by dividers.
     Widget column(List<Widget> blocks) => ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            for (var i = 0; i < blocks.length; i++) ...[
-              if (i > 0) const Divider(height: 32),
-              blocks[i],
-            ],
-          ],
-        );
+      padding: EdgeInsets.zero,
+      children: [
+        for (var i = 0; i < blocks.length; i++) ...[
+          if (i > 0) const Divider(height: 32),
+          blocks[i],
+        ],
+      ],
+    );
 
     if (isDesktopWidth(context)) {
       return Scaffold(
@@ -196,7 +196,9 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               Expanded(child: column([profile, target, offices, appearance])),
               const SizedBox(width: 32),
-              Expanded(child: column([permissions, howItWorks, data, disclaimer])),
+              Expanded(
+                child: column([permissions, howItWorks, data, disclaimer]),
+              ),
             ],
           ),
         ),
@@ -292,9 +294,9 @@ class SettingsScreen extends ConsumerWidget {
     ref.invalidate(attendanceProvider);
     ref.invalidate(specialDayProvider);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('All records deleted.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('All records deleted.')));
     }
   }
 
@@ -448,9 +450,9 @@ class _TargetSectionState extends ConsumerState<_TargetSection> {
           Text(
             'The share of eligible weekdays you aim to be at the office. '
             'Dashboard stats show green at or above this.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: cs.onSurfaceVariant,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
           ),
           Slider(
             value: value.toDouble(),

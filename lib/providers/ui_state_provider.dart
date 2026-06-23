@@ -12,8 +12,9 @@ class TabIndexNotifier extends Notifier<int> {
 }
 
 /// 0 = Home, 1 = Insights (Explain), 2 = History.
-final tabIndexProvider =
-    NotifierProvider<TabIndexNotifier, int>(TabIndexNotifier.new);
+final tabIndexProvider = NotifierProvider<TabIndexNotifier, int>(
+  TabIndexNotifier.new,
+);
 
 class CalendarFocusNotifier extends Notifier<DateTime> {
   @override
@@ -22,8 +23,9 @@ class CalendarFocusNotifier extends Notifier<DateTime> {
 }
 
 /// The month the home calendar is focused on.
-final calendarFocusProvider =
-    NotifierProvider<CalendarFocusNotifier, DateTime>(CalendarFocusNotifier.new);
+final calendarFocusProvider = NotifierProvider<CalendarFocusNotifier, DateTime>(
+  CalendarFocusNotifier.new,
+);
 
 class CalendarFormatNotifier extends Notifier<CalendarFormat> {
   @override
@@ -33,5 +35,5 @@ class CalendarFormatNotifier extends Notifier<CalendarFormat> {
 
 final calendarFormatProvider =
     NotifierProvider<CalendarFormatNotifier, CalendarFormat>(
-  CalendarFormatNotifier.new,
-);
+      CalendarFormatNotifier.new,
+    );
