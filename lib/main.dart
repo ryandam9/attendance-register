@@ -10,6 +10,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'providers/settings_provider.dart';
 import 'screens/main_shell.dart';
 import 'services/database_service.dart';
+import 'services/location_service.dart';
 import 'services/notification_service.dart';
 import 'themes/bird_themes.dart';
 
@@ -26,13 +27,15 @@ void main() async {
 
   await DatabaseService.instance.database;
   await NotificationService.instance.initialize();
-  // Geofencing powers auto check-in but must never block the app from
-  // starting — if the plugin fails to initialise (missing Play Services,
-  // unsupported platform), the user can still view and record days manually.
-  try {
-    await NativeGeofenceManager.instance.initialize();
-  } catch (e) {
-    debugPrint('Geofencing unavailable: $e');
+  // Geofencing powers auto check-in but is Android/iOS only and must never
+  // block the app from starting. Skip it entirely on unsupported platforms;
+  // elsewhere a failure (e.g. missing Play Services) is non-fatal.
+  if (isGeofencingSupported) {
+    try {
+      await NativeGeofenceManager.instance.initialize();
+    } catch (e) {
+      debugPrint('Geofencing unavailable: $e');
+    }
   }
 
   runApp(const ProviderScope(child: AttendanceApp()));
