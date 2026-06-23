@@ -113,7 +113,7 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 48),
                   child: Center(child: Text('Could not load data: $e')),
                 ),
-                data: (b) => _details(b, target, office.id!),
+                data: (b) => _details(b, target, office.id!, wide: true),
               ),
             ],
           ),
@@ -274,7 +274,44 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
 
   // ── Detailed breakdown (for the selected period) ───────────────────────────
 
-  Widget _details(AttendanceBreakdown b, int target, int officeId) {
+  Widget _details(
+    AttendanceBreakdown b,
+    int target,
+    int officeId, {
+    bool wide = false,
+  }) {
+    // Desktop: two columns so the breakdown fills the width instead of a long
+    // single column. Donut + calculation on the left, trend + counts on the
+    // right.
+    if (wide) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                BreakdownDonut(breakdown: b),
+                const SizedBox(height: 16),
+                _CalculationCard(breakdown: b),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TrendCard(officeId: officeId, target: target),
+                const SizedBox(height: 16),
+                _CountsCard(breakdown: b),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
