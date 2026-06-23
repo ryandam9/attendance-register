@@ -30,10 +30,11 @@ class _PermissionsSectionState extends State<PermissionsSection>
   _PermStatus? _battery;
   bool _requesting = false;
 
-  /// permission_handler has no Linux/Windows implementation, so the permission
-  /// cards only apply on mobile and macOS. Elsewhere the section shows a note.
-  static final bool _supported =
-      Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
+  /// permission_handler is only wired up on mobile: there's no Linux/Windows
+  /// implementation, and on the macOS desktop build the plugin fails to register
+  /// (MissingPluginException). Elsewhere the section shows a note instead of
+  /// querying (which would otherwise spin forever).
+  static final bool _supported = Platform.isAndroid || Platform.isIOS;
 
   @override
   void initState() {
@@ -75,9 +76,15 @@ class _PermissionsSectionState extends State<PermissionsSection>
         _battery = bat;
       });
     } catch (e) {
-      // Plugin unavailable on this platform — leave statuses unset; build()
-      // shows the unsupported note.
+      // The plugin can be unavailable even on a "supported" platform (e.g. it
+      // fails to register). Fall back to "denied" so the section shows cards the
+      // user can act on instead of spinning on the loading indicator forever.
       debugPrint('Permission status check failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _location ??= _PermStatus.denied;
+        _notifications ??= _PermStatus.denied;
+      });
     }
   }
 
