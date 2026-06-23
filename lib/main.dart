@@ -44,30 +44,41 @@ class AttendanceApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
+
+    MaterialApp buildApp(ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+      ThemeData light;
+      ThemeData dark;
+      if (settings.themeId == dynamicThemeId &&
+          lightDynamic != null &&
+          darkDynamic != null) {
+        // Material You: the device's wallpaper-derived palette (Android 12+).
+        light = buildAppTheme(lightDynamic.harmonized());
+        dark = buildAppTheme(darkDynamic.harmonized());
+      } else {
+        final bird = settings.theme;
+        light = bird.themeData(Brightness.light);
+        dark = bird.themeData(Brightness.dark);
+      }
+      return MaterialApp(
+        title: 'Office Attendance',
+        debugShowCheckedModeBanner: false,
+        theme: light,
+        darkTheme: dark,
+        themeMode: settings.themeMode,
+        home: const MainShell(),
+      );
+    }
+
+    // dynamic_color's native accent query has crashed the app on some Linux/
+    // Windows desktop setups, and Material You only applies on Android — so skip
+    // the plugin there and use the built-in app themes.
+    if (!kIsWeb && (Platform.isLinux || Platform.isWindows)) {
+      return buildApp(null, null);
+    }
+
     return DynamicColorBuilder(
-      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        ThemeData light;
-        ThemeData dark;
-        if (settings.themeId == dynamicThemeId &&
-            lightDynamic != null &&
-            darkDynamic != null) {
-          // Material You: the device's wallpaper-derived palette (Android 12+).
-          light = buildAppTheme(lightDynamic.harmonized());
-          dark = buildAppTheme(darkDynamic.harmonized());
-        } else {
-          final bird = settings.theme;
-          light = bird.themeData(Brightness.light);
-          dark = bird.themeData(Brightness.dark);
-        }
-        return MaterialApp(
-          title: 'Office Attendance',
-          debugShowCheckedModeBanner: false,
-          theme: light,
-          darkTheme: dark,
-          themeMode: settings.themeMode,
-          home: const MainShell(),
-        );
-      },
+      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) =>
+          buildApp(lightDynamic, darkDynamic),
     );
   }
 }
