@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../helpers/layout.dart';
 import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
@@ -13,6 +14,7 @@ import '../providers/special_day_provider.dart';
 import '../services/database_service.dart';
 import '../services/export_service.dart';
 import '../services/holiday_service.dart';
+import '../widgets/desktop_page.dart';
 import '../widgets/permission_cards.dart';
 import '../widgets/responsive_body.dart';
 import 'setup_screen.dart';
@@ -26,11 +28,8 @@ class SettingsScreen extends ConsumerWidget {
     final officeState = ref.watch(officeProvider);
     final notifier = ref.read(officeProvider.notifier);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: ResponsiveBody(
-        child: ListView(
-        children: [
+    final content = ListView(
+      children: [
           const _SectionLabel('Profile'),
           const _NameSection(),
           const Divider(height: 32),
@@ -180,7 +179,22 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
         ],
-      )),
+    );
+
+    if (isDesktopWidth(context)) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+        body: DesktopPage(
+          title: 'Settings',
+          maxContentWidth: 820,
+          child: content,
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
+      body: ResponsiveBody(child: content),
     );
   }
 

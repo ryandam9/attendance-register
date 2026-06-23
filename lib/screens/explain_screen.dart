@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../app_colors.dart';
 import '../helpers/day_type_helper.dart';
+import '../helpers/layout.dart';
 import '../models/attendance_breakdown.dart';
 import '../models/office_location.dart';
 import '../models/report_period.dart';
@@ -14,6 +15,7 @@ import '../providers/explain_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/settings_provider.dart';
 import '../themes/bird_art.dart';
+import '../widgets/desktop_page.dart';
 import '../widgets/no_office_placeholder.dart';
 import '../widgets/responsive_body.dart';
 import '../widgets/rto_arc_card.dart';
@@ -73,6 +75,53 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
       start: period.start,
       end: period.end,
     )));
+
+    // Desktop: gauges side by side under a page header, no app bar.
+    if (isDesktopWidth(context)) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+        body: DesktopPage(
+          title: 'Insights',
+          subtitle: office.name,
+          maxContentWidth: 1100,
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _arcCard(monthBd, monthNow.label, target, bird)),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _arcCard(yearBd, '${yearNow.label} · YTD', target, bird),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _financialYearSelector(fyStart),
+              const SizedBox(height: 24),
+              _sectionTitle(context, Icons.tune, 'Detailed breakdown'),
+              const SizedBox(height: 12),
+              _periodKindSelector(),
+              const SizedBox(height: 12),
+              _periodNavigator(period),
+              const SizedBox(height: 16),
+              breakdown.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 48),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 48),
+                  child: Center(child: Text('Could not load data: $e')),
+                ),
+                data: (b) => _details(b, target, office.id!),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Insights')),

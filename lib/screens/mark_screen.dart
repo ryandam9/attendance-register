@@ -8,11 +8,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../helpers/day_type_helper.dart';
+import '../helpers/layout.dart';
 import '../models/special_day.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/explain_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/special_day_provider.dart';
+import '../widgets/desktop_page.dart';
 import '../widgets/no_office_placeholder.dart';
 import '../widgets/responsive_body.dart';
 import 'day_entry_screen.dart';
@@ -120,11 +122,8 @@ class _MarkScreenState extends ConsumerState<MarkScreen> {
         ? DayStatus.attended
         : sp.typeByDate[todayKey]?.dayStatus;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Mark')),
-      body: ResponsiveBody(
-        child: Stack(
-        children: [
+    final content = Stack(
+      children: [
           ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -229,7 +228,23 @@ class _MarkScreenState extends ConsumerState<MarkScreen> {
             ),
           ),
         ],
-      )),
+    );
+
+    if (isDesktopWidth(context)) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+        body: DesktopPage(
+          title: 'Mark',
+          subtitle: office.name,
+          maxContentWidth: 600,
+          child: content,
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Mark')),
+      body: ResponsiveBody(child: content),
     );
   }
 }
