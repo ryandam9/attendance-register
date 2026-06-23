@@ -15,6 +15,7 @@ import '../providers/office_provider.dart';
 import '../providers/settings_provider.dart';
 import '../themes/bird_art.dart';
 import '../widgets/no_office_placeholder.dart';
+import '../widgets/responsive_body.dart';
 import '../widgets/rto_arc_card.dart';
 
 /// The Insights tab: explains how the "Return to office" percentage is
@@ -75,7 +76,8 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Insights')),
-      body: ListView(
+      body: ResponsiveBody(
+        child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           _OfficeChip(office: office),
@@ -110,7 +112,7 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
             data: (b) => _details(b, target, office.id!),
           ),
         ],
-      ),
+      )),
     );
   }
 

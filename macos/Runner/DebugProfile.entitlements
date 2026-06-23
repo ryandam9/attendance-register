@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.cs.allow-jit</key>
+	<true/>
+	<key>com.apple.security.network.server</key>
+	<true/>
+	<!-- ── Location ─────────────────────────────────────────────────────────
+	     Required for Core Location under the App Sandbox; without it
+	     geolocator returns no fixes on macOS. Macs without GPS resolve their
+	     position via Wi-Fi, so this also needs the network client entitlement. -->
+	<key>com.apple.security.personal-information.location</key>
+	<true/>
+	<!-- Outbound network: Wi-Fi positioning and reverse geocoding (CLGeocoder). -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+</dict>
+</plist>

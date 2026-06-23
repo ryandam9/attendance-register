@@ -79,6 +79,34 @@ flutter run
 3. iOS limits an app to 20 monitored regions — far more offices than the app
    will ever register.
 
+### macOS
+
+> **Foreground only.** `native_geofence` supports Android and iOS only, so the
+> background "auto check-in while the app is closed" does **not** run on macOS.
+> On a Mac, attendance is recorded when you **open or resume the app while at the
+> office** — `performForegroundCheck()` reads the current position and records
+> the day if you're inside an office radius. Everything else (manual marking,
+> reports, reverse geocoding) works as on mobile.
+
+1. Generate the Xcode boilerplate once (the repo tracks only the hand-written
+   files — `Info.plist`, the entitlements and `Configs/AppInfo.xcconfig`):
+
+   ```bash
+   flutter create --platforms=macos .
+   # If flutter create overwrote the committed location config, restore it:
+   git checkout -- macos/Runner/Info.plist macos/Runner/*.entitlements macos/Runner/Configs/AppInfo.xcconfig
+   flutter run -d macos
+   ```
+
+2. The committed entitlements (`DebugProfile.entitlements` / `Release.entitlements`)
+   enable Core Location and outbound network under the App Sandbox. Without the
+   `com.apple.security.personal-information.location` entitlement, `geolocator`
+   returns no fixes on macOS.
+3. Most Macs have no GPS and resolve their position via **Wi-Fi positioning**
+   (accuracy ~tens of metres — usually fine for an office radius). Keep Wi-Fi on
+   and **System Settings → Privacy & Security → Location Services** enabled.
+4. Ensure the macOS deployment target is **10.15+** (required by `geolocator`).
+
 ---
 
 ## Architecture

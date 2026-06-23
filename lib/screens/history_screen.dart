@@ -8,6 +8,7 @@ import '../providers/office_provider.dart';
 import '../services/database_service.dart';
 import '../widgets/no_office_placeholder.dart';
 import '../widgets/quick_mark_sheet.dart';
+import '../widgets/responsive_body.dart';
 
 /// A single, status-agnostic row in the history list. Attendance records and
 /// special days are merged into this shape so they can share one sorted list.
@@ -100,7 +101,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('History')),
-      body: _loading
+      body: ResponsiveBody(
+        child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
               ? const _EmptyHistory()
@@ -139,7 +141,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       );
                     },
                   ),
-                ),
+                )),
     );
   }
 }

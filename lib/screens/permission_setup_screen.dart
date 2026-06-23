@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../widgets/permission_cards.dart';
+import '../widgets/responsive_body.dart';
 
 /// Shown right after the first office is registered: walks the user through
 /// granting the permissions automatic check-in needs (background location,
@@ -15,7 +16,8 @@ class PermissionSetupScreen extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: const Text('Enable Auto Check-In')),
-      body: ListView(
+      body: ResponsiveBody(
+        child: ListView(
         padding: const EdgeInsets.symmetric(vertical: 16),
         children: [
           Padding(
@@ -41,7 +43,7 @@ class PermissionSetupScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
+      )),
     );
   }
 }

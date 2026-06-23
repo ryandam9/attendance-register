@@ -5,6 +5,7 @@ import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
 import '../providers/office_provider.dart';
 import '../services/location_service.dart';
+import '../widgets/responsive_body.dart';
 import 'permission_setup_screen.dart';
 
 class SetupScreen extends ConsumerStatefulWidget {
@@ -164,7 +165,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(_isEditing ? 'Edit Office' : 'Add Office')),
-      body: Form(
+      body: ResponsiveBody(
+        child: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -285,7 +287,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
             ),
           ],
         ),
-      ),
+      )),
     );
   }
 }
