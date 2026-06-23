@@ -39,11 +39,10 @@ jobs:
       - name: Run tests
         run: flutter test
 
-  # Builds portable desktop apps on their native runners (in parallel), on every
-  # push to main, on version tags and on manual dispatch. A separate release job
-  # collects both. Skipped for pull requests to keep their feedback loop fast.
+  # Builds portable desktop apps on their native runners (in parallel) on pushes,
+  # pull requests and manual dispatch, so build breakages (e.g. a toolchain bump)
+  # are caught before merge. The separate release job (push only) publishes them.
   build-windows:
-    if: github.event_name != 'pull_request'
     needs: analyze-and-test
     runs-on: windows-latest
     steps:
@@ -82,7 +81,6 @@ jobs:
           retention-days: 30
 
   build-macos:
-    if: github.event_name != 'pull_request'
     needs: analyze-and-test
     runs-on: macos-latest
     steps:
