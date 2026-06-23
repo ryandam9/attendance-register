@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,6 +30,37 @@ class SettingsScreen extends ConsumerWidget {
     final officeState = ref.watch(officeProvider);
     final notifier = ref.read(officeProvider.notifier);
 
+    // Automatic check-in is geofencing-based and only works on Android/iOS, so
+    // the "How It Works" copy is platform-specific.
+    final isMobile =
+        !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS);
+    final isMacOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
+    final String autoCheckInBody;
+    if (isMobile) {
+      autoCheckInBody =
+          'The OS monitors virtual geofence boundaries around your '
+          'offices. When you enter an office boundary, the OS wakes the '
+          'app in the background to record your attendance automatically '
+          'once per day. Opening the app while at the office records it '
+          'too.\n\n'
+          'You can also tap "Check-In for Today" on the home screen to '
+          'record today\'s attendance manually.';
+    } else if (isMacOS) {
+      autoCheckInBody =
+          'Background geofencing isn\'t available on macOS, so attendance '
+          'isn\'t recorded automatically while the app is closed.\n\n'
+          'Tap "Check-In for Today" on the home screen when you\'re at the '
+          'office, or mark any day from the calendar.';
+    } else {
+      autoCheckInBody =
+          'Automatic, location-based check-in is only available on Android '
+          'and iOS.\n\n'
+          'On this platform, tap "Check-In for Today" on the home screen, or '
+          'mark any day from the calendar.';
+    }
+
     // Each settings section as a self-contained block (label + content) so it
     // can be laid out as one column (phone) or two columns (desktop).
     Widget block(String label, List<Widget> children) => Column(
@@ -51,7 +84,9 @@ class SettingsScreen extends ConsumerWidget {
       ),
       ListTile(
         leading: const Icon(Icons.add_location_alt_outlined),
-        title: const Text('Add Another Office'),
+        title: Text(
+          officeState.offices.isEmpty ? 'Add Office' : 'Add Another Office',
+        ),
         onTap: () => Navigator.push(
           context,
           appRoute(const SetupScreen()),
@@ -79,36 +114,28 @@ class SettingsScreen extends ConsumerWidget {
       ),
     ]);
     final howItWorks = block('How It Works', [
-      const ExpansionTile(
-        leading: Icon(Icons.schedule_outlined),
-        title: Text('Automatic Check-In'),
-        childrenPadding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+      ExpansionTile(
+        leading: const Icon(Icons.schedule_outlined),
+        title: const Text('Automatic Check-In'),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'The OS monitors virtual geofence boundaries around your '
-            'offices. When you enter an office boundary, the OS wakes the '
-            'app in the background to record your attendance automatically '
-            'once per day. Opening the app while at the office records it '
-            'too.\n\n'
-            'You can also tap "Check-In for Today" on the home screen to '
-            'record today\'s attendance manually.',
-          ),
-        ],
+        children: [Text(autoCheckInBody)],
       ),
-      const ExpansionTile(
-        leading: Icon(Icons.battery_saver_outlined),
-        title: Text('Battery Tip'),
-        childrenPadding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-        expandedCrossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'For reliable background tracking:\n'
-            '• Grant "Always Allow" location permission\n'
-            '• Disable battery optimisation to keep geofence callbacks reliable',
-          ),
-        ],
-      ),
+      // Battery optimisation only matters for Android's background geofencing.
+      if (isMobile)
+        const ExpansionTile(
+          leading: Icon(Icons.battery_saver_outlined),
+          title: Text('Battery Tip'),
+          childrenPadding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'For reliable background tracking:\n'
+              '• Grant "Always Allow" location permission\n'
+              '• Disable battery optimisation to keep geofence callbacks reliable',
+            ),
+          ],
+        ),
       ExpansionTile(
         leading: const Icon(Icons.beach_access_outlined),
         title: const Text('Public Holidays'),
