@@ -1,0 +1,13 @@
+# Standalone launcher-icons config for the macOS desktop app only.
+#
+# The main config in pubspec.yaml also targets Android and iOS, so running it
+# requires those platform folders to exist. When you only generate the macOS
+# project (`flutter create --platforms=macos .`), use this file instead so the
+# tool touches macOS only:
+#
+#   dart run flutter_launcher_icons -f flutter_launcher_icons-macos.yaml
+flutter_launcher_icons:
+  image_path: "assets/branding/app_icon.png"
+  macos:
+    generate: true
+    image_path: "assets/branding/app_icon.png"
