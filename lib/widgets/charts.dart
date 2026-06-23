@@ -56,6 +56,16 @@ class BreakdownDonut extends StatelessWidget {
           children: [
             _sectionTitle(context, Icons.donut_large_outlined,
                 'Work style breakdown'),
+            if (total > 0) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Share of your $total recorded ${total == 1 ? 'day' : 'days'} '
+                '(not the return-to-office rate)',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
             const SizedBox(height: 16),
             if (total == 0)
               Padding(
