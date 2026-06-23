@@ -5,6 +5,7 @@ import '../app_colors.dart';
 import '../providers/settings_provider.dart';
 import '../themes/bird_art.dart';
 import '../themes/bird_themes.dart';
+import '../widgets/responsive_body.dart';
 
 class ThemeScreen extends ConsumerWidget {
   const ThemeScreen({super.key});
@@ -17,7 +18,8 @@ class ThemeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Appearance')),
-      body: ListView(
+      body: ResponsiveBody(
+        child: ListView(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -96,7 +98,7 @@ class ThemeScreen extends ConsumerWidget {
             ),
           const SizedBox(height: 16),
         ],
-      ),
+      )),
     );
   }
 }

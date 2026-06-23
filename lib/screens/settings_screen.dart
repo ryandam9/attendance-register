@@ -14,6 +14,7 @@ import '../services/database_service.dart';
 import '../services/export_service.dart';
 import '../services/holiday_service.dart';
 import '../widgets/permission_cards.dart';
+import '../widgets/responsive_body.dart';
 import 'setup_screen.dart';
 import 'theme_screen.dart';
 
@@ -27,7 +28,8 @@ class SettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
+      body: ResponsiveBody(
+        child: ListView(
         children: [
           const _SectionLabel('Profile'),
           const _NameSection(),
@@ -178,7 +180,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
         ],
-      ),
+      )),
     );
   }
 

@@ -16,13 +16,18 @@ class NotificationService {
 
   Future<void> initialize() async {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const ios = DarwinInitializationSettings(
+    // Shared by iOS and macOS — both use the Darwin (Apple) notification stack.
+    const darwin = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: false,
     );
     await _plugin.initialize(
-      settings: const InitializationSettings(android: android, iOS: ios),
+      settings: const InitializationSettings(
+        android: android,
+        iOS: darwin,
+        macOS: darwin,
+      ),
     );
   }
 
@@ -70,6 +75,14 @@ class NotificationService {
     final birdPath = await _birdImagePath();
     final birdBitmap = birdPath == null ? null : FilePathAndroidBitmap(birdPath);
 
+    // iOS and macOS share the same Darwin details (with the bird as an
+    // attachment when available).
+    final darwinDetails = birdPath != null
+        ? DarwinNotificationDetails(
+            attachments: [DarwinNotificationAttachment(birdPath)],
+          )
+        : const DarwinNotificationDetails();
+
     await _plugin.show(
       id: id,
       title: title,
@@ -94,11 +107,8 @@ class NotificationService {
                 )
               : BigTextStyleInformation(body, contentTitle: title),
         ),
-        iOS: birdPath != null
-            ? DarwinNotificationDetails(
-                attachments: [DarwinNotificationAttachment(birdPath)],
-              )
-            : const DarwinNotificationDetails(),
+        iOS: darwinDetails,
+        macOS: darwinDetails,
       ),
     );
   }

@@ -14,6 +14,7 @@ import '../providers/explain_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/special_day_provider.dart';
 import '../widgets/no_office_placeholder.dart';
+import '../widgets/responsive_body.dart';
 import 'day_entry_screen.dart';
 
 /// The "Mark" tab: the home for the two day-recording actions that used to live
@@ -121,7 +122,8 @@ class _MarkScreenState extends ConsumerState<MarkScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mark')),
-      body: Stack(
+      body: ResponsiveBody(
+        child: Stack(
         children: [
           ListView(
             padding: const EdgeInsets.all(16),
@@ -227,7 +229,7 @@ class _MarkScreenState extends ConsumerState<MarkScreen> {
             ),
           ),
         ],
-      ),
+      )),
     );
   }
 }

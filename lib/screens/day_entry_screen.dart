@@ -12,6 +12,7 @@ import '../models/attendance_record.dart';
 import '../models/office_location.dart';
 import '../models/special_day.dart';
 import '../services/database_service.dart';
+import '../widgets/responsive_body.dart';
 
 /// Unified screen for marking a day. For any past date or today the user picks
 /// one of Attended / Holiday / Sick Leave, optionally adds a comment, and saves
@@ -211,7 +212,8 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
       },
       child: Scaffold(
         appBar: AppBar(title: const Text('Mark a Day')),
-        body: AnimatedSwitcher(
+        body: ResponsiveBody(
+          child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 250),
           child: _loading
               ? const Center(
@@ -329,7 +331,7 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
                     ],
                   ),
                 ),
-        ),
+        )),
       ),
     );
   }

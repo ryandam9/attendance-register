@@ -19,6 +19,7 @@ import '../providers/ui_state_provider.dart';
 import '../services/holiday_service.dart';
 import '../themes/bird_art.dart';
 import '../widgets/quick_mark_sheet.dart';
+import '../widgets/responsive_body.dart';
 import '../widgets/rto_arc_card.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
@@ -154,7 +155,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ],
       ),
-      body: AnimatedSwitcher(
+      body: ResponsiveBody(
+        child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: officeState.loading
             ? const Center(
@@ -183,7 +185,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     onPageChanged: _onPageChanged,
                     onDayTapped: _quickMarkDay,
                   ),
-      ),
+      )),
     );
   }
 }
