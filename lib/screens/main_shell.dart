@@ -5,16 +5,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../helpers/layout.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
+import '../providers/settings_provider.dart';
 import '../providers/special_day_provider.dart';
 import '../providers/ui_state_provider.dart';
 import '../services/holiday_service.dart';
 import '../services/location_service.dart';
+import '../themes/bird_art.dart';
+import '../widgets/app_sidebar.dart';
 import 'explain_screen.dart';
 import 'history_screen.dart';
 import 'home_screen.dart';
 import 'mark_screen.dart';
+import 'settings_screen.dart';
 
 /// App scaffold: bottom navigation over Home / Insights / History with a
 /// fade-through transition between tabs. Each tab is rebuilt when selected so
@@ -34,6 +39,30 @@ class MainShell extends ConsumerStatefulWidget {
 class _MainShellState extends ConsumerState<MainShell>
     with WidgetsBindingObserver {
   bool _foregroundCheckRunning = false;
+  bool _sidebarExtended = true;
+
+  static const _destinations = [
+    SidebarDestination(
+      icon: Icons.dashboard_outlined,
+      selectedIcon: Icons.dashboard,
+      label: 'Dashboard',
+    ),
+    SidebarDestination(
+      icon: Icons.edit_calendar_outlined,
+      selectedIcon: Icons.edit_calendar,
+      label: 'Mark',
+    ),
+    SidebarDestination(
+      icon: Icons.insights_outlined,
+      selectedIcon: Icons.insights,
+      label: 'Insights',
+    ),
+    SidebarDestination(
+      icon: Icons.history_outlined,
+      selectedIcon: Icons.history,
+      label: 'History',
+    ),
+  ];
 
   @override
   void initState() {
@@ -110,23 +139,59 @@ class _MainShellState extends ConsumerState<MainShell>
   Widget build(BuildContext context) {
     final index = ref.watch(tabIndexProvider);
 
-    return Scaffold(
-      body: PageTransitionSwitcher(
-        transitionBuilder: (child, animation, secondaryAnimation) =>
-            FadeThroughTransition(
-          animation: animation,
-          secondaryAnimation: secondaryAnimation,
-          child: child,
-        ),
-        child: switch (index) {
-          1 => const MarkScreen(key: ValueKey('tab-mark')),
-          2 => const ExplainScreen(key: ValueKey('tab-insights')),
-          3 => const HistoryScreen(key: ValueKey('tab-history')),
-          _ => const HomeScreen(key: ValueKey('tab-home')),
-        },
+    final content = PageTransitionSwitcher(
+      transitionBuilder: (child, animation, secondaryAnimation) =>
+          FadeThroughTransition(
+        animation: animation,
+        secondaryAnimation: secondaryAnimation,
+        child: child,
       ),
+      child: switch (index) {
+        1 => const MarkScreen(key: ValueKey('tab-mark')),
+        2 => const ExplainScreen(key: ValueKey('tab-insights')),
+        3 => const HistoryScreen(key: ValueKey('tab-history')),
+        4 => const SettingsScreen(key: ValueKey('tab-settings')),
+        _ => const HomeScreen(key: ValueKey('tab-home')),
+      },
+    );
+
+    // Desktop / wide windows: left navigation sidebar + content that fills the
+    // remaining space (no bottom navigation).
+    if (isDesktopWidth(context)) {
+      final office = ref.watch(officeProvider).selectedOffice;
+      final birdAsset = birdAssetForTheme(
+        ref.watch(settingsProvider.select((s) => s.themeId)),
+      );
+      return Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+        body: Row(
+          children: [
+            AppSidebar(
+              destinations: _destinations,
+              selectedIndex: index < _destinations.length ? index : null,
+              onSelect: (i) => ref.read(tabIndexProvider.notifier).set(i),
+              settingsSelected: index == 4,
+              onSettings: () => ref.read(tabIndexProvider.notifier).set(4),
+              extended: _sidebarExtended,
+              onToggleExtended: () =>
+                  setState(() => _sidebarExtended = !_sidebarExtended),
+              appTitle: 'Attendance Register',
+              officeName: office?.name,
+              birdAsset: birdAsset,
+            ),
+            const VerticalDivider(width: 1, thickness: 1),
+            Expanded(child: content),
+          ],
+        ),
+      );
+    }
+
+    // Phones: bottom navigation. Settings (index 4) is only reachable from the
+    // desktop sidebar, so clamp the highlighted tab into range here.
+    return Scaffold(
+      body: content,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
+        selectedIndex: index.clamp(0, 3),
         onDestinationSelected: (i) {
           unawaited(HapticFeedback.selectionClick());
           ref.read(tabIndexProvider.notifier).set(i);
