@@ -45,6 +45,11 @@ class OfficeLocation {
     state: map['state'] as String?,
   );
 
+  /// Whether the office has real coordinates. Offices saved without a resolved
+  /// location (e.g. on desktop, or when the user skips the address) are
+  /// manual-only — no geofencing / auto check-in. 0,0 marks "no location".
+  bool get hasLocation => latitude != 0 || longitude != 0;
+
   OfficeLocation copyWith({
     int? id,
     String? name,

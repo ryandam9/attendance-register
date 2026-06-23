@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart'
+    show debugPrint, defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +9,15 @@ import '../models/attendance_record.dart';
 import '../models/office_location.dart';
 import 'database_service.dart';
 import 'notification_service.dart';
+
+/// native_geofence implements only Android and iOS. On every other platform its
+/// method-channel calls fail with a channelError, so the app skips them: macOS
+/// and desktop rely on the foreground check instead, and Linux/Windows/web have
+/// no location stack at all.
+bool get isGeofencingSupported =>
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS);
 
 /// Invoked by the native_geofence plugin in a background isolate when the OS
 /// reports a geofence crossing — including with the app fully killed.
@@ -119,6 +129,7 @@ class LocationService {
   }
 
   Future<void> syncGeofences() async {
+    if (!isGeofencingSupported) return;
     try {
       final alwaysGranted = await hasAlwaysPermission();
       if (!alwaysGranted) {
@@ -141,6 +152,7 @@ class LocationService {
 
       // 2. Register/re-register geofences for offices in DB
       for (final office in offices) {
+        if (!office.hasLocation) continue; // manual-only office: no geofence
         final idStr = office.id.toString();
         if (activeIds.contains(idStr)) {
           await nf.NativeGeofenceManager.instance.removeGeofenceById(idStr);
@@ -254,6 +266,7 @@ class LocationService {
 
     OfficeLocation? recordedAt;
     for (final office in offices) {
+      if (!office.hasLocation) continue; // manual-only office
       if (await db.hasAttendanceForDate(today, office.id!)) continue;
 
       final distance = Geolocator.distanceBetween(
