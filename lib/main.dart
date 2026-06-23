@@ -1,7 +1,11 @@
+import 'dart:io' show Platform;
+
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:native_geofence/native_geofence.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'providers/settings_provider.dart';
 import 'screens/main_shell.dart';
@@ -11,6 +15,14 @@ import 'themes/bird_themes.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Desktop Linux/Windows have no native sqflite plugin — back the database
+  // with the FFI implementation (bundled sqlite3). Android, iOS and macOS use
+  // the native sqflite plugin and need no setup here.
+  if (!kIsWeb && (Platform.isLinux || Platform.isWindows)) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
 
   await DatabaseService.instance.database;
   await NotificationService.instance.initialize();
