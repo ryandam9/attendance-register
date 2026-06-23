@@ -101,9 +101,12 @@ class LocationService {
       final marks = await placemarkFromCoordinates(lat, lng);
       if (marks.isEmpty) return null;
       final p = marks.first;
-      final address = [p.street, p.locality, p.postalCode, p.country]
-          .where((s) => s != null && s.isNotEmpty)
-          .join(', ');
+      final address = [
+        p.street,
+        p.locality,
+        p.postalCode,
+        p.country,
+      ].where((s) => s != null && s.isNotEmpty).join(', ');
       String? nonEmpty(String? s) => (s == null || s.isEmpty) ? null : s;
       return GeoPlace(
         address: address.isEmpty ? null : address,
@@ -139,7 +142,8 @@ class LocationService {
 
       final db = DatabaseService.instance;
       final offices = await db.getOfficeLocations();
-      final activeGeofences = await nf.NativeGeofenceManager.instance.getRegisteredGeofences();
+      final activeGeofences = await nf.NativeGeofenceManager.instance
+          .getRegisteredGeofences();
       final activeIds = activeGeofences.map((g) => g.id).toSet();
       final dbIds = offices.map((o) => o.id.toString()).toSet();
 
@@ -160,14 +164,13 @@ class LocationService {
 
         final geofence = nf.Geofence(
           id: idStr,
-          location: nf.Location(latitude: office.latitude, longitude: office.longitude),
-          radiusMeters: office.radius,
-          triggers: {
-            nf.GeofenceEvent.enter,
-          },
-          iosSettings: const nf.IosGeofenceSettings(
-            initialTrigger: true,
+          location: nf.Location(
+            latitude: office.latitude,
+            longitude: office.longitude,
           ),
+          radiusMeters: office.radius,
+          triggers: {nf.GeofenceEvent.enter},
+          iosSettings: const nf.IosGeofenceSettings(initialTrigger: true),
           // No expiration: a geofence that silently lapses would stop auto
           // check-in for a user who hasn't opened the app in a while.
           // loiteringDelay is omitted — it only applies to dwell triggers.
@@ -177,7 +180,10 @@ class LocationService {
           ),
         );
 
-        await nf.NativeGeofenceManager.instance.createGeofence(geofence, geofenceTriggered);
+        await nf.NativeGeofenceManager.instance.createGeofence(
+          geofence,
+          geofenceTriggered,
+        );
       }
     } catch (e, stack) {
       // Gracefully log instead of crashing (important for offline/testing/unsupported platform scenarios)

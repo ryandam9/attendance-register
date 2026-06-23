@@ -298,7 +298,8 @@ class DatabaseService {
     final db = await database;
     final start = '$year-${month.toString().padLeft(2, '0')}-01';
     final lastDay = DateTime(year, month + 1, 0).day;
-    final end = '$year-${month.toString().padLeft(2, '0')}-${lastDay.toString().padLeft(2, '0')}';
+    final end =
+        '$year-${month.toString().padLeft(2, '0')}-${lastDay.toString().padLeft(2, '0')}';
 
     final rows = await db.query(
       'attendance_records',
@@ -489,11 +490,9 @@ class DatabaseService {
   /// importer does not re-add it on the next sync.
   Future<void> dismissHoliday(String date) async {
     final db = await database;
-    await db.insert(
-      'dismissed_holidays',
-      {'date': date},
-      conflictAlgorithm: ConflictAlgorithm.ignore,
-    );
+    await db.insert('dismissed_holidays', {
+      'date': date,
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 
   Future<Set<String>> getDismissedHolidayDates() async {
@@ -508,11 +507,9 @@ class DatabaseService {
   /// check-in does not re-record the day while they are still at the office.
   Future<void> dismissAutoCheckIn(String date) async {
     final db = await database;
-    await db.insert(
-      'dismissed_checkins',
-      {'date': date},
-      conflictAlgorithm: ConflictAlgorithm.ignore,
-    );
+    await db.insert('dismissed_checkins', {
+      'date': date,
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 
   Future<bool> isAutoCheckInDismissed(String date) async {
@@ -530,11 +527,7 @@ class DatabaseService {
   /// attended again, so a later auto check-in on that day behaves normally.
   Future<void> undismissAutoCheckIn(String date) async {
     final db = await database;
-    await db.delete(
-      'dismissed_checkins',
-      where: 'date = ?',
-      whereArgs: [date],
-    );
+    await db.delete('dismissed_checkins', where: 'date = ?', whereArgs: [date]);
   }
 
   // ── App settings (key/value preferences) ──────────────────────────────────
@@ -553,11 +546,10 @@ class DatabaseService {
 
   Future<void> setSetting(String key, String value) async {
     final db = await database;
-    await db.insert(
-      'app_settings',
-      {'key': key, 'value': value},
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('app_settings', {
+      'key': key,
+      'value': value,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   /// Clears attendance and special-day data. App preferences in [app_settings]

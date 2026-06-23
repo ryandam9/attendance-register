@@ -23,12 +23,19 @@ class OfficeNotifier extends Notifier<OfficeState> {
   OfficeState build() => const OfficeState();
 
   Future<void> load() async {
-    state = OfficeState(offices: state.offices, selectedOffice: state.selectedOffice, loading: true);
+    state = OfficeState(
+      offices: state.offices,
+      selectedOffice: state.selectedOffice,
+      loading: true,
+    );
     final offices = await DatabaseService.instance.getOfficeLocations();
     final currentId = state.selectedOffice?.id;
     final selected = offices.isEmpty
         ? null
-        : offices.firstWhere((o) => o.id == currentId, orElse: () => offices.first);
+        : offices.firstWhere(
+            (o) => o.id == currentId,
+            orElse: () => offices.first,
+          );
     state = OfficeState(offices: offices, selectedOffice: selected);
   }
 
@@ -49,8 +56,12 @@ class OfficeNotifier extends Notifier<OfficeState> {
 
   Future<void> updateOffice(OfficeLocation office) async {
     await DatabaseService.instance.updateOfficeLocation(office);
-    final offices = [for (final o in state.offices) o.id == office.id ? office : o];
-    final selected = state.selectedOffice?.id == office.id ? office : state.selectedOffice;
+    final offices = [
+      for (final o in state.offices) o.id == office.id ? office : o,
+    ];
+    final selected = state.selectedOffice?.id == office.id
+        ? office
+        : state.selectedOffice;
     state = OfficeState(offices: offices, selectedOffice: selected);
     await LocationService.instance.syncGeofences();
   }

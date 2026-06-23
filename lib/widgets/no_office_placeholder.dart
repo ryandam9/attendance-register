@@ -13,8 +13,11 @@ class NoOfficePlaceholder extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.business_outlined,
-                size: 64, color: cs.primary.withValues(alpha: 0.4)),
+            Icon(
+              Icons.business_outlined,
+              size: 64,
+              color: cs.primary.withValues(alpha: 0.4),
+            ),
             const SizedBox(height: 16),
             Text(
               'No Office Registered',
@@ -24,9 +27,9 @@ class NoOfficePlaceholder extends StatelessWidget {
             Text(
               'Add an office on the Home tab to start tracking.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
             ),
           ],
         ),

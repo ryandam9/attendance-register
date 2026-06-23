@@ -15,7 +15,8 @@ class ExportService {
   static Future<ExportResult> buildCsv() async {
     final db = DatabaseService.instance;
 
-    final lines = <({String date, String status, String office, String comment})>[];
+    final lines =
+        <({String date, String status, String office, String comment})>[];
     for (final office in await db.getOfficeLocations()) {
       for (final r in await db.getAllAttendanceRecords(office.id!)) {
         lines.add((
@@ -48,6 +49,6 @@ class ExportService {
   /// Quotes a CSV field when it contains a delimiter, quote or newline.
   static String _field(String s) =>
       s.contains(',') || s.contains('"') || s.contains('\n')
-          ? '"${s.replaceAll('"', '""')}"'
-          : s;
+      ? '"${s.replaceAll('"', '""')}"'
+      : s;
 }

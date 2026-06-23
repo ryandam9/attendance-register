@@ -46,7 +46,8 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
   static final _displayFmt = DateFormat('MMMM d, yyyy');
   static final _keyFmt = DateFormat('yyyy-MM-dd');
 
-  bool get _hasExisting => _existingRecord != null || _existingSpecialDay != null;
+  bool get _hasExisting =>
+      _existingRecord != null || _existingSpecialDay != null;
 
   @override
   void initState() {
@@ -75,7 +76,9 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
       dateStr,
       widget.office.id!,
     );
-    final special = await DatabaseService.instance.getSpecialDayForDate(dateStr);
+    final special = await DatabaseService.instance.getSpecialDayForDate(
+      dateStr,
+    );
     if (!mounted) return;
     setState(() {
       _existingRecord = record;
@@ -214,124 +217,162 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
         appBar: AppBar(title: const Text('Mark a Day')),
         body: ResponsiveBody(
           child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
-          child: _loading
-              ? const Center(
-                  key: ValueKey('loading'),
-                  child: CircularProgressIndicator(),
-                )
-              : SingleChildScrollView(
-                  key: const ValueKey('content'),
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Card(
-                        child: ListTile(
-                          leading: Icon(Icons.business_outlined, color: cs.primary),
-                          title: Text(widget.office.name),
-                          subtitle: Text(
-                            widget.office.address,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+            duration: const Duration(milliseconds: 250),
+            child: _loading
+                ? const Center(
+                    key: ValueKey('loading'),
+                    child: CircularProgressIndicator(),
+                  )
+                : SingleChildScrollView(
+                    key: const ValueKey('content'),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Card(
+                          child: ListTile(
+                            leading: Icon(
+                              Icons.business_outlined,
+                              color: cs.primary,
+                            ),
+                            title: Text(widget.office.name),
+                            subtitle: Text(
+                              widget.office.address,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text('Date', style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      InkWell(
-                        onTap: _pickDate,
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: cs.outline),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.calendar_today_outlined, color: cs.primary),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _displayFmt.format(_selectedDate),
-                                    style: Theme.of(context).textTheme.bodyLarge,
-                                  ),
-                                  if (isToday)
-                                    Text(
-                                      'Today',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(color: cs.primary, fontWeight: FontWeight.w600),
-                                    ),
-                                ],
-                              ),
-                              const Spacer(),
-                              Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
-                            ],
-                          ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Date',
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      Text('Status', style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      for (final s in DayStatus.values) ...[
-                        if (s != DayStatus.values.first) const SizedBox(height: 8),
-                        _StatusOption(
-                          label: s.label,
-                          description: s.description,
-                          icon: s.icon,
-                          color: s.colorIn(context),
-                          selected: _status == s,
-                          onTap: () => setState(() { _status = s; _dirty = true; }),
-                        ),
-                      ],
-                      const SizedBox(height: 24),
-                      Text('Comment', style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Optional — add a note for this day.',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _commentController,
-                        decoration: const InputDecoration(
-                          hintText: 'e.g. Team meeting, doctor appointment, bank holiday…',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.notes_outlined),
-                          alignLabelWithHint: true,
-                        ),
-                        maxLines: 3,
-                        textCapitalization: TextCapitalization.sentences,
-                      ),
-                      const SizedBox(height: 24),
-                      FilledButton.icon(
-                        onPressed: _loading ? null : _save,
-                        icon: const Icon(Icons.save_outlined),
-                        label: Text(_hasExisting ? 'Update' : 'Save'),
-                        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                      ),
-                      if (_hasExisting) ...[
                         const SizedBox(height: 8),
-                        OutlinedButton.icon(
-                          onPressed: _remove,
-                          icon: Icon(Icons.delete_outline, color: cs.error),
-                          label: Text('Remove Entry', style: TextStyle(color: cs.error)),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: cs.error),
+                        InkWell(
+                          onTap: _pickDate,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: cs.outline),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today_outlined,
+                                  color: cs.primary,
+                                ),
+                                const SizedBox(width: 12),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _displayFmt.format(_selectedDate),
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodyLarge,
+                                    ),
+                                    if (isToday)
+                                      Text(
+                                        'Today',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: cs.primary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
+                                  ],
+                                ),
+                                const Spacer(),
+                                Icon(
+                                  Icons.chevron_right,
+                                  color: cs.onSurfaceVariant,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Status',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        for (final s in DayStatus.values) ...[
+                          if (s != DayStatus.values.first)
+                            const SizedBox(height: 8),
+                          _StatusOption(
+                            label: s.label,
+                            description: s.description,
+                            icon: s.icon,
+                            color: s.colorIn(context),
+                            selected: _status == s,
+                            onTap: () => setState(() {
+                              _status = s;
+                              _dirty = true;
+                            }),
+                          ),
+                        ],
+                        const SizedBox(height: 24),
+                        Text(
+                          'Comment',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Optional — add a note for this day.',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: cs.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _commentController,
+                          decoration: const InputDecoration(
+                            hintText:
+                                'e.g. Team meeting, doctor appointment, bank holiday…',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.notes_outlined),
+                            alignLabelWithHint: true,
+                          ),
+                          maxLines: 3,
+                          textCapitalization: TextCapitalization.sentences,
+                        ),
+                        const SizedBox(height: 24),
+                        FilledButton.icon(
+                          onPressed: _loading ? null : _save,
+                          icon: const Icon(Icons.save_outlined),
+                          label: Text(_hasExisting ? 'Update' : 'Save'),
+                          style: FilledButton.styleFrom(
                             minimumSize: const Size.fromHeight(48),
                           ),
                         ),
+                        if (_hasExisting) ...[
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: _remove,
+                            icon: Icon(Icons.delete_outline, color: cs.error),
+                            label: Text(
+                              'Remove Entry',
+                              style: TextStyle(color: cs.error),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: cs.error),
+                              minimumSize: const Size.fromHeight(48),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-        )),
+          ),
+        ),
       ),
     );
   }

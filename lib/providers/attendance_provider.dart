@@ -8,7 +8,12 @@ import '../models/special_day.dart';
 import '../services/database_service.dart';
 import 'settings_provider.dart';
 
-enum CheckInResult { recorded, alreadyRecorded, alreadyRecordedByAuto, specialDayConflict }
+enum CheckInResult {
+  recorded,
+  alreadyRecorded,
+  alreadyRecordedByAuto,
+  specialDayConflict,
+}
 
 class AttendanceState {
   final List<AttendanceRecord> records;
@@ -57,7 +62,8 @@ class AttendanceState {
       records: records ?? this.records,
       monthlyCount: monthlyCount ?? this.monthlyCount,
       yearlyCount: yearlyCount ?? this.yearlyCount,
-      monthlyOfficeWeekdays: monthlyOfficeWeekdays ?? this.monthlyOfficeWeekdays,
+      monthlyOfficeWeekdays:
+          monthlyOfficeWeekdays ?? this.monthlyOfficeWeekdays,
       yearlyOfficeWeekdays: yearlyOfficeWeekdays ?? this.yearlyOfficeWeekdays,
       monthlyWeekdays: monthlyWeekdays ?? this.monthlyWeekdays,
       yearlyWeekdays: yearlyWeekdays ?? this.yearlyWeekdays,
@@ -112,10 +118,16 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
 
     final db = DatabaseService.instance;
     final records = await db.getAttendanceForMonth(year, month, officeId);
-    final monthlyCount =
-        await db.getAttendanceCount(officeId, from: monthStart, to: monthEnd);
-    final yearlyCount =
-        await db.getAttendanceCount(officeId, from: yearStart, to: yearEnd);
+    final monthlyCount = await db.getAttendanceCount(
+      officeId,
+      from: monthStart,
+      to: monthEnd,
+    );
+    final yearlyCount = await db.getAttendanceCount(
+      officeId,
+      from: yearStart,
+      to: yearEnd,
+    );
     final monthlyOfficeWeekdays = await db.getAttendanceCount(
       officeId,
       from: monthStart,
@@ -129,11 +141,13 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
       weekdaysOnly: true,
     );
     final monthlyExcludedCount = await db.getSpecialDayCount(
-      monthStart, monthEnd,
+      monthStart,
+      monthEnd,
       types: excludedFromAttendanceDenominator,
     );
     final yearlyExcludedCount = await db.getSpecialDayCount(
-      yearStart, yearEnd,
+      yearStart,
+      yearEnd,
       types: excludedFromAttendanceDenominator,
     );
 
@@ -161,7 +175,9 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     // Prevent creating attendance on a holiday or sick-leave day.
-    final specialDay = await DatabaseService.instance.getSpecialDayForDate(today);
+    final specialDay = await DatabaseService.instance.getSpecialDayForDate(
+      today,
+    );
     if (specialDay != null) return CheckInResult.specialDayConflict;
 
     final id = await DatabaseService.instance.insertAttendanceRecord(
@@ -176,17 +192,18 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
     await DatabaseService.instance.undismissAutoCheckIn(today);
     await loadForMonth(officeId, focusedMonth.year, focusedMonth.month);
     if (id != null && id > 0) return CheckInResult.recorded;
-    final existing = await DatabaseService.instance.getAttendanceForDate(today, officeId);
-    if (existing?.reason == 'Auto check-in') return CheckInResult.alreadyRecordedByAuto;
+    final existing = await DatabaseService.instance.getAttendanceForDate(
+      today,
+      officeId,
+    );
+    if (existing?.reason == 'Auto check-in') {
+      return CheckInResult.alreadyRecordedByAuto;
+    }
     return CheckInResult.alreadyRecorded;
   }
 
   /// Inserts a new record or updates the reason on an existing one.
-  Future<void> saveRecord(
-    int officeId,
-    String date, {
-    String? reason,
-  }) async {
+  Future<void> saveRecord(int officeId, String date, {String? reason}) async {
     final existing = await DatabaseService.instance.getAttendanceForDate(
       date,
       officeId,
@@ -229,6 +246,7 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
   }
 }
 
-final attendanceProvider = NotifierProvider<AttendanceNotifier, AttendanceState>(
-  AttendanceNotifier.new,
-);
+final attendanceProvider =
+    NotifierProvider<AttendanceNotifier, AttendanceState>(
+      AttendanceNotifier.new,
+    );

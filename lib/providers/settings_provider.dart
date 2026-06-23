@@ -34,15 +34,14 @@ class SettingsState {
     String? userName,
     int? rtoTarget,
     bool? loaded,
-  }) =>
-      SettingsState(
-        financialYearStart: financialYearStart ?? this.financialYearStart,
-        themeId: themeId ?? this.themeId,
-        themeMode: themeMode ?? this.themeMode,
-        userName: userName ?? this.userName,
-        rtoTarget: rtoTarget ?? this.rtoTarget,
-        loaded: loaded ?? this.loaded,
-      );
+  }) => SettingsState(
+    financialYearStart: financialYearStart ?? this.financialYearStart,
+    themeId: themeId ?? this.themeId,
+    themeMode: themeMode ?? this.themeMode,
+    userName: userName ?? this.userName,
+    rtoTarget: rtoTarget ?? this.rtoTarget,
+    loaded: loaded ?? this.loaded,
+  );
 
   BirdTheme get theme => birdThemeById(themeId);
 }
@@ -74,7 +73,8 @@ class SettingsNotifier extends Notifier<SettingsState> {
       themeId: themeId ?? 'bee_eater',
       themeMode: _themeModeFromName(themeMode),
       userName: userName ?? '',
-      rtoTarget: int.tryParse(rtoTarget ?? '') ?? SettingsState.defaultRtoTarget,
+      rtoTarget:
+          int.tryParse(rtoTarget ?? '') ?? SettingsState.defaultRtoTarget,
       loaded: true,
     );
   }
@@ -105,5 +105,6 @@ class SettingsNotifier extends Notifier<SettingsState> {
   }
 }
 
-final settingsProvider =
-    NotifierProvider<SettingsNotifier, SettingsState>(SettingsNotifier.new);
+final settingsProvider = NotifierProvider<SettingsNotifier, SettingsState>(
+  SettingsNotifier.new,
+);

@@ -146,13 +146,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       appBar: AppBar(title: const Text('History')),
       body: ResponsiveBody(
         child: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _items.isEmpty
-              ? const _EmptyHistory()
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: _list(onTap: _openEntry),
-                )),
+            ? const Center(child: CircularProgressIndicator())
+            : _items.isEmpty
+            ? const _EmptyHistory()
+            : RefreshIndicator(
+                onRefresh: _load,
+                child: _list(onTap: _openEntry),
+              ),
+      ),
     );
   }
 
@@ -170,7 +171,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         final color = item.status.colorIn(context);
         final isToday =
             _keyFmt.format(item.date) == _keyFmt.format(DateTime.now());
-        final selected = selectedDate != null &&
+        final selected =
+            selectedDate != null &&
             _keyFmt.format(item.date) == _keyFmt.format(selectedDate);
         return ListTile(
           selected: selected,
@@ -219,33 +221,37 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               child: Text(
                 _dateFmt.format(item.date),
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
             const SizedBox(height: 10),
-            Center(child: _StatusChip(label: item.status.label, color: color)),
+            Center(
+              child: _StatusChip(label: item.status.label, color: color),
+            ),
             const SizedBox(height: 24),
             Text(
               'Note',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: cs.onSurfaceVariant),
             ),
             const SizedBox(height: 4),
             Text(
               hasNote ? item.comment! : 'No note for this day.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: hasNote ? null : cs.onSurfaceVariant,
-                  ),
+                color: hasNote ? null : cs.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 24),
             FilledButton.tonalIcon(
               onPressed: () => _openEntry(item),
               icon: const Icon(Icons.edit_calendar_outlined),
               label: const Text('Edit / Remove'),
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(46)),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(46),
+              ),
             ),
           ],
         ),

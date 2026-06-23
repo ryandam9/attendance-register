@@ -69,19 +69,27 @@ void main() {
   });
 
   group('excludedFromAttendanceDenominator', () {
-    test('excludes every leave type including miscLeave from the denominator',
-        () {
-      expect(excludedFromAttendanceDenominator, contains(DayType.holiday));
-      expect(excludedFromAttendanceDenominator, contains(DayType.sickLeave));
-      expect(excludedFromAttendanceDenominator, contains(DayType.annualLeave));
-      expect(excludedFromAttendanceDenominator, contains(DayType.carersLeave));
-      expect(excludedFromAttendanceDenominator, contains(DayType.miscLeave));
-      // Work-from-home is a working day you did not attend the office — it
-      // must stay in the denominator so it lowers your percentage.
-      expect(
-        excludedFromAttendanceDenominator,
-        isNot(contains(DayType.workFromHome)),
-      );
-    });
+    test(
+      'excludes every leave type including miscLeave from the denominator',
+      () {
+        expect(excludedFromAttendanceDenominator, contains(DayType.holiday));
+        expect(excludedFromAttendanceDenominator, contains(DayType.sickLeave));
+        expect(
+          excludedFromAttendanceDenominator,
+          contains(DayType.annualLeave),
+        );
+        expect(
+          excludedFromAttendanceDenominator,
+          contains(DayType.carersLeave),
+        );
+        expect(excludedFromAttendanceDenominator, contains(DayType.miscLeave));
+        // Work-from-home is a working day you did not attend the office — it
+        // must stay in the denominator so it lowers your percentage.
+        expect(
+          excludedFromAttendanceDenominator,
+          isNot(contains(DayType.workFromHome)),
+        );
+      },
+    );
   });
 }

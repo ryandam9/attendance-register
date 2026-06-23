@@ -53,9 +53,9 @@ class AttendanceBreakdown {
 
   /// Leave days subtracted from the denominator (holiday, sick, annual, carer's).
   int get excludedDays => excludedFromAttendanceDenominator.fold(
-        0,
-        (sum, type) => sum + countOf(type),
-      );
+    0,
+    (sum, type) => sum + countOf(type),
+  );
 
   /// Weekdays you were expected at the office — the percentage denominator.
   int get eligibleWorkingDays => weekdays - excludedDays;

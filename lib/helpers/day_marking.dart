@@ -35,12 +35,14 @@ Future<void> saveDayStatus(
     await attendance.saveRecord(office.id!, dateKey, reason: note);
   } else {
     await attendance.deleteRecord(dateKey, office.id!);
-    await special.saveDay(SpecialDay(
-      id: existingSpecial?.id,
-      date: dateKey,
-      type: status.dayType,
-      note: note,
-    ));
+    await special.saveDay(
+      SpecialDay(
+        id: existingSpecial?.id,
+        date: dateKey,
+        type: status.dayType,
+        note: note,
+      ),
+    );
   }
 }
 
@@ -57,11 +59,10 @@ Future<void> removeDayEntry(
   // auto check-in inserted after the sheet opened must not survive a Remove.
   // Deleting also dismisses auto check-in for the day, so blanking today
   // sticks even while the user is still inside the office radius.
-  await ref
-      .read(attendanceProvider.notifier)
-      .deleteRecord(dateKey, office.id!);
+  await ref.read(attendanceProvider.notifier).deleteRecord(dateKey, office.id!);
   if (existingSpecial != null) {
-    final wasAutoHoliday = existingSpecial.type == DayType.holiday &&
+    final wasAutoHoliday =
+        existingSpecial.type == DayType.holiday &&
         existingSpecial.source == DaySource.auto;
     await ref
         .read(specialDayProvider.notifier)

@@ -20,85 +20,88 @@ class ThemeScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Appearance')),
       body: ResponsiveBody(
         child: ListView(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: SegmentedButton<ThemeMode>(
-              segments: const [
-                ButtonSegment(
-                  value: ThemeMode.system,
-                  label: Text('System'),
-                  icon: Icon(Icons.brightness_auto_outlined),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.light,
-                  label: Text('Light'),
-                  icon: Icon(Icons.light_mode_outlined),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.dark,
-                  label: Text('Dark'),
-                  icon: Icon(Icons.dark_mode_outlined),
-                ),
-              ],
-              selected: {settings.themeMode},
-              onSelectionChanged: (s) => notifier.setThemeMode(s.first),
-            ),
-          ),
-
-          // Live preview of the active theme so the choice is never a guess.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Text('Preview',
-                style: Theme.of(context).textTheme.labelLarge),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: _ThemePreviewCard(
-              theme: settings.themeId == dynamicThemeId
-                  ? null
-                  : settings.theme,
-              birdAsset: birdAssetForTheme(settings.themeId),
-            ),
-          ),
-
-          const Divider(height: 24),
-          // Material You — the device's wallpaper palette (Android 12+).
-          ListTile(
-            leading: Icon(Icons.wallpaper_outlined, color: cs.primary),
-            title: const Text('Match my wallpaper'),
-            subtitle: const Text(
-              'Material You — uses your device\'s colour palette (Android 12+; '
-              'falls back to Rainbow Bee-eater elsewhere).',
-            ),
-            trailing: settings.themeId == dynamicThemeId
-                ? Icon(Icons.radio_button_checked, color: cs.primary)
-                : const Icon(Icons.radio_button_unchecked),
-            onTap: () => notifier.setThemeId(dynamicThemeId),
-          ),
-          const Divider(height: 24),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Text(
-              'Or choose a colour theme inspired by Australian birds.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: SegmentedButton<ThemeMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: ThemeMode.system,
+                    label: Text('System'),
+                    icon: Icon(Icons.brightness_auto_outlined),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.light,
+                    label: Text('Light'),
+                    icon: Icon(Icons.light_mode_outlined),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.dark,
+                    label: Text('Dark'),
+                    icon: Icon(Icons.dark_mode_outlined),
+                  ),
+                ],
+                selected: {settings.themeMode},
+                onSelectionChanged: (s) => notifier.setThemeMode(s.first),
               ),
             ),
-          ),
-          for (final theme in birdThemes)
+
+            // Live preview of the active theme so the choice is never a guess.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(
+                'Preview',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: _ThemePreviewCard(
+                theme: settings.themeId == dynamicThemeId
+                    ? null
+                    : settings.theme,
+                birdAsset: birdAssetForTheme(settings.themeId),
+              ),
+            ),
+
+            const Divider(height: 24),
+            // Material You — the device's wallpaper palette (Android 12+).
             ListTile(
-              leading: _ThemeLeading(theme: theme),
-              title: Text(theme.name),
-              subtitle: Text(theme.description),
-              trailing: settings.themeId == theme.id
+              leading: Icon(Icons.wallpaper_outlined, color: cs.primary),
+              title: const Text('Match my wallpaper'),
+              subtitle: const Text(
+                'Material You — uses your device\'s colour palette (Android 12+; '
+                'falls back to Rainbow Bee-eater elsewhere).',
+              ),
+              trailing: settings.themeId == dynamicThemeId
                   ? Icon(Icons.radio_button_checked, color: cs.primary)
                   : const Icon(Icons.radio_button_unchecked),
-              onTap: () => notifier.setThemeId(theme.id),
+              onTap: () => notifier.setThemeId(dynamicThemeId),
             ),
-          const SizedBox(height: 16),
-        ],
-      )),
+            const Divider(height: 24),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                'Or choose a colour theme inspired by Australian birds.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+              ),
+            ),
+            for (final theme in birdThemes)
+              ListTile(
+                leading: _ThemeLeading(theme: theme),
+                title: Text(theme.name),
+                subtitle: Text(theme.description),
+                trailing: settings.themeId == theme.id
+                    ? Icon(Icons.radio_button_checked, color: cs.primary)
+                    : const Icon(Icons.radio_button_unchecked),
+                onTap: () => notifier.setThemeId(theme.id),
+              ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -201,7 +204,12 @@ class _ThemePreviewCard extends StatelessWidget {
                   ),
                   const Spacer(),
                   if (birdAsset != null)
-                    Image.asset(birdAsset!, width: 40, height: 26, fit: BoxFit.contain),
+                    Image.asset(
+                      birdAsset!,
+                      width: 40,
+                      height: 26,
+                      fit: BoxFit.contain,
+                    ),
                 ],
               ),
             ),
@@ -229,11 +237,15 @@ class _ThemePreviewCard extends StatelessWidget {
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: tertiary.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: tertiary.withValues(alpha: 0.5)),
+                      border: Border.all(
+                        color: tertiary.withValues(alpha: 0.5),
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -251,8 +263,10 @@ class _ThemePreviewCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.attendance.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),

@@ -65,16 +65,19 @@ class RtoArcCard extends StatelessWidget {
                     if (periodLabel != null)
                       Text(
                         periodLabel!,
-                        style: theme.textTheme.labelMedium
-                            ?.copyWith(color: cs.primary, fontWeight: FontWeight.w600),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: cs.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     const SizedBox(height: 2),
                     Text(
                       pct == null
                           ? 'No eligible working days yet'
                           : '${breakdown.officeDays} of ${breakdown.eligibleWorkingDays} working days',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: cs.onSurfaceVariant),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -84,13 +87,15 @@ class RtoArcCard extends StatelessWidget {
                 children: [
                   Text(
                     '$target%',
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   Text(
                     'target',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: cs.onSurfaceVariant),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -121,9 +126,7 @@ class RtoArcCard extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
-      child: onTap == null
-          ? content
-          : InkWell(onTap: onTap, child: content),
+      child: onTap == null ? content : InkWell(onTap: onTap, child: content),
     );
   }
 }
@@ -168,9 +171,9 @@ class _TargetBanner extends StatelessWidget {
                   ? 'Target of $target% met — nice work!'
                   : 'You are below the $target% target',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                  ),
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -263,7 +266,8 @@ class _RtoArc extends StatelessWidget {
                             Text(
                               '$target% target',
                               style: theme.textTheme.labelMedium?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant),
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ],
                         ),
@@ -341,7 +345,10 @@ class _ArcPainter extends CustomPainter {
           center.dy + radius * math.sin(markerAngle),
         );
         canvas.drawCircle(
-            markerPos, stroke / 2 + 2, Paint()..color = Colors.white);
+          markerPos,
+          stroke / 2 + 2,
+          Paint()..color = Colors.white,
+        );
         canvas.drawCircle(markerPos, stroke / 2 - 1, Paint()..color = accent);
       }
     }

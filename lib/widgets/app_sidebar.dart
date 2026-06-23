@@ -60,36 +60,50 @@ class AppSidebar extends StatelessWidget {
       curve: Curves.easeOut,
       width: extended ? extendedWidth : collapsedWidth,
       color: cs.surface,
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _header(context),
-            const SizedBox(height: 8),
-            for (var i = 0; i < destinations.length; i++)
-              _SidebarTile(
-                icon: destinations[i].icon,
-                selectedIcon: destinations[i].selectedIcon,
-                label: destinations[i].label,
-                selected: !settingsSelected && selectedIndex == i,
-                extended: extended,
-                onTap: () => onSelect(i),
-              ),
-            const Spacer(),
-            Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
-            const SizedBox(height: 8),
-            _SidebarTile(
-              icon: Icons.settings_outlined,
-              selectedIcon: Icons.settings,
-              label: 'Settings',
-              selected: settingsSelected,
-              extended: extended,
-              onTap: onSettings,
+      // While the width animates between collapsed/expanded, lay the content out
+      // at its destination width and clip the rest — otherwise the extended rows
+      // (icon + label) are momentarily squeezed below their natural width and
+      // overflow.
+      child: ClipRect(
+        child: OverflowBox(
+          alignment: Alignment.centerLeft,
+          minWidth: extended ? extendedWidth : collapsedWidth,
+          maxWidth: extended ? extendedWidth : collapsedWidth,
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _header(context),
+                const SizedBox(height: 8),
+                for (var i = 0; i < destinations.length; i++)
+                  _SidebarTile(
+                    icon: destinations[i].icon,
+                    selectedIcon: destinations[i].selectedIcon,
+                    label: destinations[i].label,
+                    selected: !settingsSelected && selectedIndex == i,
+                    extended: extended,
+                    onTap: () => onSelect(i),
+                  ),
+                const Spacer(),
+                Divider(
+                  height: 1,
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                ),
+                const SizedBox(height: 8),
+                _SidebarTile(
+                  icon: Icons.settings_outlined,
+                  selectedIcon: Icons.settings,
+                  label: 'Settings',
+                  selected: settingsSelected,
+                  extended: extended,
+                  onTap: onSettings,
+                ),
+                const SizedBox(height: 8),
+                if (officeName != null) _officeCard(context),
+                _collapseToggle(context),
+              ],
             ),
-            const SizedBox(height: 8),
-            if (officeName != null) _officeCard(context),
-            _collapseToggle(context),
-          ],
+          ),
         ),
       ),
     );
@@ -112,8 +126,9 @@ class AppSidebar extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.fromLTRB(extended ? 16 : 0, 14, extended ? 12 : 0, 6),
       child: Row(
-        mainAxisAlignment:
-            extended ? MainAxisAlignment.start : MainAxisAlignment.center,
+        mainAxisAlignment: extended
+            ? MainAxisAlignment.start
+            : MainAxisAlignment.center,
         children: [
           avatar,
           if (extended) ...[
@@ -123,9 +138,9 @@ class AppSidebar extends StatelessWidget {
                 appTitle,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
           ],
@@ -166,14 +181,14 @@ class AppSidebar extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   Text(
                     'Active office',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -196,8 +211,9 @@ class AppSidebar extends StatelessWidget {
           alignment: extended ? Alignment.centerLeft : Alignment.center,
           padding: EdgeInsets.symmetric(horizontal: extended ? 14 : 0),
           child: Row(
-            mainAxisAlignment:
-                extended ? MainAxisAlignment.start : MainAxisAlignment.center,
+            mainAxisAlignment: extended
+                ? MainAxisAlignment.start
+                : MainAxisAlignment.center,
             children: [
               Icon(
                 extended ? Icons.chevron_left : Icons.chevron_right,
@@ -208,9 +224,9 @@ class AppSidebar extends StatelessWidget {
                 const SizedBox(width: 12),
                 Text(
                   'Collapse',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
                 ),
               ],
             ],
@@ -243,7 +259,11 @@ class _SidebarTile extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final fg = selected ? cs.onPrimaryContainer : cs.onSurfaceVariant;
     final iconColor = selected ? cs.primary : cs.onSurfaceVariant;
-    final iconWidget = Icon(selected ? selectedIcon : icon, size: 22, color: iconColor);
+    final iconWidget = Icon(
+      selected ? selectedIcon : icon,
+      size: 22,
+      color: iconColor,
+    );
 
     final child = extended
         ? Row(
@@ -256,9 +276,9 @@ class _SidebarTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: fg,
-                        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      ),
+                    color: fg,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  ),
                 ),
               ),
             ],
@@ -268,7 +288,9 @@ class _SidebarTile extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: extended ? 12 : 8, vertical: 3),
       child: Material(
-        color: selected ? cs.primaryContainer.withValues(alpha: 0.6) : Colors.transparent,
+        color: selected
+            ? cs.primaryContainer.withValues(alpha: 0.6)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         clipBehavior: Clip.antiAlias,
         child: InkWell(

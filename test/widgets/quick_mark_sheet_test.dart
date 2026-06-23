@@ -47,12 +47,14 @@ void main() {
   setUp(() async {
     DatabaseService.overridePath = inMemoryDatabasePath;
     await service.reset();
-    final id = await service.insertOfficeLocation(const OfficeLocation(
-      name: 'HQ',
-      address: '1 Main St',
-      latitude: 0,
-      longitude: 0,
-    ));
+    final id = await service.insertOfficeLocation(
+      const OfficeLocation(
+        name: 'HQ',
+        address: '1 Main St',
+        latitude: 0,
+        longitude: 0,
+      ),
+    );
     office = OfficeLocation(
       id: id,
       name: 'HQ',
@@ -72,15 +74,20 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(ProviderScope(
-      child: MaterialApp(home: _Host(office: office, date: date)),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: _Host(office: office, date: date),
+        ),
+      ),
+    );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
   }
 
-  testWidgets('marking a day as Sick Leave from the sheet saves it',
-      (tester) async {
+  testWidgets('marking a day as Sick Leave from the sheet saves it', (
+    tester,
+  ) async {
     await openSheet(tester);
 
     await tester.tap(find.text('Sick Leave'));
@@ -96,8 +103,9 @@ void main() {
     expect(await service.getAttendanceForDate(dateKey, office.id!), isNull);
   });
 
-  testWidgets('saving Attended with a comment writes an attendance record',
-      (tester) async {
+  testWidgets('saving Attended with a comment writes an attendance record', (
+    tester,
+  ) async {
     await openSheet(tester);
 
     // Attended is preselected for an unmarked day.
@@ -110,8 +118,9 @@ void main() {
     expect(record!.reason, 'Client visit');
   });
 
-  testWidgets('"All options" escalates to the full day-entry screen',
-      (tester) async {
+  testWidgets('"All options" escalates to the full day-entry screen', (
+    tester,
+  ) async {
     await openSheet(tester);
 
     await tester.tap(find.text('All options…'));
@@ -121,39 +130,46 @@ void main() {
   });
 
   testWidgets(
-      'marking Work from Home removes an auto check-in inserted after the '
-      'sheet opened', (tester) async {
-    await openSheet(tester);
+    'marking Work from Home removes an auto check-in inserted after the '
+    'sheet opened',
+    (tester) async {
+      await openSheet(tester);
 
-    // Simulate the background geofence isolate recording an auto check-in
-    // while the sheet is already open — the sheet's snapshot says the day is
-    // unmarked, so saving used to leave this record behind alongside the WFH
-    // special day, and History showed both.
-    await service.insertAttendanceRecord(AttendanceRecord(
-      date: dateKey,
-      officeLocationId: office.id!,
-      timestamp: DateTime(2026, 6, 10, 9),
-      reason: 'Auto check-in',
-    ));
+      // Simulate the background geofence isolate recording an auto check-in
+      // while the sheet is already open — the sheet's snapshot says the day is
+      // unmarked, so saving used to leave this record behind alongside the WFH
+      // special day, and History showed both.
+      await service.insertAttendanceRecord(
+        AttendanceRecord(
+          date: dateKey,
+          officeLocationId: office.id!,
+          timestamp: DateTime(2026, 6, 10, 9),
+          reason: 'Auto check-in',
+        ),
+      );
 
-    await tester.tap(find.text('Work from Home'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Work from Home'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
 
-    expect(await service.getAttendanceForDate(dateKey, office.id!), isNull);
-    final special = await service.getSpecialDayForDate(dateKey);
-    expect(special!.type, DayType.workFromHome);
-  });
+      expect(await service.getAttendanceForDate(dateKey, office.id!), isNull);
+      final special = await service.getSpecialDayForDate(dateKey);
+      expect(special!.type, DayType.workFromHome);
+    },
+  );
 
-  testWidgets('removing an auto check-in dismisses the day for auto check-in',
-      (tester) async {
-    await service.insertAttendanceRecord(AttendanceRecord(
-      date: dateKey,
-      officeLocationId: office.id!,
-      timestamp: DateTime(2026, 6, 10, 9),
-      reason: 'Auto check-in',
-    ));
+  testWidgets('removing an auto check-in dismisses the day for auto check-in', (
+    tester,
+  ) async {
+    await service.insertAttendanceRecord(
+      AttendanceRecord(
+        date: dateKey,
+        officeLocationId: office.id!,
+        timestamp: DateTime(2026, 6, 10, 9),
+        reason: 'Auto check-in',
+      ),
+    );
     await openSheet(tester);
 
     await tester.tap(find.byTooltip('Remove entry'));
