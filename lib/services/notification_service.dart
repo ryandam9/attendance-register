@@ -24,12 +24,20 @@ class NotificationService {
     );
     // Required when running on Linux desktop.
     const linux = LinuxInitializationSettings(defaultActionName: 'Open');
+    // Required when running on Windows desktop.
+    const windows = WindowsInitializationSettings(
+      appName: 'Attendance Register',
+      appUserModelId: 'com.example.attendanceRegister',
+      // Stable GUID identifying this app to the Windows notification system.
+      guid: '6e3a8c2f-9b1d-4f2a-8a3e-2f7c9d4b1a55',
+    );
     await _plugin.initialize(
       settings: const InitializationSettings(
         android: android,
         iOS: darwin,
         macOS: darwin,
         linux: linux,
+        windows: windows,
       ),
     );
   }
