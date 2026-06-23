@@ -196,8 +196,9 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
       today,
       officeId,
     );
-    if (existing?.reason == 'Auto check-in')
+    if (existing?.reason == 'Auto check-in') {
       return CheckInResult.alreadyRecordedByAuto;
+    }
     return CheckInResult.alreadyRecorded;
   }
 
