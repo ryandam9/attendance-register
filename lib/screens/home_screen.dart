@@ -929,58 +929,145 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
         : sp.typeByDate[key]?.dayStatus;
     final isFuture = _selectedDay.isAfter(DateTime.now());
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.event_note_outlined, size: 20, color: cs.primary),
-                const SizedBox(width: 8),
+    return _AttentionBorder(
+      trigger: _selectedDay,
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.event_note_outlined, size: 20, color: cs.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Selected day',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _dayLabelFmt.format(_selectedDay),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 12),
+              if (status != null)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: _StatusBadge(status: status),
+                )
+              else
                 Text(
-                  'Selected day',
+                  'No attendance recorded for this day.',
                   style: Theme.of(
                     context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                  ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _dayLabelFmt.format(_selectedDay),
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            if (status != null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: _StatusBadge(status: status),
-              )
-            else
-              Text(
-                'No attendance recorded for this day.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+              const SizedBox(height: 16),
+              FilledButton.tonalIcon(
+                onPressed: isFuture
+                    ? null
+                    : () => widget.onDayTapped(_selectedDay),
+                icon: const Icon(Icons.edit_calendar_outlined),
+                label: Text(status == null ? 'Mark this day' : 'Edit this day'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(46),
+                ),
               ),
-            const SizedBox(height: 16),
-            FilledButton.tonalIcon(
-              onPressed: isFuture
-                  ? null
-                  : () => widget.onDayTapped(_selectedDay),
-              icon: const Icon(Icons.edit_calendar_outlined),
-              label: Text(status == null ? 'Mark this day' : 'Edit this day'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(46),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// Briefly pulses a primary-coloured border + glow around [child] for ~5s each
+/// time [trigger] changes. Used on the selected-day panel so that picking a new
+/// day visibly draws the eye to the panel (and its action), instead of the
+/// change going unnoticed.
+class _AttentionBorder extends StatefulWidget {
+  final Object trigger;
+  final Widget child;
+  const _AttentionBorder({required this.trigger, required this.child});
+
+  @override
+  State<_AttentionBorder> createState() => _AttentionBorderState();
+}
+
+class _AttentionBorderState extends State<_AttentionBorder>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 850),
+  );
+  int _pulseId = 0;
+
+  @override
+  void didUpdateWidget(covariant _AttentionBorder old) {
+    super.didUpdateWidget(old);
+    if (old.trigger != widget.trigger) _pulse();
+  }
+
+  void _pulse() {
+    final id = ++_pulseId;
+    _controller
+      ..reset()
+      ..repeat(reverse: true);
+    // Pulse for ~5 seconds, then ease the border back out. A newer pulse
+    // supersedes this one (guarded by the id) so it isn't cut short.
+    Future.delayed(const Duration(seconds: 5), () {
+      if (!mounted || id != _pulseId) return;
+      _controller.stop();
+      _controller.animateBack(0, duration: const Duration(milliseconds: 300));
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final t = Curves.easeInOut.transform(_controller.value);
+        // foregroundDecoration paints the border over the card edge without
+        // insetting it (no layout shift); the shadow goes behind.
+        return Container(
+          foregroundDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: cs.primary.withValues(alpha: t),
+              width: 2,
+            ),
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: t > 0
+                ? [
+                    BoxShadow(
+                      color: cs.primary.withValues(alpha: 0.25 * t),
+                      blurRadius: 14 * t,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : null,
+          ),
+          child: child,
+        );
+      },
+      child: widget.child,
     );
   }
 }
