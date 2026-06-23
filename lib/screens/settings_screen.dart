@@ -28,173 +28,185 @@ class SettingsScreen extends ConsumerWidget {
     final officeState = ref.watch(officeProvider);
     final notifier = ref.read(officeProvider.notifier);
 
-    final content = ListView(
-      children: [
-          const _SectionLabel('Profile'),
-          const _NameSection(),
-          const Divider(height: 32),
-          const _SectionLabel('Attendance Target'),
-          const _TargetSection(),
-          const Divider(height: 32),
-          const _SectionLabel('Offices'),
-          ...officeState.offices.map(
-            (o) => _OfficeTile(
-              office: o,
-              onEdit: () => Navigator.push(
-                context,
-                appRoute(SetupScreen(office: o)),
-              ).then((_) => notifier.load()),
-              onDelete: () => _confirmDelete(context, notifier, o),
-            ),
+    // Each settings section as a self-contained block (label + content) so it
+    // can be laid out as one column (phone) or two columns (desktop).
+    Widget block(String label, List<Widget> children) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [_SectionLabel(label), ...children],
+        );
+
+    final profile = block('Profile', const [_NameSection()]);
+    final target = block('Attendance Target', const [_TargetSection()]);
+    final offices = block('Offices', [
+      ...officeState.offices.map(
+        (o) => _OfficeTile(
+          office: o,
+          onEdit: () => Navigator.push(
+            context,
+            appRoute(SetupScreen(office: o)),
+          ).then((_) => notifier.load()),
+          onDelete: () => _confirmDelete(context, notifier, o),
+        ),
+      ),
+      ListTile(
+        leading: const Icon(Icons.add_location_alt_outlined),
+        title: const Text('Add Another Office'),
+        onTap: () => Navigator.push(
+          context,
+          appRoute(const SetupScreen()),
+        ).then((_) => notifier.load()),
+      ),
+    ]);
+    final permissions = block('Permissions', const [PermissionsSection()]);
+    final appearance = block('Appearance', [
+      ListTile(
+        leading: const Icon(Icons.palette_outlined),
+        title: const Text('Theme & Dark Mode'),
+        subtitle: const Text('Bird palettes, Material You, light/dark'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.push(context, appRoute(const ThemeScreen())),
+      ),
+    ]);
+    final howItWorks = block('How It Works', [
+      const ExpansionTile(
+        leading: Icon(Icons.schedule_outlined),
+        title: Text('Automatic Check-In'),
+        childrenPadding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'The OS monitors virtual geofence boundaries around your '
+            'offices. When you enter an office boundary, the OS wakes the '
+            'app in the background to record your attendance automatically '
+            'once per day. Opening the app while at the office records it '
+            'too.\n\n'
+            'You can also tap "Check-In for Today" on the home screen to '
+            'record today\'s attendance manually.',
           ),
-          ListTile(
-            leading: const Icon(Icons.add_location_alt_outlined),
-            title: const Text('Add Another Office'),
-            onTap: () => Navigator.push(
-              context,
-              appRoute(const SetupScreen()),
-            ).then((_) => notifier.load()),
+        ],
+      ),
+      const ExpansionTile(
+        leading: Icon(Icons.battery_saver_outlined),
+        title: Text('Battery Tip'),
+        childrenPadding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'For reliable background tracking:\n'
+            '• Grant "Always Allow" location permission\n'
+            '• Disable battery optimisation to keep geofence callbacks reliable',
           ),
-
-          const Divider(height: 32),
-
-          const _SectionLabel('Permissions'),
-          const PermissionsSection(),
-
-          const Divider(height: 32),
-
-          const _SectionLabel('Appearance'),
-          ListTile(
-            leading: const Icon(Icons.palette_outlined),
-            title: const Text('Theme & Dark Mode'),
-            subtitle: const Text('Bird palettes, Material You, light/dark'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(
-              context,
-              appRoute(const ThemeScreen()),
-            ),
+        ],
+      ),
+      ExpansionTile(
+        leading: const Icon(Icons.beach_access_outlined),
+        title: const Text('Public Holidays'),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Public holidays for your office\'s region are highlighted '
+            'automatically. Anything you mark or remove yourself always '
+            'takes priority and is never overwritten.',
           ),
-
-          const Divider(height: 32),
-
-          // Reference material lives behind expansion tiles so the screen
-          // stays short — most visits are for the actionable sections above.
-          const _SectionLabel('How It Works'),
-          const ExpansionTile(
-            leading: Icon(Icons.schedule_outlined),
-            title: Text('Automatic Check-In'),
-            childrenPadding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-            expandedCrossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'The OS monitors virtual geofence boundaries around your '
-                'offices. When you enter an office boundary, the OS wakes the '
-                'app in the background to record your attendance automatically '
-                'once per day. Opening the app while at the office records it '
-                'too.\n\n'
-                'You can also tap "Check-In for Today" on the home screen to '
-                'record today\'s attendance manually.',
-              ),
-            ],
-          ),
-          const ExpansionTile(
-            leading: Icon(Icons.battery_saver_outlined),
-            title: Text('Battery Tip'),
-            childrenPadding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-            expandedCrossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'For reliable background tracking:\n'
-                '• Grant "Always Allow" location permission\n'
-                '• Disable battery optimisation to keep geofence callbacks reliable',
-              ),
-            ],
-          ),
-          ExpansionTile(
-            leading: const Icon(Icons.beach_access_outlined),
-            title: const Text('Public Holidays'),
-            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            expandedCrossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Public holidays for your office\'s region are highlighted '
-                'automatically. Anything you mark or remove yourself always '
-                'takes priority and is never overwritten.',
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () => _syncHolidays(context, ref),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Sync Public Holidays Now'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                ),
-              ),
-            ],
-          ),
-
-          const Divider(height: 32),
-
-          const _SectionLabel('Data'),
-          ListTile(
-            leading: const Icon(Icons.file_download_outlined),
-            title: const Text('Export All Data (CSV)'),
-            subtitle: const Text(
-              'Copies every recorded day — attendance, leave and holidays — to '
-              'the clipboard. Paste into a file or spreadsheet to back it up.',
-            ),
-            isThreeLine: true,
-            onTap: () => _exportData(context),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: OutlinedButton.icon(
-              onPressed: () => _confirmDeleteAll(context, ref),
-              icon: Icon(
-                Icons.delete_sweep_outlined,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              label: Text(
-                'Delete All Records',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Theme.of(context).colorScheme.error),
-                minimumSize: const Size.fromHeight(48),
-              ),
-            ),
-          ),
-
-          const Divider(height: 32),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            child: Text(
-              'Disclaimer: This app was fully designed and built by AI '
-              '(Claude Opus 4.8) and may not represent the statistics accurately.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () => _syncHolidays(context, ref),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Sync Public Holidays Now'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
             ),
           ),
         ],
+      ),
+    ]);
+    final data = block('Data', [
+      ListTile(
+        leading: const Icon(Icons.file_download_outlined),
+        title: const Text('Export All Data (CSV)'),
+        subtitle: const Text(
+          'Copies every recorded day — attendance, leave and holidays — to '
+          'the clipboard. Paste into a file or spreadsheet to back it up.',
+        ),
+        isThreeLine: true,
+        onTap: () => _exportData(context),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: OutlinedButton.icon(
+          onPressed: () => _confirmDeleteAll(context, ref),
+          icon: Icon(
+            Icons.delete_sweep_outlined,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          label: Text(
+            'Delete All Records',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+          style: OutlinedButton.styleFrom(
+            side: BorderSide(color: Theme.of(context).colorScheme.error),
+            minimumSize: const Size.fromHeight(48),
+          ),
+        ),
+      ),
+    ]);
+    final disclaimer = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      child: Text(
+        'Disclaimer: This app was fully designed and built by AI '
+        '(Claude Opus 4.8) and may not represent the statistics accurately.',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+      ),
     );
+
+    // A column of blocks separated by dividers.
+    Widget column(List<Widget> blocks) => ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            for (var i = 0; i < blocks.length; i++) ...[
+              if (i > 0) const Divider(height: 32),
+              blocks[i],
+            ],
+          ],
+        );
 
     if (isDesktopWidth(context)) {
       return Scaffold(
         backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
         body: DesktopPage(
           title: 'Settings',
-          maxContentWidth: 820,
-          child: content,
+          maxContentWidth: 1100,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: column([profile, target, offices, appearance])),
+              const SizedBox(width: 32),
+              Expanded(child: column([permissions, howItWorks, data, disclaimer])),
+            ],
+          ),
         ),
       );
     }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: ResponsiveBody(child: content),
+      body: ResponsiveBody(
+        child: column([
+          profile,
+          target,
+          offices,
+          permissions,
+          appearance,
+          howItWorks,
+          data,
+          disclaimer,
+        ]),
+      ),
     );
   }
 

@@ -22,11 +22,14 @@ class NotificationService {
       requestBadgePermission: true,
       requestSoundPermission: false,
     );
+    // Required when running on Linux desktop.
+    const linux = LinuxInitializationSettings(defaultActionName: 'Open');
     await _plugin.initialize(
       settings: const InitializationSettings(
         android: android,
         iOS: darwin,
         macOS: darwin,
+        linux: linux,
       ),
     );
   }
