@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../helpers/day_type_helper.dart';
+import '../helpers/layout.dart';
 import '../models/special_day.dart';
 import '../providers/office_provider.dart';
 import '../services/database_service.dart';
+import '../widgets/desktop_page.dart';
 import '../widgets/no_office_placeholder.dart';
 import '../widgets/quick_mark_sheet.dart';
 import '../widgets/responsive_body.dart';
@@ -99,6 +101,30 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       );
     }
 
+    // Desktop: a full-width table-style list in a card under a page header.
+    if (isDesktopWidth(context)) {
+      final Widget body = _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _items.isEmpty
+              ? const _EmptyHistory()
+              : Card(
+                  margin: EdgeInsets.zero,
+                  clipBehavior: Clip.antiAlias,
+                  child: _list(),
+                );
+      return Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+        body: DesktopPage(
+          title: 'History',
+          subtitle: _items.isEmpty
+              ? 'Every recorded day'
+              : '${_items.length} recorded day${_items.length == 1 ? '' : 's'}',
+          maxContentWidth: 1000,
+          child: body,
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('History')),
       body: ResponsiveBody(
@@ -106,42 +132,38 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
               ? const _EmptyHistory()
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: _items.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (context, i) {
-                      final item = _items[i];
-                      final color = item.status.colorIn(context);
-                      final isToday = _keyFmt.format(item.date) ==
-                          _keyFmt.format(DateTime.now());
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: color.withValues(alpha: 0.15),
-                          child: Icon(item.status.icon, color: color),
-                        ),
-                        title: Text(
-                          _dateFmt.format(item.date),
-                          style: TextStyle(
-                            fontWeight:
-                                isToday ? FontWeight.bold : FontWeight.w500,
-                          ),
-                        ),
-                        subtitle: (item.comment != null &&
-                                item.comment!.isNotEmpty)
-                            ? Text(item.comment!)
-                            : null,
-                        trailing: _StatusChip(
-                          label: item.status.label,
-                          color: color,
-                        ),
-                        onTap: () => _openEntry(item),
-                      );
-                    },
-                  ),
-                )),
+              : RefreshIndicator(onRefresh: _load, child: _list())),
+    );
+  }
+
+  Widget _list() {
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: _items.length,
+      separatorBuilder: (_, _) => const Divider(height: 1),
+      itemBuilder: (context, i) {
+        final item = _items[i];
+        final color = item.status.colorIn(context);
+        final isToday =
+            _keyFmt.format(item.date) == _keyFmt.format(DateTime.now());
+        return ListTile(
+          leading: CircleAvatar(
+            backgroundColor: color.withValues(alpha: 0.15),
+            child: Icon(item.status.icon, color: color),
+          ),
+          title: Text(
+            _dateFmt.format(item.date),
+            style: TextStyle(
+              fontWeight: isToday ? FontWeight.bold : FontWeight.w500,
+            ),
+          ),
+          subtitle: (item.comment != null && item.comment!.isNotEmpty)
+              ? Text(item.comment!)
+              : null,
+          trailing: _StatusChip(label: item.status.label, color: color),
+          onTap: () => _openEntry(item),
+        );
+      },
     );
   }
 }
