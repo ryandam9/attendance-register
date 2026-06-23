@@ -30,11 +30,16 @@ class _PermissionsSectionState extends State<PermissionsSection>
   _PermStatus? _battery;
   bool _requesting = false;
 
+  /// permission_handler has no Linux/Windows implementation, so the permission
+  /// cards only apply on mobile and macOS. Elsewhere the section shows a note.
+  static final bool _supported =
+      Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _refresh();
+    if (_supported) _refresh();
   }
 
   @override
@@ -49,23 +54,30 @@ class _PermissionsSectionState extends State<PermissionsSection>
   }
 
   Future<void> _refresh() async {
-    final loc = await Permission.locationAlways.status;
-    if (loc.isGranted) {
-      await LocationService.instance.syncGeofences();
+    try {
+      final loc = await Permission.locationAlways.status;
+      if (loc.isGranted) {
+        await LocationService.instance.syncGeofences();
+      }
+      final notif = await Permission.notification.status;
+      _PermStatus? bat;
+      if (Platform.isAndroid) {
+        bat = (await Permission.ignoreBatteryOptimizations.isGranted)
+            ? _PermStatus.granted
+            : _PermStatus.denied;
+      }
+      if (!mounted) return;
+      setState(() {
+        _location = loc.isGranted ? _PermStatus.granted : _PermStatus.denied;
+        _notifications =
+            notif.isGranted ? _PermStatus.granted : _PermStatus.denied;
+        _battery = bat;
+      });
+    } catch (e) {
+      // Plugin unavailable on this platform — leave statuses unset; build()
+      // shows the unsupported note.
+      debugPrint('Permission status check failed: $e');
     }
-    final notif = await Permission.notification.status;
-    _PermStatus? bat;
-    if (Platform.isAndroid) {
-      bat = (await Permission.ignoreBatteryOptimizations.isGranted)
-          ? _PermStatus.granted
-          : _PermStatus.denied;
-    }
-    if (!mounted) return;
-    setState(() {
-      _location = loc.isGranted ? _PermStatus.granted : _PermStatus.denied;
-      _notifications = notif.isGranted ? _PermStatus.granted : _PermStatus.denied;
-      _battery = bat;
-    });
   }
 
   /// Runs [request], swallowing concurrent taps, then re-reads every status.
@@ -82,6 +94,17 @@ class _PermissionsSectionState extends State<PermissionsSection>
 
   @override
   Widget build(BuildContext context) {
+    if (!_supported) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+        child: Text(
+          'Background check-in permissions apply on mobile and macOS only.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+        ),
+      );
+    }
     if (_location == null) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
