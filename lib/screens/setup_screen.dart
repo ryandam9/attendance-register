@@ -116,12 +116,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_lat == null || _lng == null) {
-      _showSnack(
-        'Please resolve the office location using the search or current-location buttons.',
-      );
-      return;
-    }
 
     setState(() => _busy = true);
 
@@ -129,8 +123,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       id: widget.office?.id,
       name: _nameCtrl.text.trim(),
       address: _addressCtrl.text.trim(),
-      latitude: _lat!,
-      longitude: _lng!,
+      // Location is optional: an office without coordinates is manual-only (no
+      // geofencing / auto check-in). 0,0 marks "no location".
+      latitude: _lat ?? 0.0,
+      longitude: _lng ?? 0.0,
       radius: _radius,
       country: _country,
       state: _state,
@@ -191,8 +187,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               controller: _addressCtrl,
               maxLines: 2,
               decoration: InputDecoration(
-                labelText: 'Office Address *',
-                hintText: 'Type an address or use the buttons →',
+                labelText: 'Office Address (optional)',
+                hintText: 'Only needed for automatic check-in',
+                helperText: 'Leave blank for a manual-only office',
                 prefixIcon: const Icon(Icons.location_on_outlined),
                 border: const OutlineInputBorder(),
                 suffixIcon: Row(
@@ -211,8 +208,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                   ],
                 ),
               ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Enter an address' : null,
             ),
 
             if (_busy) ...[

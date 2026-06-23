@@ -152,6 +152,7 @@ class LocationService {
 
       // 2. Register/re-register geofences for offices in DB
       for (final office in offices) {
+        if (!office.hasLocation) continue; // manual-only office: no geofence
         final idStr = office.id.toString();
         if (activeIds.contains(idStr)) {
           await nf.NativeGeofenceManager.instance.removeGeofenceById(idStr);
@@ -265,6 +266,7 @@ class LocationService {
 
     OfficeLocation? recordedAt;
     for (final office in offices) {
+      if (!office.hasLocation) continue; // manual-only office
       if (await db.hasAttendanceForDate(today, office.id!)) continue;
 
       final distance = Geolocator.distanceBetween(
