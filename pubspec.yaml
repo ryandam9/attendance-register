@@ -67,9 +67,12 @@ flutter_launcher_icons:
   android: true
   ios: true
   # Generates macos/Runner/Assets.xcassets/AppIcon.appiconset so the app shows a
-  # proper icon in Finder, the Dock and the app switcher. (Linux has no
-  # flutter_launcher_icons support — set it by hand; see docs/desktop-build.md.)
-  macos: true
+  # proper icon in Finder, the Dock and the app switcher. (macOS uses the nested
+  # `generate:` form, not a bool. Linux has no flutter_launcher_icons support —
+  # set it by hand; see docs/desktop-build.md.)
+  macos:
+    generate: true
+    image_path: "assets/branding/app_icon.png"
   remove_alpha_ios: true
   adaptive_icon_background: "#00346E"
   adaptive_icon_foreground: "assets/branding/app_icon.png"

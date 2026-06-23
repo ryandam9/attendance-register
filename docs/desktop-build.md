@@ -45,8 +45,8 @@ flutter create --platforms=macos .
 
 ### 3. Add the app icon (Dock / Finder / app switcher)
 
-The icon is already wired up in `pubspec.yaml` (`flutter_launcher_icons` with
-`macos: true`). Generate it:
+The icon is already wired up in `pubspec.yaml` (`flutter_launcher_icons` with a
+`macos:` → `generate: true` block). Generate it:
 
 ```bash
 dart run flutter_launcher_icons
