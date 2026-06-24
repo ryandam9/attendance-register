@@ -512,15 +512,40 @@ class _OfficeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final hasAddress = office.address.trim().isNotEmpty;
+    // What location is registered — so the user can tell whether auto check-in
+    // can work: the address, else the coordinates, else "no location".
+    final locationText = hasAddress
+        ? office.address
+        : office.hasLocation
+        ? 'Coordinates: ${office.latitude.toStringAsFixed(5)}, ${office.longitude.toStringAsFixed(5)}'
+        : 'No location set — manual check-in only';
+    final detailText = office.hasLocation
+        ? '${office.radius.toInt()} m radius · auto check-in enabled'
+        : 'Edit and add a location to enable automatic check-in';
+
     return ListTile(
-      leading: const Icon(Icons.business_outlined),
-      title: Text(office.name),
-      subtitle: Text(
-        '${office.address}  •  ${office.radius.toInt()} m radius',
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
+      leading: Icon(
+        office.hasLocation
+            ? Icons.business_outlined
+            : Icons.location_off_outlined,
+        color: office.hasLocation ? null : cs.onSurfaceVariant,
       ),
-      isThreeLine: false,
+      title: Text(office.name),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(locationText, maxLines: 2, overflow: TextOverflow.ellipsis),
+          Text(
+            detailText,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: office.hasLocation ? cs.onSurfaceVariant : cs.error,
+            ),
+          ),
+        ],
+      ),
+      isThreeLine: true,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
