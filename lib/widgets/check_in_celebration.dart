@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
@@ -44,7 +45,7 @@ class _CheckInCelebration extends StatefulWidget {
 
 class _CheckInCelebrationState extends State<_CheckInCelebration> {
   late final ConfettiController _confetti = ConfettiController(
-    duration: const Duration(milliseconds: 1200),
+    duration: const Duration(milliseconds: 1500),
   );
   Timer? _autoClose;
 
@@ -68,24 +69,47 @@ class _CheckInCelebrationState extends State<_CheckInCelebration> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final dateFmt = DateFormat('EEEE, d MMM');
+    final confettiColors = [
+      cs.primary,
+      cs.secondary,
+      cs.tertiary,
+      Colors.green.shade500,
+      Colors.amber.shade400,
+    ];
     return Stack(
       children: [
+        // Confetti showers in from both top corners, raining down across the
+        // card for a clearly celebratory effect.
         Align(
-          alignment: Alignment.topCenter,
+          alignment: const Alignment(-0.9, -1.0),
           child: ConfettiWidget(
             confettiController: _confetti,
-            blastDirectionality: BlastDirectionality.explosive,
-            numberOfParticles: 26,
-            maxBlastForce: 26,
-            minBlastForce: 8,
-            gravity: 0.25,
+            blastDirection: math.pi / 4, // down-right
+            emissionFrequency: 0.12,
+            numberOfParticles: 14,
+            maxBlastForce: 30,
+            minBlastForce: 12,
+            gravity: 0.3,
             shouldLoop: false,
-            colors: [
-              cs.primary,
-              cs.secondary,
-              cs.tertiary,
-              Colors.green.shade500,
-            ],
+            minimumSize: const Size(8, 8),
+            maximumSize: const Size(15, 15),
+            colors: confettiColors,
+          ),
+        ),
+        Align(
+          alignment: const Alignment(0.9, -1.0),
+          child: ConfettiWidget(
+            confettiController: _confetti,
+            blastDirection: 3 * math.pi / 4, // down-left
+            emissionFrequency: 0.12,
+            numberOfParticles: 14,
+            maxBlastForce: 30,
+            minBlastForce: 12,
+            gravity: 0.3,
+            shouldLoop: false,
+            minimumSize: const Size(8, 8),
+            maximumSize: const Size(15, 15),
+            colors: confettiColors,
           ),
         ),
         Center(
