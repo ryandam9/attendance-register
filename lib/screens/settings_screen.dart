@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../build_info.dart';
 import '../helpers/layout.dart';
 import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
@@ -19,6 +20,7 @@ import '../services/holiday_service.dart';
 import '../widgets/desktop_page.dart';
 import '../widgets/permission_cards.dart';
 import '../widgets/responsive_body.dart';
+import 'about_screen.dart';
 import 'setup_screen.dart';
 import 'theme_screen.dart';
 
@@ -189,6 +191,18 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
     ]);
+    final about = block('About', [
+      ListTile(
+        leading: const Icon(Icons.info_outline),
+        title: const Text('About Attendance Register'),
+        subtitle: Text(
+          'Version ${BuildInfo.version} · '
+          '${BuildInfo.isStamped ? BuildInfo.commit : 'local build'}',
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.push(context, appRoute(const AboutScreen())),
+      ),
+    ]);
     final disclaimer = Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       child: Text(
@@ -224,7 +238,13 @@ class SettingsScreen extends ConsumerWidget {
               Expanded(child: column([profile, target, offices, appearance])),
               const SizedBox(width: 32),
               Expanded(
-                child: column([permissions, howItWorks, data, disclaimer]),
+                child: column([
+                  permissions,
+                  howItWorks,
+                  data,
+                  about,
+                  disclaimer,
+                ]),
               ),
             ],
           ),
@@ -243,6 +263,7 @@ class SettingsScreen extends ConsumerWidget {
           appearance,
           howItWorks,
           data,
+          about,
           disclaimer,
         ]),
       ),
