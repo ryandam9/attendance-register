@@ -883,7 +883,11 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
 
     return LayoutBuilder(
       builder: (context, c) {
-        final perRow = c.maxWidth < 720 ? 2 : 4;
+        // Pick the most columns (up to 4) that still leave each card wide
+        // enough to render its icon chip + value without overflowing — narrow
+        // desktop windows with the sidebar extended squeeze this strip hard.
+        const minItem = 150.0;
+        final perRow = ((c.maxWidth + 16) / (minItem + 16)).floor().clamp(1, 4);
         final itemW = (c.maxWidth - (perRow - 1) * 16) / perRow;
         return Wrap(
           spacing: 16,

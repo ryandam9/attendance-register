@@ -70,6 +70,14 @@ flutter build macos --release
 
 Output: `build/macos/Build/Products/Release/attendance_register.app`
 
+> **Stamp the git commit** so the **About** page shows which build you're running
+> (a plain build reports `local`). Use the wrapper, which fills in the commit +
+> date automatically:
+>
+> ```bash
+> ./scripts/flutter-stamped.sh build macos --release
+> ```
+
 ### 5. Install + add to the Dock (the "shortcut")
 
 **No admin rights required.** A `.app` is a relocatable bundle, so install it into
@@ -133,6 +141,14 @@ flutter build linux --release
 Output (a self-contained folder): `build/linux/x64/release/bundle/`
 containing the `attendance_register` executable, plus `lib/` and `data/`. Keep
 these together — the executable needs them.
+
+> **Stamp the git commit** so the **About** page shows which build you're running
+> (a plain build reports `local`). Use the wrapper, which fills in the commit +
+> date automatically:
+>
+> ```bash
+> ./scripts/flutter-stamped.sh build linux --release
+> ```
 
 Run it directly to test:
 
@@ -215,6 +231,11 @@ add it to your dock/favorites from there.
 | Build | `flutter build macos --release` | `flutter build linux --release` |
 | Output | `build/macos/Build/Products/Release/attendance_register.app` | `build/linux/x64/release/bundle/` |
 | Shortcut | drag `.app` to `/Applications` + Dock | `.desktop` file in `~/.local/share/applications` |
+
+> **Tip:** to embed the git commit in a local build (shown on the **About**
+> page), build through the wrapper — `./scripts/flutter-stamped.sh build <platform>
+> --release` — instead of calling `flutter` directly. Without it the About page
+> reports the build as `local`.
 
 CI also builds both automatically — see `.github/workflows/ci.yml`. Pushed builds
 publish a portable zip for each platform to the

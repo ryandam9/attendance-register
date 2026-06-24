@@ -1,12 +1,16 @@
 /// Build metadata injected at build time via `--dart-define`, so the running app
 /// can report exactly which commit it was built from (shown on the About page).
 ///
-/// CI stamps these (see `.github/workflows/ci.yml`). For a local build you can
-/// stamp them too:
+/// CI stamps these (see `.github/workflows/ci.yml`). For a local build, use the
+/// wrapper script — it stamps the current commit + date for you:
 ///
 /// ```sh
-/// flutter run --dart-define=GIT_COMMIT=$(git rev-parse --short HEAD)
+/// ./scripts/flutter-stamped.sh build macos --release
+/// ./scripts/flutter-stamped.sh run
 /// ```
+///
+/// (Equivalent to passing `--dart-define=GIT_COMMIT=$(git rev-parse --short HEAD)`
+/// and `--dart-define=BUILD_TIME=...` to `flutter` by hand.)
 class BuildInfo {
   const BuildInfo._();
 

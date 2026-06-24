@@ -295,17 +295,27 @@ class LocationService {
       );
     }
 
+    // macOS often fails the FIRST getCurrentPosition right after launch — the
+    // location manager is still warming up, so it throws "User denied" even
+    // though permission is granted — then succeeds. Retry once before giving up.
     Position? pos;
-    try {
-      pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 20),
-        ),
-      );
-    } catch (e) {
-      debugPrint('[autocheck] getCurrentPosition failed: $e');
-      pos = null;
+    for (var attempt = 1; attempt <= 2 && pos == null; attempt++) {
+      try {
+        pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 20),
+          ),
+        );
+      } catch (e) {
+        debugPrint(
+          '[autocheck] getCurrentPosition attempt $attempt failed: $e',
+        );
+        pos = null;
+        if (attempt < 2) {
+          await Future.delayed(const Duration(milliseconds: 800));
+        }
+      }
     }
     if (pos == null) {
       return const ForegroundCheck(ForegroundCheckStatus.none);
