@@ -69,7 +69,17 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     setState(() {
       _lat = pos.latitude;
       _lng = pos.longitude;
-      if (place?.address != null) _addressCtrl.text = place!.address!;
+      final resolved = place?.address;
+      if (resolved != null && resolved.isNotEmpty) {
+        _addressCtrl.text = resolved;
+      } else if (_addressCtrl.text.trim().isEmpty) {
+        // Reverse geocoding can return nothing (common on macOS), which left the
+        // address blank even though the position resolved. Fall back to the
+        // coordinates so the field isn't empty — it's only a label; the saved
+        // office uses _lat/_lng.
+        _addressCtrl.text =
+            '${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}';
+      }
       _country = place?.country;
       _state = place?.state;
       _busy = false;
