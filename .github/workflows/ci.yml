@@ -67,7 +67,7 @@ jobs:
         # the CL env var until those plugins migrate to C++20 <coroutine>.
         env:
           CL: /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
-        run: flutter build windows --release
+        run: flutter build windows --release --dart-define=GIT_COMMIT="$($env:GITHUB_SHA.Substring(0,7))" --dart-define=BUILD_TIME="$(Get-Date -Format yyyy-MM-dd)"
 
       # Self-contained folder (exe + DLLs + data\); zip into one archive.
       - name: Package
@@ -98,7 +98,7 @@ jobs:
         run: flutter pub get
 
       - name: Build macOS release
-        run: flutter build macos --release
+        run: flutter build macos --release --dart-define=GIT_COMMIT="${GITHUB_SHA:0:7}" --dart-define=BUILD_TIME="$(date -u +%Y-%m-%d)"
 
       # The .app is unsigned (no Apple Developer cert), so first launch needs a
       # right-click → Open to get past Gatekeeper. Zip with -y to keep symlinks.
