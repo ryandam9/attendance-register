@@ -50,6 +50,31 @@ class GeoPlace {
   const GeoPlace({this.address, this.state, this.country});
 }
 
+/// Why a foreground (app-open) auto check-in did or didn't happen, so the UI can
+/// explain itself instead of failing silently.
+enum ForegroundCheckStatus {
+  /// Attendance was recorded for today.
+  recorded,
+
+  /// There are offices but none has a saved location to match against — add
+  /// coordinates (edit the office → "Use current location").
+  noOfficeLocation,
+
+  /// Location permission hasn't been granted, so the position can't be read.
+  permissionDenied,
+
+  /// Nothing to report and nothing wrong: no offices, already recorded, the
+  /// position couldn't be read, or you're simply not at an office. The UI stays
+  /// quiet for this — it would otherwise nag on every app open.
+  none,
+}
+
+class ForegroundCheck {
+  final ForegroundCheckStatus status;
+  final OfficeLocation? office; // set when [status] is recorded
+  const ForegroundCheck(this.status, {this.office});
+}
+
 class LocationService {
   LocationService._();
   static final LocationService instance = LocationService._();
@@ -230,11 +255,42 @@ class LocationService {
   /// Same check, run when the app is opened or resumed. Catches the days the
   /// background task missed (killed by the OS, battery optimisation, iOS task
   /// scheduling) — if the user is standing in the office with the app open,
-  /// attendance is recorded on the spot. Returns the office recorded at, or
-  /// null. Skips the system notification: the caller shows in-app feedback.
-  static Future<OfficeLocation?> performForegroundCheck() async {
+  /// attendance is recorded on the spot. Skips the system notification — the
+  /// caller shows in-app feedback based on the returned [ForegroundCheck].
+  static Future<ForegroundCheck> performForegroundCheck() async {
     await instance.syncGeofences();
-    return _checkAndRecord(notify: false);
+
+    final offices = await DatabaseService.instance.getOfficeLocations();
+    if (offices.isEmpty) {
+      return const ForegroundCheck(ForegroundCheckStatus.none);
+    }
+    // Surface the two actionable misconfigurations explicitly so the UI can
+    // guide the user instead of silently doing nothing.
+    if (offices.every((o) => !o.hasLocation)) {
+      return const ForegroundCheck(ForegroundCheckStatus.noOfficeLocation);
+    }
+    if (!await _hasPermissionSilently()) {
+      return const ForegroundCheck(ForegroundCheckStatus.permissionDenied);
+    }
+
+    final office = await _checkAndRecord(notify: false);
+    return office != null
+        ? ForegroundCheck(ForegroundCheckStatus.recorded, office: office)
+        : const ForegroundCheck(ForegroundCheckStatus.none);
+  }
+
+  /// Opens the OS location settings (so the user can enable Location Services /
+  /// grant access). Best-effort across platforms.
+  static Future<void> openLocationSettings() async {
+    try {
+      await Geolocator.openLocationSettings();
+    } catch (_) {
+      try {
+        await Geolocator.openAppSettings();
+      } catch (_) {
+        // No settings UI available on this platform — nothing more we can do.
+      }
+    }
   }
 
   /// Core auto check-in: if the current position is within the radius of a

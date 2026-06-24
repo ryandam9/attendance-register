@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../helpers/layout.dart';
+import '../helpers/route_helper.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/settings_provider.dart';
@@ -20,6 +21,7 @@ import 'history_screen.dart';
 import 'home_screen.dart';
 import 'mark_screen.dart';
 import 'settings_screen.dart';
+import 'setup_screen.dart';
 
 /// App scaffold: bottom navigation over Home / Insights / History with a
 /// fade-through transition between tabs. Each tab is rebuilt when selected so
@@ -119,20 +121,68 @@ class _MainShellState extends ConsumerState<MainShell>
     if (_foregroundCheckRunning) return;
     _foregroundCheckRunning = true;
     try {
-      final office = await LocationService.performForegroundCheck();
-      if (office == null || !mounted) return;
-      _refreshFocusedMonth();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "You're at ${office.name} — attendance recorded for today.",
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      final result = await LocationService.performForegroundCheck();
+      if (!mounted) return;
+      switch (result.status) {
+        case ForegroundCheckStatus.recorded:
+          _refreshFocusedMonth();
+          _checkInSnack(
+            "You're at ${result.office!.name} — attendance recorded for today.",
+          );
+        case ForegroundCheckStatus.noOfficeLocation:
+          // Actionable: the office has no coordinates to match against.
+          _checkInSnack(
+            'Auto check-in needs your office location. Add it on the office, '
+            'then reopen the app while you\'re there.',
+            actionLabel: 'Set location',
+            onAction: _editOfficeLocation,
+          );
+        case ForegroundCheckStatus.permissionDenied:
+          // Actionable: send the user to the OS location settings.
+          _checkInSnack(
+            'Location access is off, so auto check-in can\'t run. Turn on '
+            'Location Services for this app.',
+            actionLabel: 'Open Settings',
+            onAction: LocationService.openLocationSettings,
+          );
+        case ForegroundCheckStatus.none:
+          break; // not at an office / already recorded — stay quiet
+      }
     } finally {
       _foregroundCheckRunning = false;
     }
+  }
+
+  void _checkInSnack(
+    String message, {
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 6),
+        action: (actionLabel != null && onAction != null)
+            ? SnackBarAction(label: actionLabel, onPressed: onAction)
+            : null,
+      ),
+    );
+  }
+
+  /// Opens the editor for an office that has no saved location (or the first
+  /// office), so the user can add coordinates and enable auto check-in.
+  Future<void> _editOfficeLocation() async {
+    final offices = ref.read(officeProvider).offices;
+    if (offices.isEmpty) return;
+    final target = offices.firstWhere(
+      (o) => !o.hasLocation,
+      orElse: () => offices.first,
+    );
+    await Navigator.push(context, appRoute(SetupScreen(office: target)));
+    if (!mounted) return;
+    await ref.read(officeProvider.notifier).load();
+    if (mounted) _refreshFocusedMonth();
   }
 
   @override
