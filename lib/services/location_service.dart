@@ -257,31 +257,34 @@ class LocationService {
       return const ForegroundCheck(ForegroundCheckStatus.noOfficeLocation);
     }
 
-    // Actually read the position — this, not checkPermission(), is the real
-    // test of whether location works. checkPermission() can wrongly report
-    // "denied" on macOS even when access is granted, so trusting it would
-    // falsely block check-in.
-    Position? pos;
+    // Request permission first. On macOS the authorization is often "not yet
+    // determined" on launch, which checkPermission()/getCurrentPosition() report
+    // as denied — only requestPermission() resolves it (it shows a system prompt
+    // ONLY when undetermined; never when already granted or denied). This is why
+    // the setup "Use current location" flow worked but the silent check didn't.
+    LocationPermission perm;
     try {
-      pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 20),
-        ),
-      );
-    } catch (_) {
-      pos = null;
+      perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+    } catch (e) {
+      perm = LocationPermission.unableToDetermine;
+      debugPrint('[autocheck] permission request threw: $e');
     }
 
-    if (pos == null) {
-      // Couldn't get a fix. Only flag a permission problem when the OS clearly
-      // says so — a transient failure shouldn't nag about permissions.
-      LocationPermission perm;
-      try {
-        perm = await Geolocator.checkPermission();
-      } catch (_) {
-        perm = LocationPermission.unableToDetermine;
-      }
+    bool serviceEnabled = false;
+    try {
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    } catch (_) {}
+    // Diagnostic: shows in the `flutter run` console so the actual state is
+    // visible instead of guessed.
+    debugPrint('[autocheck] serviceEnabled=$serviceEnabled permission=$perm');
+
+    final granted =
+        perm == LocationPermission.always ||
+        perm == LocationPermission.whileInUse;
+    if (!granted) {
       final denied =
           perm == LocationPermission.denied ||
           perm == LocationPermission.deniedForever;
@@ -291,6 +294,23 @@ class LocationService {
             : ForegroundCheckStatus.none,
       );
     }
+
+    Position? pos;
+    try {
+      pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 20),
+        ),
+      );
+    } catch (e) {
+      debugPrint('[autocheck] getCurrentPosition failed: $e');
+      pos = null;
+    }
+    if (pos == null) {
+      return const ForegroundCheck(ForegroundCheckStatus.none);
+    }
+    debugPrint('[autocheck] position=${pos.latitude},${pos.longitude}');
 
     final office = await _recordForPosition(pos, notify: false);
     return office != null
