@@ -26,8 +26,27 @@ fi
 
 build_time=$(date -u +%Y-%m-%d)
 
-echo "Stamping build: GIT_COMMIT=$commit BUILD_TIME=$build_time" >&2
+# Only `flutter build <platform>` and `flutter run` accept --dart-define; other
+# subcommands (create, pub, …) reject it with "Could not find an option named
+# --dart-define". Find the subcommand (first non-flag arg) and only stamp those,
+# so the wrapper is safe to use in place of `flutter` for any command.
+subcommand=""
+for arg in "$@"; do
+  case "$arg" in
+  -*) continue ;;
+  *)
+    subcommand="$arg"
+    break
+    ;;
+  esac
+done
 
-exec flutter "$@" \
-  --dart-define=GIT_COMMIT="$commit" \
-  --dart-define=BUILD_TIME="$build_time"
+if [ "$subcommand" = "build" ] || [ "$subcommand" = "run" ]; then
+  echo "Stamping build: GIT_COMMIT=$commit BUILD_TIME=$build_time" >&2
+  exec flutter "$@" \
+    --dart-define=GIT_COMMIT="$commit" \
+    --dart-define=BUILD_TIME="$build_time"
+fi
+
+# Not a build/run — pass through untouched (e.g. `create`, `pub get`).
+exec flutter "$@"
