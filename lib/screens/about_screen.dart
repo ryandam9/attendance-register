@@ -72,7 +72,12 @@ class AboutScreen extends ConsumerWidget {
     if (isDesktopWidth(context)) {
       return Scaffold(
         backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-        body: DesktopPage(title: 'About', maxContentWidth: 680, child: body),
+        body: DesktopPage(
+          title: 'About',
+          maxContentWidth: 680,
+          onBack: () => Navigator.maybePop(context),
+          child: body,
+        ),
       );
     }
     return Scaffold(

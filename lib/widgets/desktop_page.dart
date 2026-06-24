@@ -10,6 +10,10 @@ class DesktopPage extends StatelessWidget {
   final List<Widget> actions;
   final Widget child;
 
+  /// When set, a back arrow is shown before the title — for pushed pages (e.g.
+  /// About) that aren't reachable via the sidebar tabs.
+  final VoidCallback? onBack;
+
   /// Optional cap so very wide windows don't stretch text-heavy content edge to
   /// edge. Null fills the available width.
   final double? maxContentWidth;
@@ -20,6 +24,7 @@ class DesktopPage extends StatelessWidget {
     required this.child,
     this.subtitle,
     this.actions = const [],
+    this.onBack,
     this.maxContentWidth,
   });
 
@@ -45,6 +50,14 @@ class DesktopPage extends StatelessWidget {
         children: [
           Row(
             children: [
+              if (onBack != null) ...[
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  tooltip: 'Back',
+                  onPressed: onBack,
+                ),
+                const SizedBox(width: 4),
+              ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
