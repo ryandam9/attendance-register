@@ -89,18 +89,6 @@ class LocationService {
         perm == LocationPermission.whileInUse;
   }
 
-  /// True when a position can be read right now without prompting the user.
-  static Future<bool> _hasPermissionSilently() async {
-    try {
-      final perm = await Geolocator.checkPermission();
-      return perm == LocationPermission.always ||
-          perm == LocationPermission.whileInUse;
-    } catch (_) {
-      // geolocator has no Linux/Windows implementation — treat as no access.
-      return false;
-    }
-  }
-
   Future<Position?> getCurrentPosition() async {
     if (!await requestPermission()) return null;
     try {
@@ -264,16 +252,47 @@ class LocationService {
     if (offices.isEmpty) {
       return const ForegroundCheck(ForegroundCheckStatus.none);
     }
-    // Surface the two actionable misconfigurations explicitly so the UI can
-    // guide the user instead of silently doing nothing.
+    // Actionable: no office has coordinates to match against.
     if (offices.every((o) => !o.hasLocation)) {
       return const ForegroundCheck(ForegroundCheckStatus.noOfficeLocation);
     }
-    if (!await _hasPermissionSilently()) {
-      return const ForegroundCheck(ForegroundCheckStatus.permissionDenied);
+
+    // Actually read the position — this, not checkPermission(), is the real
+    // test of whether location works. checkPermission() can wrongly report
+    // "denied" on macOS even when access is granted, so trusting it would
+    // falsely block check-in.
+    Position? pos;
+    try {
+      pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 20),
+        ),
+      );
+    } catch (_) {
+      pos = null;
     }
 
-    final office = await _checkAndRecord(notify: false);
+    if (pos == null) {
+      // Couldn't get a fix. Only flag a permission problem when the OS clearly
+      // says so — a transient failure shouldn't nag about permissions.
+      LocationPermission perm;
+      try {
+        perm = await Geolocator.checkPermission();
+      } catch (_) {
+        perm = LocationPermission.unableToDetermine;
+      }
+      final denied =
+          perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever;
+      return ForegroundCheck(
+        denied
+            ? ForegroundCheckStatus.permissionDenied
+            : ForegroundCheckStatus.none,
+      );
+    }
+
+    final office = await _recordForPosition(pos, notify: false);
     return office != null
         ? ForegroundCheck(ForegroundCheckStatus.recorded, office: office)
         : const ForegroundCheck(ForegroundCheckStatus.none);
@@ -293,27 +312,14 @@ class LocationService {
     }
   }
 
-  /// Core auto check-in: if the current position is within the radius of a
-  /// registered office and today is unmarked, record attendance. Never prompts
-  /// for permission — runs only when location access was already granted.
-  static Future<OfficeLocation?> _checkAndRecord({required bool notify}) async {
+  /// Records attendance for an already-read [pos] if it's within an office's
+  /// radius and today is still open. Returns the office recorded at, or null.
+  static Future<OfficeLocation?> _recordForPosition(
+    Position pos, {
+    required bool notify,
+  }) async {
     final db = DatabaseService.instance;
     final offices = await db.getOfficeLocations();
-    if (offices.isEmpty) return null;
-    if (!await _hasPermissionSilently()) return null;
-
-    Position? pos;
-    try {
-      pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 20),
-        ),
-      );
-    } catch (_) {
-      return null;
-    }
-
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     // A day already marked as a public holiday, sick leave or misc leave is
