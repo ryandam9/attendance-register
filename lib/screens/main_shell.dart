@@ -16,6 +16,7 @@ import '../services/holiday_service.dart';
 import '../services/location_service.dart';
 import '../themes/bird_art.dart';
 import '../widgets/app_sidebar.dart';
+import '../widgets/check_in_celebration.dart';
 import 'explain_screen.dart';
 import 'history_screen.dart';
 import 'home_screen.dart';
@@ -126,8 +127,12 @@ class _MainShellState extends ConsumerState<MainShell>
       switch (result.status) {
         case ForegroundCheckStatus.recorded:
           _refreshFocusedMonth();
-          _checkInSnack(
-            "You're at ${result.office!.name} — attendance recorded for today.",
+          unawaited(
+            showCheckInCelebration(
+              context,
+              officeName: result.office!.name,
+              date: DateTime.now(),
+            ),
           );
         case ForegroundCheckStatus.noOfficeLocation:
           // Actionable: the office has no coordinates to match against.
