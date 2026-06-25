@@ -47,6 +47,12 @@ dependencies:
   # so address ↔ coordinate lookups fall back to an HTTP geocoder there.
   http: ^1.2.0
 
+  # Export history to a real .xlsx workbook, then save it (native Save dialog on
+  # desktop) or share it (mobile).
+  excel: ^4.0.0
+  file_selector: ^1.0.0
+  share_plus: ^10.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
