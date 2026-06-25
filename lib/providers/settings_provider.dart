@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/report_period.dart';
 import '../services/database_service.dart';
+import '../services/location_service.dart';
 import '../themes/bird_themes.dart';
 
 /// Persisted app preferences.
@@ -16,6 +17,10 @@ class SettingsState {
   final ThemeMode themeMode;
   final String userName;
   final int rtoTarget;
+
+  /// When true, auto check-in re-records a day even if the user previously
+  /// deleted it. Default false — a manual deletion is respected.
+  final bool autoCheckInIgnoreDismissed;
   final bool loaded;
 
   const SettingsState({
@@ -24,6 +29,7 @@ class SettingsState {
     this.themeMode = ThemeMode.system,
     this.userName = '',
     this.rtoTarget = defaultRtoTarget,
+    this.autoCheckInIgnoreDismissed = false,
     this.loaded = false,
   });
 
@@ -33,6 +39,7 @@ class SettingsState {
     ThemeMode? themeMode,
     String? userName,
     int? rtoTarget,
+    bool? autoCheckInIgnoreDismissed,
     bool? loaded,
   }) => SettingsState(
     financialYearStart: financialYearStart ?? this.financialYearStart,
@@ -40,6 +47,8 @@ class SettingsState {
     themeMode: themeMode ?? this.themeMode,
     userName: userName ?? this.userName,
     rtoTarget: rtoTarget ?? this.rtoTarget,
+    autoCheckInIgnoreDismissed:
+        autoCheckInIgnoreDismissed ?? this.autoCheckInIgnoreDismissed,
     loaded: loaded ?? this.loaded,
   );
 
@@ -52,6 +61,10 @@ class SettingsNotifier extends Notifier<SettingsState> {
   static const _themeModeKey = 'theme_mode';
   static const _userNameKey = 'user_name';
   static const _rtoTargetKey = 'rto_target_percent';
+  // Shared with LocationService so the auto check-in path and this toggle agree
+  // on the persisted key.
+  static const _autoCheckInIgnoreDismissedKey =
+      LocationService.autoCheckInIgnoreDismissedKey;
 
   static ThemeMode _themeModeFromName(String? name) => ThemeMode.values
       .firstWhere((m) => m.name == name, orElse: () => ThemeMode.system);
@@ -68,6 +81,9 @@ class SettingsNotifier extends Notifier<SettingsState> {
     final themeMode = await DatabaseService.instance.getSetting(_themeModeKey);
     final userName = await DatabaseService.instance.getSetting(_userNameKey);
     final rtoTarget = await DatabaseService.instance.getSetting(_rtoTargetKey);
+    final ignoreDismissed = await DatabaseService.instance.getSetting(
+      _autoCheckInIgnoreDismissedKey,
+    );
     state = SettingsState(
       financialYearStart: FinancialYearStart.fromName(fyStart),
       themeId: themeId ?? 'bee_eater',
@@ -75,6 +91,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
       userName: userName ?? '',
       rtoTarget:
           int.tryParse(rtoTarget ?? '') ?? SettingsState.defaultRtoTarget,
+      autoCheckInIgnoreDismissed: ignoreDismissed == 'true',
       loaded: true,
     );
   }
@@ -102,6 +119,14 @@ class SettingsNotifier extends Notifier<SettingsState> {
   Future<void> setRtoTarget(int percent) async {
     state = state.copyWith(rtoTarget: percent, loaded: true);
     await DatabaseService.instance.setSetting(_rtoTargetKey, '$percent');
+  }
+
+  Future<void> setAutoCheckInIgnoreDismissed(bool value) async {
+    state = state.copyWith(autoCheckInIgnoreDismissed: value, loaded: true);
+    await DatabaseService.instance.setSetting(
+      _autoCheckInIgnoreDismissedKey,
+      value ? 'true' : 'false',
+    );
   }
 }
 

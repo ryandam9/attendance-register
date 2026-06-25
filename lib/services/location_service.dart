@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart'
-    show debugPrint, defaultTargetPlatform, kIsWeb, TargetPlatform;
+    show debugPrint, defaultTargetPlatform, kDebugMode, kIsWeb, TargetPlatform;
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +8,7 @@ import 'package:native_geofence/native_geofence.dart' as nf;
 import '../models/attendance_record.dart';
 import '../models/office_location.dart';
 import 'database_service.dart';
+import 'http_geocoder.dart';
 import 'notification_service.dart';
 
 /// native_geofence implements only Android and iOS. On every other platform its
@@ -41,6 +42,13 @@ Future<void> geofenceTriggered(nf.GeofenceCallbackParams params) async {
   }
 }
 
+/// Auto check-in diagnostics. Gated on [kDebugMode] so they show in the
+/// `flutter run` console during development but don't spam Console.app / stdout
+/// in a release desktop build.
+void _autolog(String message) {
+  if (kDebugMode) debugPrint('[autocheck] $message');
+}
+
 /// A reverse-geocoded location: a human-readable [address] plus the structured
 /// [state]/[country] fields the holiday importer matches on.
 class GeoPlace {
@@ -63,6 +71,12 @@ enum ForegroundCheckStatus {
   /// Location permission hasn't been granted, so the position can't be read.
   permissionDenied,
 
+  /// A position was read and the nearest office is close, but you're just
+  /// outside its radius — so nothing was recorded. The UI says how far, since a
+  /// silent miss looks like a bug ("I'm at the office, why didn't it check in?").
+  /// Only used when reasonably close; far-away opens stay [none].
+  tooFar,
+
   /// Nothing to report and nothing wrong: no offices, already recorded, the
   /// position couldn't be read, or you're simply not at an office. The UI stays
   /// quiet for this — it would otherwise nag on every app open.
@@ -71,13 +85,24 @@ enum ForegroundCheckStatus {
 
 class ForegroundCheck {
   final ForegroundCheckStatus status;
-  final OfficeLocation? office; // set when [status] is recorded
-  const ForegroundCheck(this.status, {this.office});
+  final OfficeLocation? office; // set when [status] is recorded or tooFar
+  final double? distanceMeters; // set when [status] is tooFar
+  final double? accuracyMeters; // the fix's accuracy, when [status] is tooFar
+  const ForegroundCheck(
+    this.status, {
+    this.office,
+    this.distanceMeters,
+    this.accuracyMeters,
+  });
 }
 
 class LocationService {
   LocationService._();
   static final LocationService instance = LocationService._();
+
+  /// Used to geocode on desktop, where the `geocoding` plugin has no native
+  /// implementation. Overridable in tests.
+  HttpGeocoder httpGeocoder = HttpGeocoder();
 
   /// Ask for foreground location permission. Returns true when granted.
   Future<bool> requestPermission() async {
@@ -112,31 +137,46 @@ class LocationService {
   Future<GeoPlace?> placeFromCoordinates(double lat, double lng) async {
     try {
       final marks = await placemarkFromCoordinates(lat, lng);
-      if (marks.isEmpty) return null;
-      final p = marks.first;
-      final address = [
-        p.street,
-        p.locality,
-        p.postalCode,
-        p.country,
-      ].where((s) => s != null && s.isNotEmpty).join(', ');
-      String? nonEmpty(String? s) => (s == null || s.isEmpty) ? null : s;
-      return GeoPlace(
-        address: address.isEmpty ? null : address,
-        state: nonEmpty(p.administrativeArea),
-        country: nonEmpty(p.isoCountryCode),
-      );
+      if (marks.isNotEmpty) {
+        final p = marks.first;
+        final address = [
+          p.street,
+          p.locality,
+          p.postalCode,
+          p.country,
+        ].where((s) => s != null && s.isNotEmpty).join(', ');
+        String? nonEmpty(String? s) => (s == null || s.isEmpty) ? null : s;
+        return GeoPlace(
+          address: address.isEmpty ? null : address,
+          state: nonEmpty(p.administrativeArea),
+          country: nonEmpty(p.isoCountryCode),
+        );
+      }
     } catch (_) {
-      return null;
+      // Native geocoding is unavailable (desktop) or failed — fall through to
+      // the HTTP geocoder below.
     }
+    final place = await httpGeocoder.reverse(lat, lng);
+    if (place == null) return null;
+    return GeoPlace(
+      address: place.address,
+      state: place.state,
+      country: place.country,
+    );
   }
 
-  Future<List<Location>?> coordinatesFromAddress(String address) async {
+  /// Forward-geocodes [address] to coordinates (best match first). Returns null
+  /// when nothing matches or geocoding is unavailable.
+  Future<List<GeoCoord>?> coordinatesFromAddress(String address) async {
     try {
-      return await locationFromAddress(address);
+      final locations = await locationFromAddress(address);
+      if (locations.isNotEmpty) {
+        return [for (final l in locations) GeoCoord(l.latitude, l.longitude)];
+      }
     } catch (_) {
-      return null;
+      // Native geocoding unavailable (desktop) or failed — fall through to HTTP.
     }
+    return httpGeocoder.forward(address);
   }
 
   Future<bool> hasAlwaysPermission() async {
@@ -214,8 +254,12 @@ class LocationService {
     // Check special day conflicts (holidays, leaves, etc.)
     if (await db.getSpecialDayForDate(today) != null) return;
 
-    // The user deleted today's record — don't resurrect it.
-    if (await db.isAutoCheckInDismissed(today)) return;
+    // The user deleted today's record — don't resurrect it, unless they've
+    // opted into "auto check-in even if manually deleted".
+    if (!await autoCheckInIgnoresDismissal() &&
+        await db.isAutoCheckInDismissed(today)) {
+      return;
+    }
 
     // Check if attendance already recorded today for this office
     if (await db.hasAttendanceForDate(today, officeId)) return;
@@ -270,16 +314,14 @@ class LocationService {
       }
     } catch (e) {
       perm = LocationPermission.unableToDetermine;
-      debugPrint('[autocheck] permission request threw: $e');
+      _autolog('permission request threw: $e');
     }
 
     bool serviceEnabled = false;
     try {
       serviceEnabled = await Geolocator.isLocationServiceEnabled();
     } catch (_) {}
-    // Diagnostic: shows in the `flutter run` console so the actual state is
-    // visible instead of guessed.
-    debugPrint('[autocheck] serviceEnabled=$serviceEnabled permission=$perm');
+    _autolog('serviceEnabled=$serviceEnabled permission=$perm');
 
     final granted =
         perm == LocationPermission.always ||
@@ -308,24 +350,56 @@ class LocationService {
           ),
         );
       } catch (e) {
-        debugPrint(
-          '[autocheck] getCurrentPosition attempt $attempt failed: $e',
-        );
+        _autolog('getCurrentPosition attempt $attempt failed: $e');
         pos = null;
         if (attempt < 2) {
           await Future.delayed(const Duration(milliseconds: 800));
         }
       }
     }
+    // Fall back to the OS's cached fix — on a cold desktop start a fresh read
+    // can keep failing while a perfectly usable last-known position exists.
+    if (pos == null) {
+      try {
+        pos = await Geolocator.getLastKnownPosition();
+        if (pos != null) _autolog('using last-known position');
+      } catch (_) {
+        pos = null;
+      }
+    }
     if (pos == null) {
       return const ForegroundCheck(ForegroundCheckStatus.none);
     }
-    debugPrint('[autocheck] position=${pos.latitude},${pos.longitude}');
+    _autolog('position=${pos.latitude},${pos.longitude} acc=${pos.accuracy}');
 
-    final office = await _recordForPosition(pos, notify: false);
-    return office != null
-        ? ForegroundCheck(ForegroundCheckStatus.recorded, office: office)
-        : const ForegroundCheck(ForegroundCheckStatus.none);
+    final match = await _recordForPosition(pos, notify: false);
+    if (match.recorded != null) {
+      return ForegroundCheck(
+        ForegroundCheckStatus.recorded,
+        office: match.recorded,
+      );
+    }
+
+    // Near-miss feedback: a position was read but the closest office is just
+    // outside its radius. Only surface this when reasonably close — within the
+    // radius plus a slack that grows with a poor fix's accuracy — so opening the
+    // app from home (kilometres away) stays silent instead of nagging.
+    final nearest = match.nearest;
+    if (nearest != null && match.nearestDistance > nearest.radius) {
+      final acc = (pos.accuracy.isFinite && pos.accuracy > 0)
+          ? pos.accuracy
+          : 0.0;
+      final slack = acc.clamp(400.0, 1500.0);
+      if (match.nearestDistance <= nearest.radius + slack) {
+        return ForegroundCheck(
+          ForegroundCheckStatus.tooFar,
+          office: nearest,
+          distanceMeters: match.nearestDistance,
+          accuracyMeters: pos.accuracy,
+        );
+      }
+    }
+    return const ForegroundCheck(ForegroundCheckStatus.none);
   }
 
   /// Opens the OS location settings (so the user can enable Location Services /
@@ -343,11 +417,22 @@ class LocationService {
   }
 
   /// Records attendance for an already-read [pos] if it's within an office's
-  /// radius and today is still open. Returns the office recorded at, or null.
-  static Future<OfficeLocation?> _recordForPosition(
-    Position pos, {
-    required bool notify,
-  }) async {
+  /// radius and today is still open. Returns the office recorded at (if any)
+  /// plus the nearest located office and its distance, so the caller can give
+  /// "you're just outside the office" feedback when nothing was recorded.
+  static Future<
+    ({
+      OfficeLocation? recorded,
+      OfficeLocation? nearest,
+      double nearestDistance,
+    })
+  >
+  _recordForPosition(Position pos, {required bool notify}) async {
+    const miss = (
+      recorded: null,
+      nearest: null,
+      nearestDistance: double.infinity,
+    );
     final db = DatabaseService.instance;
     final offices = await db.getOfficeLocations();
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -356,16 +441,21 @@ class LocationService {
     // off-limits to auto check-in — the user owns that decision and can change
     // it manually. Mirrors the specialDayConflict guard in manualCheckIn so an
     // automatic geo check never silently overwrites a (blue) public holiday
-    // with "Attended".
-    if (await db.getSpecialDayForDate(today) != null) return null;
+    // with "Attended". Stay silent (no near-miss nag) on these days.
+    if (await db.getSpecialDayForDate(today) != null) return miss;
 
-    // The user deleted today's record — don't resurrect it.
-    if (await db.isAutoCheckInDismissed(today)) return null;
+    // The user deleted today's record — don't resurrect it, unless they've
+    // opted into "auto check-in even if manually deleted".
+    if (!await autoCheckInIgnoresDismissal() &&
+        await db.isAutoCheckInDismissed(today)) {
+      return miss;
+    }
 
     OfficeLocation? recordedAt;
+    OfficeLocation? nearest;
+    var nearestDistance = double.infinity;
     for (final office in offices) {
       if (!office.hasLocation) continue; // manual-only office
-      if (await db.hasAttendanceForDate(today, office.id!)) continue;
 
       final distance = Geolocator.distanceBetween(
         pos.latitude,
@@ -373,6 +463,12 @@ class LocationService {
         office.latitude,
         office.longitude,
       );
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearest = office;
+      }
+
+      if (await db.hasAttendanceForDate(today, office.id!)) continue;
 
       if (distance <= office.radius) {
         // insertAttendanceRecord uses ConflictAlgorithm.ignore: it returns the
@@ -402,6 +498,24 @@ class LocationService {
         }
       }
     }
-    return recordedAt;
+    return (
+      recorded: recordedAt,
+      nearest: nearest,
+      nearestDistance: nearestDistance,
+    );
+  }
+
+  /// Persisted key for the "auto check-in even if I manually deleted the day"
+  /// preference. Read straight from the DB (not the settings provider) so it
+  /// also works from the background geofence isolate, which has no providers.
+  static const autoCheckInIgnoreDismissedKey = 'auto_checkin_ignore_dismissed';
+
+  /// Whether auto check-in should re-record a day the user previously deleted.
+  /// Defaults to false (deletions are respected).
+  static Future<bool> autoCheckInIgnoresDismissal() async {
+    final v = await DatabaseService.instance.getSetting(
+      autoCheckInIgnoreDismissedKey,
+    );
+    return v == 'true';
   }
 }

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../helpers/layout.dart';
 import '../helpers/route_helper.dart';
+import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/settings_provider.dart';
@@ -150,6 +151,20 @@ class _MainShellState extends ConsumerState<MainShell>
             actionLabel: 'Open Settings',
             onAction: LocationService.openLocationSettings,
           );
+        case ForegroundCheckStatus.tooFar:
+          // Read a position, but you're just outside the office radius — say so
+          // (a silent miss looks like a bug) and offer to record anyway.
+          final office = result.office!;
+          final acc = result.accuracyMeters;
+          final accNote = (acc != null && acc.isFinite && acc > 150)
+              ? ' Your location was only accurate to ±${acc.round()} m.'
+              : '';
+          _checkInSnack(
+            'You\'re about ${_formatDistance(result.distanceMeters!)} from '
+            '${office.name} — too far to auto check-in.$accNote',
+            actionLabel: 'Check in anyway',
+            onAction: () => _checkInAt(office),
+          );
         case ForegroundCheckStatus.none:
           break; // not at an office / already recorded — stay quiet
       }
@@ -173,6 +188,37 @@ class _MainShellState extends ConsumerState<MainShell>
             : null,
       ),
     );
+  }
+
+  static String _formatDistance(double metres) {
+    if (metres >= 1000) {
+      return '${(metres / 1000).toStringAsFixed(metres >= 10000 ? 0 : 1)} km';
+    }
+    return '${metres.round()} m';
+  }
+
+  /// Records today's attendance at [office] manually — used by the near-miss
+  /// "Check in anyway" action when the user is just outside the radius.
+  Future<void> _checkInAt(OfficeLocation office) async {
+    final focused = ref.read(calendarFocusProvider);
+    final result = await ref
+        .read(attendanceProvider.notifier)
+        .manualCheckIn(office.id!, focusedMonth: focused);
+    if (!mounted) return;
+    if (result == CheckInResult.recorded) {
+      _refreshFocusedMonth();
+      unawaited(
+        showCheckInCelebration(
+          context,
+          officeName: office.name,
+          date: DateTime.now(),
+        ),
+      );
+    } else if (result == CheckInResult.specialDayConflict) {
+      _checkInSnack('Today is already marked as a holiday or leave.');
+    } else {
+      _checkInSnack('Today is already recorded for ${office.name}.');
+    }
   }
 
   /// Opens the editor for an office that has no saved location (or the first

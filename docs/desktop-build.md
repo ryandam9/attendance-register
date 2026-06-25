@@ -109,6 +109,34 @@ in your home dir → no admin); alternatively right-click the app →
 > **won't** override it — that requires signing & notarising the app with a paid
 > Apple Developer account.
 
+### 6. Location permission troubleshooting (auto check-in)
+
+macOS auto check-in records your office day when you **open the app while at the
+office** (there's no background geofencing on macOS). For it to work, macOS must
+have granted the app location access. A couple of macOS-specific quirks:
+
+- **First launch may not prompt immediately.** Core Location resolves a Mac's
+  position over Wi-Fi, so the first fix after launch can take a few seconds; the
+  app retries and falls back to the last-known position. If you opened the app
+  the moment you arrived, give it a moment or reopen it.
+- **"Granted but still not working" after a rebuild.** macOS ties a location
+  grant to the app's **bundle identifier + code signature**. Because these builds
+  are **unsigned**, every rebuild looks like a slightly different app to the
+  privacy database (TCC), so a previously-granted permission can appear to stop
+  working, or you may see duplicate entries. To reset it:
+  1. Open **System Settings → Privacy & Security → Location Services**.
+  2. If **Office Attendance** is listed, turn it **off**, then **on** again (or
+     remove it with the **–** button if your macOS version allows).
+  3. Keep **one** copy of the app in a stable location (e.g. `~/Applications`)
+     and run that same copy each day, rather than launching freshly-built copies
+     from different folders — that keeps the grant stable.
+- **Just outside the office?** If a Wi-Fi fix puts you a little outside the
+  office radius, the app tells you how far it thinks you are and offers a
+  **"Check in anyway"** action, so a near-miss never silently does nothing. You
+  can also widen the office radius when you add/edit it.
+- For a permission grant that actually persists across rebuilds, **sign** the app
+  with a (free) Apple Developer account so its signature is stable.
+
 ---
 
 ## Linux

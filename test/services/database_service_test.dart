@@ -5,6 +5,7 @@ import 'package:attendance_register/models/attendance_record.dart';
 import 'package:attendance_register/models/office_location.dart';
 import 'package:attendance_register/models/special_day.dart';
 import 'package:attendance_register/services/database_service.dart';
+import 'package:attendance_register/services/location_service.dart';
 
 // Helpers that exercise the database schema independently of the singleton,
 // so tests are isolated and repeatable on any desktop environment.
@@ -489,6 +490,26 @@ void main() {
         await service.deleteAllRecords();
         expect(await service.isAutoCheckInDismissed('2026-06-08'), isFalse);
       });
+
+      test(
+        'autoCheckInIgnoresDismissal reflects the persisted setting',
+        () async {
+          // Default (unset) respects deletions.
+          expect(await LocationService.autoCheckInIgnoresDismissal(), isFalse);
+
+          await service.setSetting(
+            LocationService.autoCheckInIgnoreDismissedKey,
+            'true',
+          );
+          expect(await LocationService.autoCheckInIgnoresDismissal(), isTrue);
+
+          await service.setSetting(
+            LocationService.autoCheckInIgnoreDismissedKey,
+            'false',
+          );
+          expect(await LocationService.autoCheckInIgnoresDismissal(), isFalse);
+        },
+      );
     });
   });
 }

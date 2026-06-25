@@ -39,6 +39,9 @@ class SettingsScreen extends ConsumerWidget {
         (defaultTargetPlatform == TargetPlatform.android ||
             defaultTargetPlatform == TargetPlatform.iOS);
     final isMacOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
+    final ignoreDismissed = ref.watch(
+      settingsProvider.select((s) => s.autoCheckInIgnoreDismissed),
+    );
     final String autoCheckInBody;
     if (isMobile) {
       autoCheckInBody =
@@ -161,6 +164,27 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     ]);
+    // Only meaningful where auto check-in actually runs (geofencing on mobile,
+    // app-open check on macOS).
+    final autoCheckIn = (isMobile || isMacOS)
+        ? block('Auto Check-In', [
+            SwitchListTile(
+              secondary: const Icon(Icons.restore_outlined),
+              title: const Text('Re-record deleted days'),
+              subtitle: const Text(
+                'Normally, deleting a day keeps auto check-in from adding it '
+                'back. Turn this on to let it record that day again next time '
+                'you\'re at the office.',
+              ),
+              isThreeLine: true,
+              value: ignoreDismissed,
+              onChanged: (v) => ref
+                  .read(settingsProvider.notifier)
+                  .setAutoCheckInIgnoreDismissed(v),
+            ),
+          ])
+        : null;
+
     final data = block('Data', [
       ListTile(
         leading: const Icon(Icons.file_download_outlined),
@@ -240,6 +264,7 @@ class SettingsScreen extends ConsumerWidget {
               Expanded(
                 child: column([
                   permissions,
+                  ?autoCheckIn,
                   howItWorks,
                   data,
                   about,
@@ -261,6 +286,7 @@ class SettingsScreen extends ConsumerWidget {
           offices,
           permissions,
           appearance,
+          ?autoCheckIn,
           howItWorks,
           data,
           about,
