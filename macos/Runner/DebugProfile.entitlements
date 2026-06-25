@@ -17,5 +17,9 @@
 	<!-- Outbound network: Wi-Fi positioning and reverse geocoding (CLGeocoder). -->
 	<key>com.apple.security.network.client</key>
 	<true/>
+	<!-- Let the "Save As" dialog write the history export the user picks. Under
+	     the App Sandbox, writing a user-chosen file needs this entitlement. -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
 </dict>
 </plist>

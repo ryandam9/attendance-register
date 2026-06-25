@@ -15,6 +15,7 @@ import '../providers/office_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/special_day_provider.dart';
 import '../services/database_service.dart';
+import '../services/export_saver.dart';
 import '../services/export_service.dart';
 import '../services/holiday_service.dart';
 import '../widgets/desktop_page.dart';
@@ -187,11 +188,21 @@ class SettingsScreen extends ConsumerWidget {
 
     final data = block('Data', [
       ListTile(
-        leading: const Icon(Icons.file_download_outlined),
-        title: const Text('Export All Data (CSV)'),
+        leading: const Icon(Icons.table_view_outlined),
+        title: const Text('Download History (Excel)'),
         subtitle: const Text(
-          'Copies every recorded day — attendance, leave and holidays — to '
-          'the clipboard. Paste into a file or spreadsheet to back it up.',
+          'Saves every recorded day — attendance, leave and holidays — as an '
+          '.xlsx workbook you can open in Excel.',
+        ),
+        isThreeLine: true,
+        onTap: () => _exportExcel(context),
+      ),
+      ListTile(
+        leading: const Icon(Icons.file_download_outlined),
+        title: const Text('Copy All Data (CSV)'),
+        subtitle: const Text(
+          'Copies every recorded day to the clipboard. Paste into a file or '
+          'spreadsheet to back it up.',
         ),
         isThreeLine: true,
         onTap: () => _exportData(context),
@@ -294,6 +305,54 @@ class SettingsScreen extends ConsumerWidget {
         ]),
       ),
     );
+  }
+
+  Future<void> _exportExcel(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await ExportService.buildXlsx();
+    if (result.rows == 0) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Nothing to export yet.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    final now = DateTime.now();
+    final stamp =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
+    final saved = await ExportSaver.saveXlsx(
+      result.bytes,
+      suggestedName: 'attendance-history-$stamp.xlsx',
+    );
+    final days = '${result.rows} day${result.rows == 1 ? '' : 's'}';
+    switch (saved.outcome) {
+      case SaveOutcome.saved:
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Saved $days to ${saved.path}'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      case SaveOutcome.shared:
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Exported $days.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      case SaveOutcome.cancelled:
+        break;
+      case SaveOutcome.error:
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Could not save the file.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+    }
   }
 
   Future<void> _exportData(BuildContext context) async {
