@@ -44,8 +44,12 @@ class _CheckInCelebration extends StatefulWidget {
 }
 
 class _CheckInCelebrationState extends State<_CheckInCelebration> {
+  /// How long the confetti rains and the celebration stays up before it
+  /// auto-dismisses (the user can also tap or tap-outside to close sooner).
+  static const _celebration = Duration(seconds: 30);
+
   late final ConfettiController _confetti = ConfettiController(
-    duration: const Duration(milliseconds: 1500),
+    duration: _celebration,
   );
   Timer? _autoClose;
 
@@ -53,7 +57,7 @@ class _CheckInCelebrationState extends State<_CheckInCelebration> {
   void initState() {
     super.initState();
     _confetti.play();
-    _autoClose = Timer(const Duration(milliseconds: 2800), () {
+    _autoClose = Timer(_celebration, () {
       if (mounted) Navigator.of(context).maybePop();
     });
   }
