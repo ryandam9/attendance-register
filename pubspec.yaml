@@ -43,6 +43,9 @@ dependencies:
   # Utilities
   intl: ^0.20.2
   path_provider: ^2.1.5
+  # The `geocoding` plugin has no desktop (macOS/Linux/Windows) implementation,
+  # so address ↔ coordinate lookups fall back to an HTTP geocoder there.
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:
