@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
@@ -10,6 +8,7 @@ import '../build_info.dart';
 import '../helpers/layout.dart';
 import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
+import '../models/report_period.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/settings_provider.dart';
@@ -51,19 +50,19 @@ class SettingsScreen extends ConsumerWidget {
           'app in the background to record your attendance automatically '
           'once per day. Opening the app while at the office records it '
           'too.\n\n'
-          'You can also tap "Check-In for Today" on the home screen to '
+          'You can also tap "Check in for today" on the home screen to '
           'record today\'s attendance manually.';
     } else if (isMacOS) {
       autoCheckInBody =
           'Background geofencing isn\'t available on macOS, so attendance '
           'isn\'t recorded automatically while the app is closed.\n\n'
-          'Tap "Check-In for Today" on the home screen when you\'re at the '
+          'Tap "Check in for today" on the home screen when you\'re at the '
           'office, or mark any day from the calendar.';
     } else {
       autoCheckInBody =
           'Automatic, location-based check-in is only available on Android '
           'and iOS.\n\n'
-          'On this platform, tap "Check-In for Today" on the home screen, or '
+          'On this platform, tap "Check in for today" on the home screen, or '
           'mark any day from the calendar.';
     }
 
@@ -75,8 +74,10 @@ class SettingsScreen extends ConsumerWidget {
       children: [_SectionLabel(label), ...children],
     );
 
-    final profile = block('Profile', const [_NameSection()]);
-    final target = block('Attendance Target', const [_TargetSection()]);
+    final reporting = block('Reporting', const [
+      _TargetSection(),
+      _FinancialYearSection(),
+    ]);
     final offices = block('Offices', [
       ...officeState.offices.map(
         (o) => _OfficeTile(
@@ -99,7 +100,9 @@ class SettingsScreen extends ConsumerWidget {
         ).then((_) => notifier.load()),
       ),
     ]);
-    final permissions = block('Permissions', const [PermissionsSection()]);
+    final permissions = block('Automatic Check-In', const [
+      PermissionsSection(),
+    ]);
     final appearance = block('Appearance', [
       ListTile(
         leading: const Icon(Icons.palette_outlined),
@@ -186,7 +189,7 @@ class SettingsScreen extends ConsumerWidget {
           ])
         : null;
 
-    final data = block('Data', [
+    final data = block('Data & Privacy', [
       ListTile(
         leading: const Icon(Icons.table_view_outlined),
         title: const Text('Download History (Excel)'),
@@ -226,7 +229,7 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
     ]);
-    final about = block('About', [
+    final about = block('Help & About', [
       ListTile(
         leading: const Icon(Icons.info_outline),
         title: const Text('About Attendance Register'),
@@ -238,18 +241,6 @@ class SettingsScreen extends ConsumerWidget {
         onTap: () => Navigator.push(context, appRoute(const AboutScreen())),
       ),
     ]);
-    final disclaimer = Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      child: Text(
-        'Disclaimer: This app was fully designed and built by AI '
-        '(Claude Opus 4.8) and may not represent the statistics accurately.',
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      ),
-    );
-
     // A column of blocks separated by dividers.
     Widget column(List<Widget> blocks) => ListView(
       padding: EdgeInsets.zero,
@@ -270,7 +261,7 @@ class SettingsScreen extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: column([profile, target, offices, appearance])),
+              Expanded(child: column([reporting, offices, appearance])),
               const SizedBox(width: 32),
               Expanded(
                 child: column([
@@ -279,7 +270,6 @@ class SettingsScreen extends ConsumerWidget {
                   howItWorks,
                   data,
                   about,
-                  disclaimer,
                 ]),
               ),
             ],
@@ -292,8 +282,7 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Settings')),
       body: ResponsiveBody(
         child: column([
-          profile,
-          target,
+          reporting,
           offices,
           permissions,
           appearance,
@@ -301,7 +290,6 @@ class SettingsScreen extends ConsumerWidget {
           howItWorks,
           data,
           about,
-          disclaimer,
         ]),
       ),
     );
@@ -483,68 +471,6 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-class _NameSection extends ConsumerStatefulWidget {
-  const _NameSection();
-
-  @override
-  ConsumerState<_NameSection> createState() => _NameSectionState();
-}
-
-class _NameSectionState extends ConsumerState<_NameSection> {
-  late final TextEditingController _ctrl;
-  late final SettingsNotifier _settings;
-  Timer? _debounce;
-
-  @override
-  void initState() {
-    super.initState();
-    _settings = ref.read(settingsProvider.notifier);
-    _ctrl = TextEditingController(text: ref.read(settingsProvider).userName);
-  }
-
-  @override
-  void dispose() {
-    // Flush a pending debounced save so backing out right after typing doesn't
-    // lose the name.
-    if (_debounce?.isActive ?? false) _save(_ctrl.text);
-    _debounce?.cancel();
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  void _save(String value) => _settings.setUserName(value.trim());
-
-  // Persist as the user types (debounced) rather than only on the keyboard's
-  // submit action — most people type and navigate back without ever
-  // submitting, which used to discard the name.
-  void _onChanged(String value) {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () => _save(value));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: TextField(
-        controller: _ctrl,
-        decoration: const InputDecoration(
-          labelText: 'Your Name',
-          hintText: 'Used in attendance notifications',
-          border: OutlineInputBorder(),
-          prefixIcon: Icon(Icons.person_outline),
-        ),
-        textCapitalization: TextCapitalization.words,
-        onChanged: _onChanged,
-        onSubmitted: (v) {
-          _debounce?.cancel();
-          _save(v);
-        },
-      ),
-    );
-  }
-}
-
 /// Slider for the return-to-office target: the percentage at which the
 /// dashboard's stat badges and progress bars turn from red to green.
 class _TargetSection extends ConsumerStatefulWidget {
@@ -552,6 +478,43 @@ class _TargetSection extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<_TargetSection> createState() => _TargetSectionState();
+}
+
+class _FinancialYearSection extends ConsumerWidget {
+  const _FinancialYearSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final value = ref.watch(settingsProvider).financialYearStart;
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Reporting year', style: Theme.of(context).textTheme.bodyLarge),
+          const SizedBox(height: 2),
+          Text(
+            'Used when Insights is set to Year.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 10),
+          SegmentedButton<FinancialYearStart>(
+            segments: [
+              for (final option in FinancialYearStart.values)
+                ButtonSegment(value: option, label: Text(option.label)),
+            ],
+            selected: {value},
+            onSelectionChanged: (selection) => ref
+                .read(settingsProvider.notifier)
+                .setFinancialYearStart(selection.first),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _TargetSectionState extends ConsumerState<_TargetSection> {

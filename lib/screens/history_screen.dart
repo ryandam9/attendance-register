@@ -22,6 +22,8 @@ class _HistoryItem {
   const _HistoryItem({required this.date, required this.status, this.comment});
 }
 
+enum _HistoryFilter { all, office, workFromHome, leaveAndHoliday }
+
 /// The History tab: full chronological history of every recorded day
 /// (attendance, leave, holidays, WFH), newest first. Tapping a row opens the
 /// quick-mark sheet so the entry can be edited or removed.
@@ -39,11 +41,43 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   List<_HistoryItem> _items = const [];
   bool _loading = true;
   _HistoryItem? _selected; // desktop master-detail selection
+  _HistoryFilter _filter = _HistoryFilter.all;
+  String _query = '';
+  late final TextEditingController _searchController;
 
   @override
   void initState() {
     super.initState();
+    _searchController = TextEditingController();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<_HistoryItem> get _visibleItems {
+    final query = _query.trim().toLowerCase();
+    return _items
+        .where((item) {
+          final matchesFilter = switch (_filter) {
+            _HistoryFilter.all => true,
+            _HistoryFilter.office => item.status == DayStatus.attended,
+            _HistoryFilter.workFromHome =>
+              item.status == DayStatus.workFromHome,
+            _HistoryFilter.leaveAndHoliday =>
+              item.status != DayStatus.attended &&
+                  item.status != DayStatus.workFromHome,
+          };
+          if (!matchesFilter) return false;
+          if (query.isEmpty) return true;
+          return item.status.label.toLowerCase().contains(query) ||
+              (item.comment?.toLowerCase().contains(query) ?? false) ||
+              _dateFmt.format(item.date).toLowerCase().contains(query);
+        })
+        .toList(growable: false);
   }
 
   Future<void> _load() async {
@@ -102,56 +136,78 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       );
     }
 
+    final visibleItems = _visibleItems;
+
+    Widget results({required bool desktop}) {
+      if (_loading) return const Center(child: CircularProgressIndicator());
+      if (_items.isEmpty) return const _EmptyHistory();
+      if (visibleItems.isEmpty) {
+        return const _EmptyHistory(
+          title: 'No matching days',
+          message: 'Try another filter or search term.',
+        );
+      }
+      if (!desktop) {
+        return RefreshIndicator(
+          onRefresh: _load,
+          child: _list(items: visibleItems, onTap: _openEntry),
+        );
+      }
+
+      final selected = visibleItems.contains(_selected)
+          ? _selected!
+          : visibleItems.first;
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 720) {
+            return Card(
+              margin: EdgeInsets.zero,
+              clipBehavior: Clip.antiAlias,
+              child: _list(items: visibleItems, onTap: _openEntry),
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: Card(
+                  margin: EdgeInsets.zero,
+                  clipBehavior: Clip.antiAlias,
+                  child: _list(
+                    items: visibleItems,
+                    onTap: (item) => setState(() => _selected = item),
+                    selectedDate: selected.date,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 24),
+              SizedBox(width: 340, child: _detailPanel(selected)),
+            ],
+          );
+        },
+      );
+    }
+
     // Desktop: master-detail — a table-style list on the left, the selected
     // day's details on the right.
     if (isDesktopWidth(context)) {
-      final Widget body;
-      if (_loading) {
-        body = const Center(child: CircularProgressIndicator());
-      } else if (_items.isEmpty) {
-        body = const _EmptyHistory();
-      } else {
-        final selected = _selected ?? _items.first;
-        body = LayoutBuilder(
-          builder: (context, constraints) {
-            // Master-detail needs room for both panes. Below that (narrow
-            // window, or the sidebar expanded) the list would be crushed, so
-            // fall back to a full-width list that opens the entry sheet on tap.
-            if (constraints.maxWidth < 720) {
-              return Card(
-                margin: EdgeInsets.zero,
-                clipBehavior: Clip.antiAlias,
-                child: _list(onTap: _openEntry),
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: Card(
-                    margin: EdgeInsets.zero,
-                    clipBehavior: Clip.antiAlias,
-                    child: _list(
-                      onTap: (item) => setState(() => _selected = item),
-                      selectedDate: selected.date,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 24),
-                SizedBox(width: 340, child: _detailPanel(selected)),
-              ],
-            );
-          },
-        );
-      }
       return Scaffold(
         backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
         body: DesktopPage(
           title: 'History',
           subtitle: _items.isEmpty
               ? 'Every recorded day'
-              : '${_items.length} recorded day${_items.length == 1 ? '' : 's'}',
-          child: body,
+              : '${visibleItems.length} of ${_items.length} recorded days',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (!_loading && _items.isNotEmpty) ...[
+                _controls(),
+                const SizedBox(height: 16),
+              ],
+              Expanded(child: results(desktop: true)),
+            ],
+          ),
         ),
       );
     }
@@ -159,53 +215,135 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('History')),
       body: ResponsiveBody(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _items.isEmpty
-            ? const _EmptyHistory()
-            : RefreshIndicator(
-                onRefresh: _load,
-                child: _list(onTap: _openEntry),
-              ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!_loading && _items.isNotEmpty) _controls(),
+            Expanded(child: results(desktop: false)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _controls() {
+    final labels = {
+      _HistoryFilter.all: 'All',
+      _HistoryFilter.office: 'Office',
+      _HistoryFilter.workFromHome: 'WFH',
+      _HistoryFilter.leaveAndHoliday: 'Leave & holidays',
+    };
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _searchController,
+            onChanged: (value) => setState(() => _query = value),
+            decoration: InputDecoration(
+              hintText: 'Search dates, statuses or notes',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _query.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Clear search',
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _query = '');
+                      },
+                      icon: const Icon(Icons.clear),
+                    ),
+              border: const OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final filter in _HistoryFilter.values) ...[
+                  FilterChip(
+                    label: Text(labels[filter]!),
+                    selected: _filter == filter,
+                    onSelected: (_) => setState(() => _filter = filter),
+                  ),
+                  if (filter != _HistoryFilter.values.last)
+                    const SizedBox(width: 8),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _list({
+    required List<_HistoryItem> items,
     required ValueChanged<_HistoryItem> onTap,
     DateTime? selectedDate,
   }) {
     final cs = Theme.of(context).colorScheme;
-    return ListView.separated(
+    final monthFmt = DateFormat('MMMM yyyy');
+    return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: _items.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
+      itemCount: items.length,
       itemBuilder: (context, i) {
-        final item = _items[i];
+        final item = items[i];
+        final showMonth =
+            i == 0 ||
+            item.date.year != items[i - 1].date.year ||
+            item.date.month != items[i - 1].date.month;
         final color = item.status.colorIn(context);
         final isToday =
             _keyFmt.format(item.date) == _keyFmt.format(DateTime.now());
         final selected =
             selectedDate != null &&
             _keyFmt.format(item.date) == _keyFmt.format(selectedDate);
-        return ListTile(
-          selected: selected,
-          selectedTileColor: cs.primaryContainer.withValues(alpha: 0.35),
-          leading: CircleAvatar(
-            backgroundColor: color.withValues(alpha: 0.15),
-            child: Icon(item.status.icon, color: color),
-          ),
-          title: Text(
-            _dateFmt.format(item.date),
-            style: TextStyle(
-              fontWeight: isToday ? FontWeight.bold : FontWeight.w500,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (showMonth)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+                child: Text(
+                  monthFmt.format(item.date),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: cs.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ListTile(
+              selected: selected,
+              selectedTileColor: cs.primaryContainer.withValues(alpha: 0.35),
+              leading: CircleAvatar(
+                backgroundColor: color.withValues(alpha: 0.15),
+                child: Icon(item.status.icon, color: color),
+              ),
+              title: Text(
+                _dateFmt.format(item.date),
+                style: TextStyle(
+                  fontWeight: isToday ? FontWeight.bold : FontWeight.w500,
+                ),
+              ),
+              subtitle: (item.comment != null && item.comment!.isNotEmpty)
+                  ? Text(
+                      item.comment!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  : null,
+              trailing: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 112),
+                child: _StatusChip(label: item.status.label, color: color),
+              ),
+              onTap: () => onTap(item),
             ),
-          ),
-          subtitle: (item.comment != null && item.comment!.isNotEmpty)
-              ? Text(item.comment!)
-              : null,
-          trailing: _StatusChip(label: item.status.label, color: color),
-          onTap: () => onTap(item),
+            if (i != items.length - 1) const Divider(height: 1, indent: 72),
+          ],
         );
       },
     );
@@ -290,6 +428,8 @@ class _StatusChip extends StatelessWidget {
       ),
       child: Text(
         label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.w600,
@@ -301,7 +441,13 @@ class _StatusChip extends StatelessWidget {
 }
 
 class _EmptyHistory extends StatelessWidget {
-  const _EmptyHistory();
+  final String title;
+  final String message;
+  const _EmptyHistory({
+    this.title = 'No History Yet',
+    this.message =
+        'Days you mark as attended, holiday, leave or work from home will appear here.',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -318,14 +464,10 @@ class _EmptyHistory extends StatelessWidget {
               color: cs.primary.withValues(alpha: 0.4),
             ),
             const SizedBox(height: 16),
-            Text(
-              'No History Yet',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
-              'Days you mark as attended, holiday, sick leave or misc leave '
-              'will appear here.',
+              message,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: cs.onSurface.withValues(alpha: 0.6),

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../app_colors.dart';
 import '../helpers/day_type_helper.dart';
 import '../helpers/layout.dart';
 import '../helpers/route_helper.dart';
@@ -20,12 +21,11 @@ import '../providers/special_day_provider.dart';
 import '../providers/ui_state_provider.dart';
 import '../services/holiday_service.dart';
 import '../themes/bird_art.dart';
-import '../widgets/charts.dart';
+import '../widgets/check_in_celebration.dart';
 import '../widgets/quick_mark_sheet.dart';
 import '../widgets/responsive_body.dart';
 import '../widgets/rto_arc_card.dart';
 import '../widgets/stat_card.dart';
-import 'settings_screen.dart';
 import 'setup_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -97,6 +97,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       date: day,
     );
     if (changed && mounted) _refreshAttendance();
+  }
+
+  Future<void> _manualCheckIn() async {
+    final office = ref.read(officeProvider).selectedOffice;
+    if (office == null) return;
+    final result = await ref
+        .read(attendanceProvider.notifier)
+        .manualCheckIn(office.id!, focusedMonth: DateTime.now());
+    if (!mounted) return;
+
+    if (result == CheckInResult.recorded) {
+      _refreshAttendance(DateTime.now());
+      unawaited(
+        showCheckInCelebration(
+          context,
+          officeName: office.name,
+          date: DateTime.now(),
+        ),
+      );
+      return;
+    }
+
+    final message = switch (result) {
+      CheckInResult.alreadyRecorded || CheckInResult.alreadyRecordedByAuto =>
+        'Today is already recorded for ${office.name}.',
+      CheckInResult.specialDayConflict =>
+        'Today already has a status. Edit it before checking in.',
+      CheckInResult.recorded => '',
+    };
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
   }
 
   @override
@@ -176,19 +208,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ],
               )
             : const Text('Attendance Register'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: () =>
-                Navigator.push(context, appRoute(const SettingsScreen())).then((
-                  _,
-                ) async {
-                  await ref.read(officeProvider.notifier).load();
-                  if (mounted) _refreshAttendance();
-                }),
-          ),
-        ],
       ),
       body: ResponsiveBody(
         child: AnimatedSwitcher(
@@ -220,6 +239,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ref.read(officeProvider.notifier).selectOffice(o),
                   onPageChanged: _onPageChanged,
                   onDayTapped: _quickMarkDay,
+                  onCheckIn: _manualCheckIn,
                 ),
         ),
       ),
@@ -286,6 +306,7 @@ class _Dashboard extends ConsumerWidget {
   final ValueChanged<OfficeLocation> onOfficeChanged;
   final ValueChanged<DateTime> onPageChanged;
   final ValueChanged<DateTime> onDayTapped;
+  final Future<void> Function() onCheckIn;
 
   const _Dashboard({
     super.key,
@@ -295,6 +316,7 @@ class _Dashboard extends ConsumerWidget {
     required this.onOfficeChanged,
     required this.onPageChanged,
     required this.onDayTapped,
+    required this.onCheckIn,
   });
 
   static final _dayKeyFmt = DateFormat('yyyy-MM-dd');
@@ -368,10 +390,45 @@ class _Dashboard extends ConsumerWidget {
               ),
             ),
 
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: _MobileTodayCard(
+              status: statusFor(DateTime.now()),
+              onCheckIn: onCheckIn,
+              onEdit: () => onDayTapped(DateTime.now()),
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: monthBreakdown.when(
+              loading: () => const Card(
+                margin: EdgeInsets.zero,
+                child: SizedBox(
+                  height: 112,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ),
+              error: (e, _) => Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text('Could not load month progress: $e'),
+                ),
+              ),
+              data: (b) => _MobileProgressCard(
+                breakdown: b,
+                target: settings.rtoTarget,
+                periodLabel: monthPeriod.label,
+                onTap: () => ref.read(tabIndexProvider.notifier).set(1),
+              ),
+            ),
+          ),
+
           // Calendar — the home page leads with the month, statuses shown as
           // icons/markers inside each day cell (Monday-first week).
           Card(
-            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             clipBehavior: Clip.antiAlias,
             child: TableCalendar(
               firstDay: DateTime(2020),
@@ -379,10 +436,8 @@ class _Dashboard extends ConsumerWidget {
               focusedDay: focusedDay,
               calendarFormat: calendarFormat,
               startingDayOfWeek: StartingDayOfWeek.monday,
-              // Always render six week-rows so the calendar's height stays
-              // constant across months — paging between a 5-row and 6-row
-              // month would otherwise resize everything below it.
-              sixWeekMonthsEnforced: true,
+              // Let short months use less vertical space on phones.
+              sixWeekMonthsEnforced: false,
               onFormatChanged: (f) =>
                   ref.read(calendarFormatProvider.notifier).set(f),
               onPageChanged: onPageChanged,
@@ -409,40 +464,152 @@ class _Dashboard extends ConsumerWidget {
           // memorised (accessibility: icon + label + colour).
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
-            child: _LegendCard(),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Return-to-office gauge for the focused month. Tapping it opens the
-          // Insights tab (which shows both month and year).
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: monthBreakdown.when(
-              loading: () => const Card(
-                margin: EdgeInsets.zero,
-                child: SizedBox(
-                  height: 220,
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              ),
-              error: (e, _) => Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Center(child: Text('Could not load summary: $e')),
-                ),
-              ),
-              data: (b) => RtoArcCard(
-                breakdown: b,
-                target: settings.rtoTarget,
-                birdAsset: birdAssetForTheme(settings.themeId),
-                periodLabel: monthPeriod.label,
-                onTap: () => ref.read(tabIndexProvider.notifier).set(2),
-              ),
-            ),
+            child: _LegendCard(collapsible: true),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MobileTodayCard extends StatelessWidget {
+  final DayStatus? status;
+  final Future<void> Function() onCheckIn;
+  final VoidCallback onEdit;
+
+  const _MobileTodayCard({
+    required this.status,
+    required this.onCheckIn,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final color = status?.colorIn(context) ?? cs.primary;
+    final attended = status == DayStatus.attended;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: color.withValues(alpha: 0.14),
+              child: Icon(status?.icon ?? Icons.today_outlined, color: color),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Today',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    status?.label ?? 'Not recorded yet',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (status == null)
+              FilledButton(onPressed: onCheckIn, child: const Text('Check in'))
+            else if (attended)
+              const Icon(Icons.check_circle, color: AppColors.attendance)
+            else
+              TextButton(onPressed: onEdit, child: const Text('Edit')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MobileProgressCard extends StatelessWidget {
+  final AttendanceBreakdown breakdown;
+  final int target;
+  final String periodLabel;
+  final VoidCallback onTap;
+
+  const _MobileProgressCard({
+    required this.breakdown,
+    required this.target,
+    required this.periodLabel,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final pct = breakdown.returnToOfficePercentage;
+    final needed =
+        ((target / 100 * breakdown.eligibleWorkingDays).ceil() -
+                breakdown.officeDays)
+            .clamp(0, 9999);
+    final progress = ((pct ?? 0) / 100).clamp(0.0, 1.0);
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Return to office · $periodLabel',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        Text(
+                          pct == null
+                              ? 'No eligible working days yet'
+                              : needed == 0
+                              ? 'Target met'
+                              : '$needed more office ${needed == 1 ? 'day' : 'days'} to reach $target%',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: cs.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    pct == null ? '—' : '${pct.round()}%',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: cs.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Semantics(
+                label: pct == null
+                    ? 'No return to office percentage available'
+                    : 'Return to office ${pct.toStringAsFixed(1)} percent, target $target percent',
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 8,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -545,27 +712,35 @@ class _DayCell extends StatelessWidget {
 // ── Calendar legend ───────────────────────────────────────────────────────────
 
 class _LegendCard extends StatelessWidget {
-  const _LegendCard();
+  final bool collapsible;
+  const _LegendCard({this.collapsible = false});
 
   @override
   Widget build(BuildContext context) {
+    final legend = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 10,
+        children: [
+          for (final s in DayStatus.values)
+            _LegendItem(
+              icon: s.icon,
+              color: s.colorIn(context),
+              label: s.label,
+            ),
+        ],
+      ),
+    );
     return Card(
       margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Wrap(
-          spacing: 16,
-          runSpacing: 10,
-          children: [
-            for (final s in DayStatus.values)
-              _LegendItem(
-                icon: s.icon,
-                color: s.colorIn(context),
-                label: s.label,
-              ),
-          ],
-        ),
-      ),
+      child: collapsible
+          ? ExpansionTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('Calendar legend'),
+              children: [legend],
+            )
+          : legend,
     );
   }
 }
@@ -734,52 +909,74 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
           _header(context, monthPeriod),
           const SizedBox(height: 20),
           Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: ListView(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final gauge = _gaugeCard(
+                  context,
+                  monthBreakdown,
+                  settings.rtoTarget,
+                  bird,
+                  monthPeriod.label,
+                );
+                final calendar = _CalendarCard(
+                  onPageChanged: widget.onPageChanged,
+                  onDayTapped: _onDayTap,
+                );
+
+                // Compact desktop windows keep all content readable by
+                // stacking the secondary cards. Only use the two-pane layout
+                // once both the calendar and the fixed-width detail rail fit.
+                if (constraints.maxWidth < 880) {
+                  return ListView(
                     padding: EdgeInsets.zero,
                     children: [
                       _kpiStrip(context, monthBreakdown, settings.rtoTarget),
                       const SizedBox(height: 20),
-                      _CalendarCard(
-                        onPageChanged: widget.onPageChanged,
-                        onDayTapped: _onDayTap,
-                      ),
+                      gauge,
+                      const SizedBox(height: 16),
+                      calendar,
                       const SizedBox(height: 16),
                       const _LegendCard(),
                       const SizedBox(height: 16),
-                      TrendCard(
-                        officeId: widget.selected.id!,
-                        target: settings.rtoTarget,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 24),
-                SizedBox(
-                  width: 340,
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      _gaugeCard(
-                        context,
-                        monthBreakdown,
-                        settings.rtoTarget,
-                        bird,
-                        monthPeriod.label,
-                      ),
-                      const SizedBox(height: 16),
                       _dayDetailCard(context),
-                      if (monthBreakdown.asData != null) ...[
-                        const SizedBox(height: 16),
-                        BreakdownDonut(breakdown: monthBreakdown.asData!.value),
-                      ],
                     ],
-                  ),
-                ),
-              ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: ListView(
+                        padding: EdgeInsets.zero,
+                        children: [
+                          _kpiStrip(
+                            context,
+                            monthBreakdown,
+                            settings.rtoTarget,
+                          ),
+                          const SizedBox(height: 20),
+                          calendar,
+                          const SizedBox(height: 16),
+                          const _LegendCard(),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    SizedBox(
+                      width: 340,
+                      child: ListView(
+                        padding: EdgeInsets.zero,
+                        children: [
+                          gauge,
+                          const SizedBox(height: 16),
+                          _dayDetailCard(context),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -830,7 +1027,7 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
         FilledButton.icon(
           onPressed: _checkInToday,
           icon: const Icon(Icons.check_circle_outline),
-          label: const Text('Check-In for Today'),
+          label: const Text('Check in for today'),
           style: FilledButton.styleFrom(
             minimumSize: const Size(0, 48),
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -927,7 +1124,7 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
         target: target,
         birdAsset: bird,
         periodLabel: periodLabel,
-        onTap: () => ref.read(tabIndexProvider.notifier).set(2),
+        onTap: () => ref.read(tabIndexProvider.notifier).set(1),
       ),
     );
   }
@@ -1050,6 +1247,7 @@ class _AttentionBorderState extends State<_AttentionBorder>
 
   @override
   Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) return widget.child;
     final cs = Theme.of(context).colorScheme;
     return AnimatedBuilder(
       animation: _controller,

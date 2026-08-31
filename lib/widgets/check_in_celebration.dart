@@ -13,14 +13,20 @@ Future<void> showCheckInCelebration(
   required String officeName,
   required DateTime date,
 }) {
+  final reduceMotion = MediaQuery.disableAnimationsOf(context);
   return showGeneralDialog(
     context: context,
     barrierDismissible: true,
     barrierLabel: 'Attendance recorded',
     barrierColor: Colors.black.withValues(alpha: 0.35),
-    transitionDuration: const Duration(milliseconds: 320),
-    pageBuilder: (_, _, _) =>
-        _CheckInCelebration(officeName: officeName, date: date),
+    transitionDuration: reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 220),
+    pageBuilder: (_, _, _) => _CheckInCelebration(
+      officeName: officeName,
+      date: date,
+      reduceMotion: reduceMotion,
+    ),
     transitionBuilder: (_, anim, _, child) {
       final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutBack);
       return FadeTransition(
@@ -37,7 +43,12 @@ Future<void> showCheckInCelebration(
 class _CheckInCelebration extends StatefulWidget {
   final String officeName;
   final DateTime date;
-  const _CheckInCelebration({required this.officeName, required this.date});
+  final bool reduceMotion;
+  const _CheckInCelebration({
+    required this.officeName,
+    required this.date,
+    required this.reduceMotion,
+  });
 
   @override
   State<_CheckInCelebration> createState() => _CheckInCelebrationState();
@@ -46,7 +57,7 @@ class _CheckInCelebration extends StatefulWidget {
 class _CheckInCelebrationState extends State<_CheckInCelebration> {
   /// How long the confetti rains and the celebration stays up before it
   /// auto-dismisses (the user can also tap or tap-outside to close sooner).
-  static const _celebration = Duration(seconds: 30);
+  static const _celebration = Duration(seconds: 3);
 
   late final ConfettiController _confetti = ConfettiController(
     duration: _celebration,
@@ -56,7 +67,7 @@ class _CheckInCelebrationState extends State<_CheckInCelebration> {
   @override
   void initState() {
     super.initState();
-    _confetti.play();
+    if (!widget.reduceMotion) _confetti.play();
     _autoClose = Timer(_celebration, () {
       if (mounted) Navigator.of(context).maybePop();
     });
@@ -84,38 +95,40 @@ class _CheckInCelebrationState extends State<_CheckInCelebration> {
       children: [
         // Confetti showers in from both top corners, raining down across the
         // card for a clearly celebratory effect.
-        Align(
-          alignment: const Alignment(-0.9, -1.0),
-          child: ConfettiWidget(
-            confettiController: _confetti,
-            blastDirection: math.pi / 4, // down-right
-            emissionFrequency: 0.12,
-            numberOfParticles: 14,
-            maxBlastForce: 30,
-            minBlastForce: 12,
-            gravity: 0.3,
-            shouldLoop: false,
-            minimumSize: const Size(8, 8),
-            maximumSize: const Size(15, 15),
-            colors: confettiColors,
+        if (!widget.reduceMotion)
+          Align(
+            alignment: const Alignment(-0.9, -1.0),
+            child: ConfettiWidget(
+              confettiController: _confetti,
+              blastDirection: math.pi / 4, // down-right
+              emissionFrequency: 0.12,
+              numberOfParticles: 14,
+              maxBlastForce: 30,
+              minBlastForce: 12,
+              gravity: 0.3,
+              shouldLoop: false,
+              minimumSize: const Size(8, 8),
+              maximumSize: const Size(15, 15),
+              colors: confettiColors,
+            ),
           ),
-        ),
-        Align(
-          alignment: const Alignment(0.9, -1.0),
-          child: ConfettiWidget(
-            confettiController: _confetti,
-            blastDirection: 3 * math.pi / 4, // down-left
-            emissionFrequency: 0.12,
-            numberOfParticles: 14,
-            maxBlastForce: 30,
-            minBlastForce: 12,
-            gravity: 0.3,
-            shouldLoop: false,
-            minimumSize: const Size(8, 8),
-            maximumSize: const Size(15, 15),
-            colors: confettiColors,
+        if (!widget.reduceMotion)
+          Align(
+            alignment: const Alignment(0.9, -1.0),
+            child: ConfettiWidget(
+              confettiController: _confetti,
+              blastDirection: 3 * math.pi / 4, // down-left
+              emissionFrequency: 0.12,
+              numberOfParticles: 14,
+              maxBlastForce: 30,
+              minBlastForce: 12,
+              gravity: 0.3,
+              shouldLoop: false,
+              minimumSize: const Size(8, 8),
+              maximumSize: const Size(15, 15),
+              colors: confettiColors,
+            ),
           ),
-        ),
         Center(
           child: GestureDetector(
             onTap: () => Navigator.of(context).maybePop(),
@@ -138,22 +151,28 @@ class _CheckInCelebrationState extends State<_CheckInCelebration> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0, end: 1),
-                    duration: const Duration(milliseconds: 600),
+                    tween: Tween(begin: widget.reduceMotion ? 1 : 0, end: 1),
+                    duration: widget.reduceMotion
+                        ? Duration.zero
+                        : const Duration(milliseconds: 500),
                     curve: Curves.elasticOut,
                     builder: (context, t, child) =>
                         Transform.scale(scale: t, child: child),
-                    child: Container(
-                      width: 84,
-                      height: 84,
-                      decoration: BoxDecoration(
-                        color: Colors.green.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.check_circle,
-                        color: Colors.green.shade600,
-                        size: 56,
+                    child: Semantics(
+                      liveRegion: true,
+                      label: 'Attendance recorded for ${widget.officeName}',
+                      child: Container(
+                        width: 84,
+                        height: 84,
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.check_circle,
+                          color: Colors.green.shade600,
+                          size: 56,
+                        ),
                       ),
                     ),
                   ),

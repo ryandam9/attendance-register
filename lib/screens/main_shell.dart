@@ -9,6 +9,7 @@ import '../helpers/layout.dart';
 import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
+import '../providers/explain_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/special_day_provider.dart';
@@ -18,14 +19,14 @@ import '../services/location_service.dart';
 import '../themes/bird_art.dart';
 import '../widgets/app_sidebar.dart';
 import '../widgets/check_in_celebration.dart';
+import '../widgets/quick_mark_sheet.dart';
 import 'explain_screen.dart';
 import 'history_screen.dart';
 import 'home_screen.dart';
-import 'mark_screen.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
 
-/// App scaffold: bottom navigation over Home / Insights / History with a
+/// App scaffold: bottom navigation over Home / Insights / History / Settings with a
 /// fade-through transition between tabs. Each tab is rebuilt when selected so
 /// its data is always fresh; state that must survive switches (calendar focus,
 /// etc.) lives in ui_state_provider.
@@ -50,11 +51,6 @@ class _MainShellState extends ConsumerState<MainShell>
       icon: Icons.dashboard_outlined,
       selectedIcon: Icons.dashboard,
       label: 'Dashboard',
-    ),
-    SidebarDestination(
-      icon: Icons.edit_calendar_outlined,
-      selectedIcon: Icons.edit_calendar,
-      label: 'Mark',
     ),
     SidebarDestination(
       icon: Icons.insights_outlined,
@@ -236,29 +232,49 @@ class _MainShellState extends ConsumerState<MainShell>
     if (mounted) _refreshFocusedMonth();
   }
 
+  /// Opens the fast day editor for today from the adaptive app shell. This
+  /// keeps the primary action available from every tab without dedicating a
+  /// permanent navigation destination to a two-action screen.
+  Future<void> _quickMarkToday() async {
+    final office = ref.read(officeProvider).selectedOffice;
+    if (office == null) return;
+    final changed = await showQuickMarkSheet(
+      context,
+      office: office,
+      date: DateTime.now(),
+    );
+    if (!changed || !mounted) return;
+    _refreshFocusedMonth();
+    ref.invalidate(breakdownProvider);
+    ref.invalidate(weeklyTrendProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final index = ref.watch(tabIndexProvider);
 
-    final content = PageTransitionSwitcher(
-      transitionBuilder: (child, animation, secondaryAnimation) =>
-          FadeThroughTransition(
-            animation: animation,
-            secondaryAnimation: secondaryAnimation,
-            child: child,
-          ),
-      child: switch (index) {
-        1 => const MarkScreen(key: ValueKey('tab-mark')),
-        2 => const ExplainScreen(key: ValueKey('tab-insights')),
-        3 => const HistoryScreen(key: ValueKey('tab-history')),
-        4 => const SettingsScreen(key: ValueKey('tab-settings')),
-        _ => const HomeScreen(key: ValueKey('tab-home')),
-      },
-    );
+    final page = switch (index) {
+      1 => const ExplainScreen(key: ValueKey('tab-insights')),
+      2 => const HistoryScreen(key: ValueKey('tab-history')),
+      3 => const SettingsScreen(key: ValueKey('tab-settings')),
+      _ => const HomeScreen(key: ValueKey('tab-home')),
+    };
+    final content = MediaQuery.disableAnimationsOf(context)
+        ? page
+        : PageTransitionSwitcher(
+            transitionBuilder: (child, animation, secondaryAnimation) =>
+                FadeThroughTransition(
+                  animation: animation,
+                  secondaryAnimation: secondaryAnimation,
+                  child: child,
+                ),
+            child: page,
+          );
 
     // Desktop / wide windows: left navigation sidebar + content that fills the
     // remaining space (no bottom navigation).
     if (isDesktopWidth(context)) {
+      final allowExtendedSidebar = isExpandedDesktopWidth(context);
       final office = ref.watch(officeProvider).selectedOffice;
       final birdAsset = birdAssetForTheme(
         ref.watch(settingsProvider.select((s) => s.themeId)),
@@ -271,9 +287,10 @@ class _MainShellState extends ConsumerState<MainShell>
               destinations: _destinations,
               selectedIndex: index < _destinations.length ? index : null,
               onSelect: (i) => ref.read(tabIndexProvider.notifier).set(i),
-              settingsSelected: index == 4,
-              onSettings: () => ref.read(tabIndexProvider.notifier).set(4),
-              extended: _sidebarExtended,
+              settingsSelected: index == 3,
+              onSettings: () => ref.read(tabIndexProvider.notifier).set(3),
+              extended: allowExtendedSidebar && _sidebarExtended,
+              allowToggle: allowExtendedSidebar,
               onToggleExtended: () =>
                   setState(() => _sidebarExtended = !_sidebarExtended),
               appTitle: 'Attendance Register',
@@ -287,10 +304,70 @@ class _MainShellState extends ConsumerState<MainShell>
       );
     }
 
-    // Phones: bottom navigation. Settings (index 4) is only reachable from the
-    // desktop sidebar, so clamp the highlighted tab into range here.
+    // Tablet / compact desktop: a rail preserves horizontal space while the
+    // screens continue to use their readable single-column layouts.
+    if (isMediumWidth(context)) {
+      final office = ref.watch(officeProvider).selectedOffice;
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: index.clamp(0, 3),
+              labelType: NavigationRailLabelType.selected,
+              leading: Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: FloatingActionButton.small(
+                  heroTag: 'rail-quick-mark',
+                  tooltip: 'Mark today',
+                  onPressed: office == null ? null : _quickMarkToday,
+                  child: const Icon(Icons.edit_calendar_outlined),
+                ),
+              ),
+              onDestinationSelected: (i) =>
+                  ref.read(tabIndexProvider.notifier).set(i),
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home),
+                  label: Text('Home'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.insights_outlined),
+                  selectedIcon: Icon(Icons.insights),
+                  label: Text('Insights'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.history_outlined),
+                  selectedIcon: Icon(Icons.history),
+                  label: Text('History'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.settings_outlined),
+                  selectedIcon: Icon(Icons.settings),
+                  label: Text('Settings'),
+                ),
+              ],
+            ),
+            const VerticalDivider(width: 1, thickness: 1),
+            Expanded(child: content),
+          ],
+        ),
+      );
+    }
+
+    // Phones: keep every top-level destination in the bottom navigation so
+    // Settings is discoverable and consistent with the wider layouts.
     return Scaffold(
       body: content,
+      floatingActionButton:
+          ref.watch(officeProvider).selectedOffice == null || index == 0
+          ? null
+          : FloatingActionButton.extended(
+              heroTag: 'phone-quick-mark',
+              onPressed: _quickMarkToday,
+              icon: const Icon(Icons.edit_calendar_outlined),
+              label: const Text('Mark'),
+            ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index.clamp(0, 3),
         onDestinationSelected: (i) {
@@ -304,11 +381,6 @@ class _MainShellState extends ConsumerState<MainShell>
             label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.edit_calendar_outlined),
-            selectedIcon: Icon(Icons.edit_calendar),
-            label: 'Mark',
-          ),
-          NavigationDestination(
             icon: Icon(Icons.insights_outlined),
             selectedIcon: Icon(Icons.insights),
             label: 'Insights',
@@ -317,6 +389,11 @@ class _MainShellState extends ConsumerState<MainShell>
             icon: Icon(Icons.history_outlined),
             selectedIcon: Icon(Icons.history),
             label: 'History',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'Settings',
           ),
         ],
       ),

@@ -17,7 +17,8 @@ enum _PermStatus { granted, denied }
 /// Statuses refresh on app resume, so they update after a trip to the system
 /// settings.
 class PermissionsSection extends StatefulWidget {
-  const PermissionsSection({super.key});
+  final bool showStepNumbers;
+  const PermissionsSection({super.key, this.showStepNumbers = false});
 
   @override
   State<PermissionsSection> createState() => _PermissionsSectionState();
@@ -106,7 +107,7 @@ class _PermissionsSectionState extends State<PermissionsSection>
       return Padding(
         padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
         child: Text(
-          'Background check-in permissions apply on mobile and macOS only.',
+          'Background check-in permissions apply on Android and iOS only.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
@@ -124,6 +125,7 @@ class _PermissionsSectionState extends State<PermissionsSection>
       child: Column(
         children: [
           _PermCard(
+            step: widget.showStepNumbers ? 1 : null,
             icon: Icons.location_on,
             label: 'Location — Always Allow',
             status: _location!,
@@ -134,6 +136,7 @@ class _PermissionsSectionState extends State<PermissionsSection>
           ),
           const SizedBox(height: 8),
           _PermCard(
+            step: widget.showStepNumbers ? 2 : null,
             icon: Icons.notifications,
             label: 'Notifications',
             status: _notifications!,
@@ -144,6 +147,7 @@ class _PermissionsSectionState extends State<PermissionsSection>
           if (Platform.isAndroid && _battery != null) ...[
             const SizedBox(height: 8),
             _PermCard(
+              step: widget.showStepNumbers ? 3 : null,
               icon: Icons.battery_charging_full,
               label: 'Battery Optimisation — Disabled',
               status: _battery!,
@@ -161,6 +165,7 @@ class _PermissionsSectionState extends State<PermissionsSection>
 }
 
 class _PermCard extends StatelessWidget {
+  final int? step;
   final IconData icon;
   final String label;
   final _PermStatus status;
@@ -168,6 +173,7 @@ class _PermCard extends StatelessWidget {
   final VoidCallback onGrant;
 
   const _PermCard({
+    this.step,
     required this.icon,
     required this.label,
     required this.status,
@@ -189,7 +195,18 @@ class _PermCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, size: 28, color: cs.primary),
+                if (step == null)
+                  Icon(icon, size: 28, color: cs.primary)
+                else
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: cs.primaryContainer,
+                    foregroundColor: cs.onPrimaryContainer,
+                    child: Text(
+                      '$step',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(

@@ -19,6 +19,7 @@ class ThemeScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Appearance')),
       body: ResponsiveBody(
+        maxWidth: 920,
         child: ListView(
           children: [
             Padding(
@@ -88,18 +89,107 @@ class ThemeScreen extends ConsumerWidget {
                 ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
               ),
             ),
-            for (final theme in birdThemes)
-              ListTile(
-                leading: _ThemeLeading(theme: theme),
-                title: Text(theme.name),
-                subtitle: Text(theme.description),
-                trailing: settings.themeId == theme.id
-                    ? Icon(Icons.radio_button_checked, color: cs.primary)
-                    : const Icon(Icons.radio_button_unchecked),
-                onTap: () => notifier.setThemeId(theme.id),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = constraints.maxWidth >= 760 ? 3 : 2;
+                  const gap = 12.0;
+                  final width =
+                      (constraints.maxWidth - gap * (columns - 1)) / columns;
+                  return Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: [
+                      for (final theme in birdThemes)
+                        SizedBox(
+                          width: width,
+                          child: _BirdThemeCard(
+                            theme: theme,
+                            selected: settings.themeId == theme.id,
+                            onTap: () => notifier.setThemeId(theme.id),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
+            ),
             const SizedBox(height: 16),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BirdThemeCard extends StatelessWidget {
+  final BirdTheme theme;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _BirdThemeCard({
+    required this.theme,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: selected ? cs.primary : cs.outlineVariant,
+          width: selected ? 2 : 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: 164,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: _ThemeLeading(theme: theme)),
+                    Icon(
+                      selected
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      color: selected ? cs.primary : cs.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  theme.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  theme.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                ),
+                const Spacer(),
+                _SwatchRow(theme: theme),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -165,8 +255,12 @@ class _ThemePreviewCard extends StatelessWidget {
   final String? birdAsset;
   const _ThemePreviewCard({required this.theme, this.birdAsset});
 
-  static Color _on(Color background) =>
-      background.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+  static Color _on(Color background) {
+    final luminance = background.computeLuminance();
+    return (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05)
+        ? Colors.black
+        : Colors.white;
+  }
 
   @override
   Widget build(BuildContext context) {

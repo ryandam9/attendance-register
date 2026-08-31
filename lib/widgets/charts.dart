@@ -24,7 +24,7 @@ Widget _sectionTitle(BuildContext context, IconData icon, String text) {
 // ── Work-style donut ──────────────────────────────────────────────────────────
 
 /// A donut chart of how a period's recorded days split across office / WFH /
-/// leave / holiday, with a legend. Shared by Insights and the desktop dashboard.
+/// leave / holiday, with a legend. Used by the Insights breakdown.
 class BreakdownDonut extends StatelessWidget {
   final AttendanceBreakdown breakdown;
   const BreakdownDonut({super.key, required this.breakdown});
@@ -95,30 +95,39 @@ class BreakdownDonut extends StatelessWidget {
             else
               Row(
                 children: [
-                  SizedBox(
-                    width: 120,
-                    height: 120,
-                    child: CustomPaint(
-                      painter: _DonutPainter(segments, total),
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '$total',
-                              style: Theme.of(context).textTheme.headlineSmall
-                                  ?.copyWith(fontWeight: FontWeight.bold),
+                  Semantics(
+                    image: true,
+                    label:
+                        'Work style chart. ${segments.map((s) => '${s.label}: ${s.value} days').join(', ')}.',
+                    child: ExcludeSemantics(
+                      child: SizedBox(
+                        width: 120,
+                        height: 120,
+                        child: CustomPaint(
+                          painter: _DonutPainter(segments, total),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '$total',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall
+                                      ?.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  'days',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                      ),
+                                ),
+                              ],
                             ),
-                            Text(
-                              'days',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                                  ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
@@ -214,7 +223,7 @@ class _DonutPainter extends CustomPainter {
 // ── 8-week trend ──────────────────────────────────────────────────────────────
 
 /// A card plotting the return-to-office percentage over the last 8 weeks, with
-/// the target line. Shared by Insights and the desktop dashboard.
+/// the target line. Used by the Insights breakdown.
 class TrendCard extends ConsumerWidget {
   final int officeId;
   final int target;
@@ -276,18 +285,26 @@ class _TrendChart extends StatelessWidget {
     }
     return Column(
       children: [
-        SizedBox(
-          height: 140,
-          width: double.infinity,
-          child: CustomPaint(
-            painter: _TrendPainter(
-              points: points,
-              targetFraction: (target / 100).clamp(0.0, 1.0),
-              line: cs.primary,
-              fill: cs.primary.withValues(alpha: 0.12),
-              targetColor: AppColors.attendance,
-              grid: cs.outlineVariant,
-              dot: cs.primary,
+        Semantics(
+          image: true,
+          label:
+              'Eight week return to office trend. Target $target percent. '
+              '${points.map((p) => '${_weekFmt.format(p.weekStart)}: ${p.percentage == null ? 'no data' : '${p.percentage!.toStringAsFixed(1)} percent'}').join(', ')}.',
+          child: ExcludeSemantics(
+            child: SizedBox(
+              height: 140,
+              width: double.infinity,
+              child: CustomPaint(
+                painter: _TrendPainter(
+                  points: points,
+                  targetFraction: (target / 100).clamp(0.0, 1.0),
+                  line: cs.primary,
+                  fill: cs.primary.withValues(alpha: 0.12),
+                  targetColor: AppColors.attendance,
+                  grid: cs.outlineVariant,
+                  dot: cs.primary,
+                ),
+              ),
             ),
           ),
         ),
