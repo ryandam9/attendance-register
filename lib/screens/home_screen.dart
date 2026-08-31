@@ -26,7 +26,6 @@ import '../widgets/quick_mark_sheet.dart';
 import '../widgets/responsive_body.dart';
 import '../widgets/rto_arc_card.dart';
 import '../widgets/stat_card.dart';
-import 'settings_screen.dart';
 import 'setup_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -209,19 +208,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ],
               )
             : const Text('Attendance Register'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: () =>
-                Navigator.push(context, appRoute(const SettingsScreen())).then((
-                  _,
-                ) async {
-                  await ref.read(officeProvider.notifier).load();
-                  if (mounted) _refreshAttendance();
-                }),
-          ),
-        ],
       ),
       body: ResponsiveBody(
         child: AnimatedSwitcher(

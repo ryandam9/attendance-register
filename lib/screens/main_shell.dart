@@ -26,7 +26,7 @@ import 'home_screen.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
 
-/// App scaffold: bottom navigation over Home / Insights / History with a
+/// App scaffold: bottom navigation over Home / Insights / History / Settings with a
 /// fade-through transition between tabs. Each tab is rebuilt when selected so
 /// its data is always fresh; state that must survive switches (calendar focus,
 /// etc.) lives in ui_state_provider.
@@ -355,8 +355,8 @@ class _MainShellState extends ConsumerState<MainShell>
       );
     }
 
-    // Phones: bottom navigation. Settings (index 3) is only reachable from the
-    // desktop sidebar, so clamp the highlighted tab into range here.
+    // Phones: keep every top-level destination in the bottom navigation so
+    // Settings is discoverable and consistent with the wider layouts.
     return Scaffold(
       body: content,
       floatingActionButton:
@@ -369,7 +369,7 @@ class _MainShellState extends ConsumerState<MainShell>
               label: const Text('Mark'),
             ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: index.clamp(0, 2),
+        selectedIndex: index.clamp(0, 3),
         onDestinationSelected: (i) {
           unawaited(HapticFeedback.selectionClick());
           ref.read(tabIndexProvider.notifier).set(i);
@@ -389,6 +389,11 @@ class _MainShellState extends ConsumerState<MainShell>
             icon: Icon(Icons.history_outlined),
             selectedIcon: Icon(Icons.history),
             label: 'History',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'Settings',
           ),
         ],
       ),
