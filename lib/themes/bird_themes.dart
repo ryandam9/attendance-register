@@ -80,8 +80,12 @@ class BirdTheme {
   /// scheme colour without its "on" partner risks the seed-derived on-colour
   /// (e.g. white) landing on a light bird colour like the Plains-wanderer's
   /// beige — unreadable buttons and badges.
-  static Color _onColor(Color background) =>
-      background.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+  static Color _onColor(Color background) {
+    final luminance = background.computeLuminance();
+    final blackContrast = (luminance + 0.05) / 0.05;
+    final whiteContrast = 1.05 / (luminance + 0.05);
+    return blackContrast >= whiteContrast ? Colors.black : Colors.white;
+  }
 
   ThemeData themeData(Brightness brightness) => buildAppTheme(
     ColorScheme.fromSeed(

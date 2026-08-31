@@ -31,6 +31,7 @@ class AppSidebar extends StatelessWidget {
   final VoidCallback onSettings;
 
   final bool extended;
+  final bool allowToggle;
   final VoidCallback onToggleExtended;
 
   final String appTitle;
@@ -45,6 +46,7 @@ class AppSidebar extends StatelessWidget {
     required this.settingsSelected,
     required this.onSettings,
     required this.extended,
+    this.allowToggle = true,
     required this.onToggleExtended,
     required this.appTitle,
     this.officeName,
@@ -100,7 +102,8 @@ class AppSidebar extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 if (officeName != null) _officeCard(context),
-                _collapseToggle(context),
+                if (allowToggle) _collapseToggle(context),
+                if (!allowToggle) const SizedBox(height: 8),
               ],
             ),
           ),

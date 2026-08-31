@@ -8,6 +8,8 @@ import '../services/location_service.dart';
 import '../widgets/responsive_body.dart';
 import 'permission_setup_screen.dart';
 
+enum _TrackingMode { automatic, manual }
+
 class SetupScreen extends ConsumerStatefulWidget {
   /// Pass an existing office to edit it; null means add new.
   final OfficeLocation? office;
@@ -26,7 +28,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   double? _lng;
   String? _country;
   String? _state;
+  late _TrackingMode _trackingMode;
   bool _busy = false;
+  String? _locationError;
 
   bool get _isEditing => widget.office != null;
 
@@ -37,10 +41,13 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     _nameCtrl = TextEditingController(text: o?.name ?? '');
     _addressCtrl = TextEditingController(text: o?.address ?? '');
     _radius = o?.radius ?? 200;
-    _lat = o?.latitude;
-    _lng = o?.longitude;
+    _lat = o?.hasLocation == true ? o!.latitude : null;
+    _lng = o?.hasLocation == true ? o!.longitude : null;
     _country = o?.country;
     _state = o?.state;
+    _trackingMode = o == null || o.hasLocation
+        ? _TrackingMode.automatic
+        : _TrackingMode.manual;
   }
 
   @override
@@ -51,13 +58,19 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   }
 
   Future<void> _useCurrentLocation() async {
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _locationError = null;
+    });
     final pos = await LocationService.instance.getCurrentPosition();
     if (!mounted) return;
 
     if (pos == null) {
-      _showSnack('Could not get location. Please check permissions.');
-      setState(() => _busy = false);
+      setState(() {
+        _busy = false;
+        _locationError =
+            'Could not get your location. Check location permissions and try again.';
+      });
       return;
     }
 
@@ -83,22 +96,32 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       _country = place?.country;
       _state = place?.state;
       _busy = false;
+      _locationError = null;
     });
   }
 
-  Future<void> _lookupAddress() async {
+  Future<bool> _lookupAddress() async {
     final addr = _addressCtrl.text.trim();
-    if (addr.isEmpty) return;
-    setState(() => _busy = true);
+    if (addr.isEmpty) {
+      setState(() => _locationError = 'Enter an office address first.');
+      return false;
+    }
+    setState(() {
+      _busy = true;
+      _locationError = null;
+    });
 
     final locations = await LocationService.instance.coordinatesFromAddress(
       addr,
     );
-    if (!mounted) return;
+    if (!mounted) return false;
     if (locations == null || locations.isEmpty) {
-      setState(() => _busy = false);
-      _showSnack('Address not found. Try a more specific address.');
-      return;
+      setState(() {
+        _busy = false;
+        _locationError =
+            'Address not found. Add a suburb, state or postcode and try again.';
+      });
+      return false;
     }
 
     final lat = locations.first.latitude;
@@ -106,7 +129,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     // Reverse-geocode the resolved point to capture the state/country used for
     // public-holiday matching.
     final place = await LocationService.instance.placeFromCoordinates(lat, lng);
-    if (!mounted) return;
+    if (!mounted) return false;
 
     setState(() {
       _lat = lat;
@@ -114,10 +137,12 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       _country = place?.country;
       _state = place?.state;
       _busy = false;
+      _locationError = null;
     });
     _showSnack(
       'Location resolved: ${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
     );
+    return true;
   }
 
   void _showSnack(String msg) {
@@ -129,7 +154,14 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_trackingMode == _TrackingMode.automatic && _lat == null) {
+      final resolved = await _lookupAddress();
+      if (!resolved || !mounted) return;
+    }
+
     setState(() => _busy = true);
+
+    final automatic = _trackingMode == _TrackingMode.automatic;
 
     final office = OfficeLocation(
       id: widget.office?.id,
@@ -137,11 +169,11 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       address: _addressCtrl.text.trim(),
       // Location is optional: an office without coordinates is manual-only (no
       // geofencing / auto check-in). 0,0 marks "no location".
-      latitude: _lat ?? 0.0,
-      longitude: _lng ?? 0.0,
+      latitude: automatic ? _lat! : 0.0,
+      longitude: automatic ? _lng! : 0.0,
       radius: _radius,
-      country: _country,
-      state: _state,
+      country: automatic ? _country : null,
+      state: automatic ? _state : null,
     );
 
     final notifier = ref.read(officeProvider.notifier);
@@ -156,7 +188,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 
     if (mounted) {
       setState(() => _busy = false);
-      if (isFirstOffice) {
+      if (isFirstOffice && automatic) {
         // First office registered — walk through the permissions auto check-in
         // needs, instead of leaving them silently ungranted.
         Navigator.pushReplacement(
@@ -171,6 +203,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: Text(_isEditing ? 'Edit Office' : 'Add Office')),
       body: ResponsiveBody(
@@ -193,95 +226,198 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                     ? 'Enter an office name'
                     : null,
               ),
-              const SizedBox(height: 16),
-
-              // Address
-              TextFormField(
-                controller: _addressCtrl,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: 'Office Address (optional)',
-                  hintText: 'Only needed for automatic check-in',
-                  helperText: 'Leave blank for a manual-only office',
-                  prefixIcon: const Icon(Icons.location_on_outlined),
-                  border: const OutlineInputBorder(),
-                  suffixIcon: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        tooltip: 'Search address',
-                        icon: const Icon(Icons.search),
-                        onPressed: _busy ? null : _lookupAddress,
-                      ),
-                      IconButton(
-                        tooltip: 'Use my current location',
-                        icon: const Icon(Icons.my_location),
-                        onPressed: _busy ? null : _useCurrentLocation,
-                      ),
-                    ],
+              const SizedBox(height: 24),
+              Text(
+                'How should attendance be tracked?',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<_TrackingMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: _TrackingMode.automatic,
+                    icon: Icon(Icons.my_location_outlined),
+                    label: Text('Automatic'),
                   ),
-                ),
+                  ButtonSegment(
+                    value: _TrackingMode.manual,
+                    icon: Icon(Icons.touch_app_outlined),
+                    label: Text('Manual only'),
+                  ),
+                ],
+                selected: {_trackingMode},
+                onSelectionChanged: (selection) =>
+                    setState(() => _trackingMode = selection.first),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _trackingMode == _TrackingMode.automatic
+                    ? 'The app records a day when you arrive at this verified location.'
+                    : 'You will record office days yourself. Location permissions are not needed.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
               ),
 
-              if (_busy) ...[
-                const SizedBox(height: 8),
-                const LinearProgressIndicator(),
-              ],
-
-              if (_lat != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  'Resolved: ${_lat!.toStringAsFixed(5)}, ${_lng!.toStringAsFixed(5)}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
+              if (_trackingMode == _TrackingMode.automatic) ...[
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: _addressCtrl,
+                  maxLines: 2,
+                  onChanged: (_) => setState(() {
+                    _lat = null;
+                    _lng = null;
+                    _country = null;
+                    _state = null;
+                    _locationError = null;
+                  }),
+                  decoration: const InputDecoration(
+                    labelText: 'Office Address *',
+                    hintText: 'Enter the complete office address',
+                    prefixIcon: Icon(Icons.location_on_outlined),
+                    border: OutlineInputBorder(),
                   ),
                 ),
-                if (_state != null || _country != null)
-                  Text(
-                    'Region: ${[_state, _country].where((s) => s != null && s.isNotEmpty).join(', ')}'
-                    ' — public holidays for this region are highlighted automatically.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                const SizedBox(height: 10),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final current = OutlinedButton.icon(
+                      onPressed: _busy ? null : _useCurrentLocation,
+                      icon: const Icon(Icons.my_location),
+                      label: const Text('Use current location'),
+                    );
+                    final search = FilledButton.tonalIcon(
+                      onPressed: _busy ? null : _lookupAddress,
+                      icon: const Icon(Icons.search),
+                      label: const Text('Find address'),
+                    );
+                    if (constraints.maxWidth < 440) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [current, const SizedBox(height: 8), search],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(child: current),
+                        const SizedBox(width: 8),
+                        Expanded(child: search),
+                      ],
+                    );
+                  },
+                ),
+                if (_busy) ...[
+                  const SizedBox(height: 10),
+                  const LinearProgressIndicator(),
+                ],
+                if (_locationError != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: cs.errorContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.error_outline, color: cs.onErrorContainer),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _locationError!,
+                            style: TextStyle(color: cs.onErrorContainer),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-              ],
-
-              const SizedBox(height: 28),
-
-              // Radius slider
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Detection Radius',
-                    style: Theme.of(context).textTheme.titleMedium,
+                ],
+                if (_lat != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: cs.primaryContainer.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: cs.primary.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.verified_outlined, color: cs.primary),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Location confirmed',
+                                style: Theme.of(context).textTheme.titleSmall,
+                              ),
+                              Text(
+                                '${_lat!.toStringAsFixed(5)}, ${_lng!.toStringAsFixed(5)}',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              if (_state != null || _country != null)
+                                Text(
+                                  'Region: ${[_state, _country].where((s) => s != null && s.isNotEmpty).join(', ')}',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  Chip(label: Text('${_radius.toInt()} m')),
                 ],
-              ),
-              Text(
-                'Attendance is recorded when you are within this distance from the office.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.6),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Detection radius',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Chip(label: Text('${_radius.toInt()} m')),
+                  ],
                 ),
-              ),
-              Slider(
-                value: _radius,
-                min: 50,
-                max: 500,
-                divisions: 9,
-                label: '${_radius.toInt()} m',
-                onChanged: (v) => setState(() => _radius = v),
-              ),
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('50 m', style: TextStyle(fontSize: 12)),
-                  Text('500 m', style: TextStyle(fontSize: 12)),
-                ],
-              ),
+                Text(
+                  'Use a larger radius if GPS reception is unreliable inside the building.',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                ),
+                Slider(
+                  value: _radius,
+                  min: 50,
+                  max: 500,
+                  divisions: 9,
+                  label: '${_radius.toInt()} m',
+                  onChanged: (v) => setState(() => _radius = v),
+                ),
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('50 m', style: TextStyle(fontSize: 12)),
+                    Text('500 m', style: TextStyle(fontSize: 12)),
+                  ],
+                ),
+              ] else ...[
+                const SizedBox(height: 16),
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: ListTile(
+                    leading: const Icon(Icons.lock_outline),
+                    title: const Text('No location access'),
+                    subtitle: const Text(
+                      'You can change this office to automatic tracking later.',
+                    ),
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 32),
 

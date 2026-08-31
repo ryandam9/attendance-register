@@ -119,7 +119,7 @@ flutter run
 
 > **Manual only.** There's no geofencing or (on Linux) location stack, so these
 > run as a desktop UI: add an office by name and record days manually or with
-> **Check-In for Today**. The database, notifications and the full UI work.
+> **Check in for today**. The database, notifications and the full UI work.
 
 Build steps, app icon and desktop-shortcut instructions are in
 **[docs/desktop-build.md](docs/desktop-build.md)**.
@@ -164,14 +164,14 @@ lib/
 ├── themes/
 │   └── bird_themes.dart             # App theme builder + bird palettes
 └── screens/
-    ├── main_shell.dart              # Bottom navigation + app lifecycle work
+    ├── main_shell.dart              # Adaptive navigation + app lifecycle work
     ├── home_screen.dart             # Dashboard + calendar
     ├── day_entry_screen.dart        # Full day editor (status + comment)
     ├── explain_screen.dart          # Insights tab: percentage breakdown
     ├── history_screen.dart          # History tab: every recorded day
     ├── setup_screen.dart            # Add / edit office
     ├── permission_setup_screen.dart # First-run permission walkthrough
-    ├── settings_screen.dart         # Profile, target, offices, permissions, data
+    ├── settings_screen.dart         # Reporting, offices, permissions, data
     └── theme_screen.dart            # Appearance: mode, Material You, birds
 ```
 
@@ -239,8 +239,9 @@ calendar year (Jan–Dec) or financial year (Oct–Sep).
 
 ## Mark a Day
 
-From the dashboard tap **Mark a Day** (or tap any calendar day) to open the
-day-entry screen:
+Tap any day on the Home calendar to open the quick editor. From another tab,
+tap the **Mark** action to edit today; **All options** opens the full day-entry
+screen:
 
 1. **Pick a date** — any past date back to 2020.
 2. **Pick a status** — Attended, Public Holiday, Sick Leave, Annual Leave,

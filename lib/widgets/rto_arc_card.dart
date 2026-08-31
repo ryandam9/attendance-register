@@ -43,6 +43,11 @@ class RtoArcCard extends StatelessWidget {
     final theme = Theme.of(context);
     final pct = breakdown.returnToOfficePercentage;
     final metTarget = pct != null && pct >= target;
+    final daysToTarget = pct == null
+        ? null
+        : ((target / 100 * breakdown.eligibleWorkingDays).ceil() -
+                  breakdown.officeDays)
+              .clamp(0, 9999);
     final accent = pct == null
         ? cs.onSurfaceVariant
         : (metTarget ? _success : _warning);
@@ -102,19 +107,30 @@ class RtoArcCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          _RtoArc(
-            percentage: pct,
-            target: target,
-            accent: accent,
-            track: cs.surfaceContainerHighest,
-            tickColor: cs.onSurfaceVariant,
-            birdAsset: birdAsset,
+          Semantics(
+            label: pct == null
+                ? periodLabel == null
+                      ? 'No eligible working days'
+                      : 'No eligible working days for $periodLabel'
+                : 'Return to office ${pct.toStringAsFixed(1)} percent. Target $target percent.',
+            image: true,
+            child: ExcludeSemantics(
+              child: _RtoArc(
+                percentage: pct,
+                target: target,
+                accent: accent,
+                track: cs.surfaceContainerHighest,
+                tickColor: cs.onSurfaceVariant,
+                birdAsset: birdAsset,
+              ),
+            ),
           ),
           if (pct != null) ...[
             const SizedBox(height: 8),
             _TargetBanner(
               metTarget: metTarget,
               target: target,
+              daysToTarget: daysToTarget ?? 0,
               success: _success,
               warning: _warning,
             ),
@@ -136,12 +152,14 @@ class RtoArcCard extends StatelessWidget {
 class _TargetBanner extends StatelessWidget {
   final bool metTarget;
   final int target;
+  final int daysToTarget;
   final Color success;
   final Color warning;
 
   const _TargetBanner({
     required this.metTarget,
     required this.target,
+    required this.daysToTarget,
     required this.success,
     required this.warning,
   });
@@ -169,7 +187,7 @@ class _TargetBanner extends StatelessWidget {
             child: Text(
               metTarget
                   ? 'Target of $target% met — nice work!'
-                  : 'You are below the $target% target',
+                  : '$daysToTarget more office ${daysToTarget == 1 ? 'day' : 'days'} to reach $target%',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w600,

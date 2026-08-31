@@ -23,23 +23,34 @@ class PermissionSetupScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Text(
-                'Your office is saved! To record attendance automatically when '
-                'you arrive, the app needs a few permissions. You can grant or '
-                'change them later in Settings.',
+                'Your office location is confirmed. Complete these steps to '
+                'record attendance when you arrive. Each permission can also '
+                'be changed later in Settings.',
                 style: Theme.of(
                   context,
                 ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
               ),
             ),
-            const PermissionsSection(),
+            const PermissionsSection(showStepNumbers: true),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-              child: FilledButton(
-                onPressed: () => Navigator.pop(context),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                ),
-                child: const Text('Done'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_forward),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                    ),
+                    label: const Text('Continue to dashboard'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Set up permissions later'),
+                  ),
+                ],
               ),
             ),
           ],

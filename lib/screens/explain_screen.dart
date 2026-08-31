@@ -48,44 +48,22 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
     final target = settings.rtoTarget;
     final bird = birdAssetForTheme(settings.themeId);
 
-    // The two headline gauges: this month and the (financial) year to date.
+    // One active reporting context at a time keeps the headline, calculation
+    // and charts aligned. Current periods are capped at today so future
+    // weekdays never dilute the result.
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final monthNow = ReportPeriod(kind: PeriodKind.month, anchor: now);
-    final yearNow = ReportPeriod(
-      kind: PeriodKind.year,
-      anchor: now,
-      financialYearStart: fyStart,
-    );
-    // Cap the year at today so it reads as year-to-date, not the whole year
-    // (future weekdays would otherwise dilute the percentage).
-    final yearEnd = yearNow.end.isAfter(today) ? today : yearNow.end;
-    final monthBd = ref.watch(
-      breakdownProvider((
-        officeId: office.id!,
-        start: monthNow.start,
-        end: monthNow.end,
-      )),
-    );
-    final yearBd = ref.watch(
-      breakdownProvider((
-        officeId: office.id!,
-        start: yearNow.start,
-        end: yearEnd,
-      )),
-    );
-
-    // The period the detailed breakdown below is shown for.
     final period = ReportPeriod(
       kind: _kind,
       anchor: _anchor,
       financialYearStart: fyStart,
     );
+    final effectiveEnd = period.end.isAfter(today) ? today : period.end;
     final breakdown = ref.watch(
       breakdownProvider((
         officeId: office.id!,
         start: period.start,
-        end: period.end,
+        end: effectiveEnd,
       )),
     );
 
@@ -100,32 +78,16 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _arcCard(monthBd, monthNow.label, target, bird),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _arcCard(
-                      yearBd,
-                      '${yearNow.label} · YTD',
-                      target,
-                      bird,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _financialYearSelector(fyStart),
-              const SizedBox(height: 24),
-              _sectionTitle(context, Icons.tune, 'Detailed breakdown'),
+              _sectionTitle(context, Icons.tune, 'Reporting period'),
               const SizedBox(height: 12),
               _periodKindSelector(),
               const SizedBox(height: 12),
               _periodNavigator(period),
               const SizedBox(height: 16),
+              _arcCard(breakdown, period.label, target, bird),
+              const SizedBox(height: 24),
+              _sectionTitle(context, Icons.calculate_outlined, 'Breakdown'),
+              const SizedBox(height: 12),
               breakdown.when(
                 loading: () => const Padding(
                   padding: EdgeInsets.symmetric(vertical: 48),
@@ -151,24 +113,16 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
           children: [
             _OfficeChip(office: office),
             const SizedBox(height: 16),
-
-            // Headline gauges — month then year-to-date, one below another.
-            _arcCard(monthBd, monthNow.label, target, bird),
-            const SizedBox(height: 16),
-            _arcCard(yearBd, '${yearNow.label} · YTD', target, bird),
-
-            const SizedBox(height: 12),
-            // Defines the reporting year for the YTD gauge above and the yearly
-            // breakdown below (Jan–Dec → from Jan 1; Oct–Sep → from Oct 1).
-            _financialYearSelector(fyStart),
-
-            const SizedBox(height: 24),
-            _sectionTitle(context, Icons.tune, 'Detailed breakdown'),
+            _sectionTitle(context, Icons.tune, 'Reporting period'),
             const SizedBox(height: 12),
             _periodKindSelector(),
             const SizedBox(height: 12),
             _periodNavigator(period),
             const SizedBox(height: 16),
+            _arcCard(breakdown, period.label, target, bird),
+            const SizedBox(height: 24),
+            _sectionTitle(context, Icons.calculate_outlined, 'Breakdown'),
+            const SizedBox(height: 12),
             breakdown.when(
               loading: () => const Padding(
                 padding: EdgeInsets.symmetric(vertical: 48),
@@ -235,41 +189,6 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
       ],
       selected: {_kind},
       onSelectionChanged: (s) => setState(() => _kind = s.first),
-    );
-  }
-
-  Widget _financialYearSelector(FinancialYearStart fyStart) {
-    final cs = Theme.of(context).colorScheme;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.event_repeat_outlined, size: 18, color: cs.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'Financial year',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            SegmentedButton<FinancialYearStart>(
-              segments: [
-                for (final v in FinancialYearStart.values)
-                  ButtonSegment(value: v, label: Text(v.label)),
-              ],
-              selected: {fyStart},
-              onSelectionChanged: (s) => ref
-                  .read(settingsProvider.notifier)
-                  .setFinancialYearStart(s.first),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

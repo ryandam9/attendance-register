@@ -374,6 +374,12 @@ class _FooterCard extends StatelessWidget {
             'Bird colour palettes inspired by shandiya/feathers.',
             style: style,
           ),
+          const SizedBox(height: 8),
+          Text(
+            'Built with AI assistance. Attendance calculations are documented '
+            'in Insights so every result can be reviewed.',
+            style: style,
+          ),
         ],
       ),
     );
