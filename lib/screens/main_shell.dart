@@ -44,6 +44,11 @@ class MainShell extends ConsumerStatefulWidget {
 class _MainShellState extends ConsumerState<MainShell>
     with WidgetsBindingObserver {
   bool _foregroundCheckRunning = false;
+
+  /// Whether the "couldn't read your location" notice has already been shown
+  /// this run — the cause (Wi-Fi off, no signal) persists, so repeating it on
+  /// every resume would nag.
+  bool _positionWarningShown = false;
   bool _sidebarExtended = true;
 
   static const _destinations = [
@@ -161,6 +166,14 @@ class _MainShellState extends ConsumerState<MainShell>
             actionLabel: 'Check in anyway',
             onAction: () => _checkInAt(office),
           );
+        case ForegroundCheckStatus.positionUnavailable:
+          // Permission is granted, yet no fix came back. Say so once per app
+          // run: silence here reads as "the app is broken" to someone who has
+          // already granted everything it asked for.
+          if (!_positionWarningShown) {
+            _positionWarningShown = true;
+            _checkInSnack(noPositionMessage);
+          }
         case ForegroundCheckStatus.none:
           break; // not at an office / already recorded — stay quiet
       }
