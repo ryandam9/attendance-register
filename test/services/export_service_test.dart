@@ -42,50 +42,116 @@ void main() {
         reason: 'Auto check-in',
       ),
     );
+    final branchId = await service.insertOfficeLocation(
+      const OfficeLocation(
+        name: 'Branch',
+        address: '2 High St',
+        latitude: 0,
+        longitude: 0,
+      ),
+    );
+    await service.insertAttendanceRecord(
+      AttendanceRecord(
+        date: '2026-06-08',
+        officeLocationId: branchId,
+        timestamp: DateTime(2026, 6, 8, 8, 30),
+        reason: 'Client workshop',
+      ),
+    );
     await service.upsertSpecialDay(
       const SpecialDay(
         date: '2026-06-09',
         type: DayType.holiday,
         note: 'Holiday',
+        source: DaySource.auto,
+      ),
+    );
+    await service.upsertSpecialDay(
+      const SpecialDay(
+        date: '2026-06-07',
+        type: DayType.sickLeave,
+        note: 'Rest day',
       ),
     );
   }
 
-  test(
-    'buildXlsx produces a decodable workbook with a header + all rows',
-    () async {
-      await seed();
-      final result = await ExportService.buildXlsx();
-      expect(result.rows, 2);
-      expect(result.bytes, isNotEmpty);
+  test('buildXlsx produces a styled summary and complete history', () async {
+    await seed();
+    final result = await ExportService.buildXlsx(
+      exportedAt: DateTime(2026, 8, 31, 17, 45),
+    );
+    expect(result.rows, 4);
+    expect(result.bytes, isNotEmpty);
 
-      final decoded = Excel.decodeBytes(result.bytes);
-      final sheet = decoded['History'];
-      expect(sheet, isNotNull);
-      // Header row + one row per recorded day.
-      expect(sheet.maxRows, 3);
+    final decoded = Excel.decodeBytes(result.bytes);
+    expect(decoded.getDefaultSheet(), 'Summary');
+    final summary = decoded['Summary'];
+    final sheet = decoded['History'];
+    expect(summary, isNotNull);
+    expect(sheet, isNotNull);
+    // Title, subtitle, spacer, header + one row per recorded day.
+    expect(sheet.maxRows, 8);
 
-      String? cell(int row, int col) => sheet.rows[row][col]?.value?.toString();
-      expect(cell(0, 0), 'date');
-      expect(cell(0, 1), 'status');
-      expect(cell(0, 2), 'office');
-      expect(cell(0, 3), 'comment');
+    String? text(Sheet target, int row, int col) {
+      final value = target
+          .cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row))
+          .value;
+      return value is TextCellValue ? value.value : null;
+    }
 
-      // Newest first: the 06-10 attendance row precedes the 06-09 holiday.
-      expect(cell(1, 0), '2026-06-10');
-      expect(cell(1, 1), 'Attended');
-      expect(cell(1, 2), 'HQ');
-      expect(cell(2, 0), '2026-06-09');
-    },
-  );
+    expect(text(summary, 0, 0), 'Attendance Register');
+    expect(text(sheet, 0, 0), 'Complete Attendance History');
+    expect(text(sheet, 3, 0), 'Date');
+    expect(text(sheet, 3, 4), 'Entry source');
+    expect(text(sheet, 3, 6), 'Notes');
+
+    // Newest first, with every office and special day preserved.
+    final firstDate = sheet
+        .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 4))
+        .value;
+    expect(firstDate, isA<DateCellValue>());
+    expect(
+      (firstDate! as DateCellValue).asDateTimeLocal(),
+      DateTime(2026, 6, 10),
+    );
+    expect(text(sheet, 4, 2), 'Attended');
+    expect(text(sheet, 4, 3), 'HQ');
+    expect(text(sheet, 4, 4), 'Automatic check-in');
+    expect(text(sheet, 5, 2), 'Public Holiday');
+    expect(text(sheet, 5, 4), 'GitHub holiday import');
+    expect(text(sheet, 6, 3), 'Branch');
+    expect(text(sheet, 6, 4), 'Manual entry');
+    expect(text(sheet, 7, 2), 'Sick Leave');
+
+    // Visual hierarchy and practical widths survive workbook encoding.
+    expect(
+      summary.cell(CellIndex.indexByString('A1')).cellStyle?.isBold,
+      isTrue,
+    );
+    expect(sheet.cell(CellIndex.indexByString('A4')).cellStyle?.isBold, isTrue);
+    expect(sheet.getColumnWidth(0), 18);
+    expect(sheet.getColumnWidth(6), 42);
+  });
+
+  test('buildCsv still includes every office and special day', () async {
+    await seed();
+    final result = await ExportService.buildCsv();
+    expect(result.rows, 4);
+    expect(result.csv, contains('2026-06-10,Attended,HQ,Auto check-in'));
+    expect(result.csv, contains('2026-06-08,Attended,Branch,Client workshop'));
+    expect(result.csv, contains('2026-06-09,Public Holiday,,Holiday'));
+    expect(result.csv, contains('2026-06-07,Sick Leave,,Rest day'));
+  });
 
   test(
     'buildXlsx on an empty database still yields a header-only sheet',
     () async {
       final result = await ExportService.buildXlsx();
       expect(result.rows, 0);
-      final sheet = Excel.decodeBytes(result.bytes)['History'];
-      expect(sheet.maxRows, 1); // just the header
+      final decoded = Excel.decodeBytes(result.bytes);
+      expect(decoded.getDefaultSheet(), 'Summary');
+      final sheet = decoded['History'];
+      expect(sheet.maxRows, 4); // title, subtitle, spacer and header
     },
   );
 }

@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
@@ -190,16 +191,7 @@ class SettingsScreen extends ConsumerWidget {
         : null;
 
     final data = block('Data & Privacy', [
-      ListTile(
-        leading: const Icon(Icons.table_view_outlined),
-        title: const Text('Download History (Excel)'),
-        subtitle: const Text(
-          'Saves every recorded day — attendance, leave and holidays — as an '
-          '.xlsx workbook you can open in Excel.',
-        ),
-        isThreeLine: true,
-        onTap: () => _exportExcel(context),
-      ),
+      _ExcelExportTile(onExport: () => _exportExcel(context)),
       ListTile(
         leading: const Icon(Icons.file_download_outlined),
         title: const Text('Copy All Data (CSV)'),
@@ -313,21 +305,22 @@ class SettingsScreen extends ConsumerWidget {
         '${now.day.toString().padLeft(2, '0')}';
     final saved = await ExportSaver.saveXlsx(
       result.bytes,
-      suggestedName: 'attendance-history-$stamp.xlsx',
+      suggestedName: 'attendance-register-complete-history-$stamp.xlsx',
     );
-    final days = '${result.rows} day${result.rows == 1 ? '' : 's'}';
+    final entries =
+        '${result.rows} history ${result.rows == 1 ? 'entry' : 'entries'}';
     switch (saved.outcome) {
       case SaveOutcome.saved:
         messenger.showSnackBar(
           SnackBar(
-            content: Text('Saved $days to ${saved.path}'),
+            content: Text('Saved $entries to ${saved.path}'),
             behavior: SnackBarBehavior.floating,
           ),
         );
       case SaveOutcome.shared:
         messenger.showSnackBar(
           SnackBar(
-            content: Text('Exported $days.'),
+            content: Text('Exported $entries.'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -450,6 +443,67 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
     if (ok == true) await notifier.deleteOffice(office.id!);
+  }
+}
+
+class _ExcelExportTile extends StatefulWidget {
+  final Future<void> Function() onExport;
+  const _ExcelExportTile({required this.onExport});
+
+  @override
+  State<_ExcelExportTile> createState() => _ExcelExportTileState();
+}
+
+class _ExcelExportTileState extends State<_ExcelExportTile> {
+  bool _exporting = false;
+
+  Future<void> _runExport() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    try {
+      await widget.onExport();
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return ListTile(
+      leading: PageTransitionSwitcher(
+        duration: reduceMotion
+            ? Duration.zero
+            : const Duration(milliseconds: 220),
+        transitionBuilder: (child, animation, secondaryAnimation) =>
+            FadeThroughTransition(
+              animation: animation,
+              secondaryAnimation: secondaryAnimation,
+              child: child,
+            ),
+        child: _exporting
+            ? const SizedBox(
+                key: ValueKey('export-progress'),
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              )
+            : const Icon(
+                Icons.table_view_outlined,
+                key: ValueKey('export-excel'),
+              ),
+      ),
+      title: Text(
+        _exporting ? 'Preparing complete history…' : 'Export History',
+      ),
+      subtitle: const Text(
+        'Creates a styled Excel workbook with a summary and every attendance, '
+        'leave, holiday and work-from-home entry.',
+      ),
+      isThreeLine: true,
+      enabled: !_exporting,
+      onTap: _runExport,
+    );
   }
 }
 

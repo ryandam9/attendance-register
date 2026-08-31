@@ -357,17 +357,24 @@ class _MainShellState extends ConsumerState<MainShell>
 
     // Phones: keep every top-level destination in the bottom navigation so
     // Settings is discoverable and consistent with the wider layouts.
+    final showQuickMark =
+        ref.watch(officeProvider).selectedOffice != null && index != 0;
     return Scaffold(
-      body: content,
-      floatingActionButton:
-          ref.watch(officeProvider).selectedOffice == null || index == 0
-          ? null
-          : FloatingActionButton.extended(
+      // The extended action used to float directly over each tab's content.
+      // Reserve a dedicated lane for it so list rows and explanatory text can
+      // never be hidden underneath the button.
+      body: Padding(
+        padding: EdgeInsets.only(bottom: showQuickMark ? 80 : 0),
+        child: content,
+      ),
+      floatingActionButton: showQuickMark
+          ? FloatingActionButton.extended(
               heroTag: 'phone-quick-mark',
               onPressed: _quickMarkToday,
               icon: const Icon(Icons.edit_calendar_outlined),
               label: const Text('Mark'),
-            ),
+            )
+          : null,
       bottomNavigationBar: NavigationBar(
         selectedIndex: index.clamp(0, 3),
         onDestinationSelected: (i) {
