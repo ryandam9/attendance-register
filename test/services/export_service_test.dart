@@ -96,7 +96,7 @@ void main() {
       final value = target
           .cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row))
           .value;
-      return value is TextCellValue ? value.value : null;
+      return value is TextCellValue ? value.value.text : null;
     }
 
     expect(text(summary, 0, 0), 'Attendance Register');

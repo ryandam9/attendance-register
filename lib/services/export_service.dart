@@ -277,7 +277,9 @@ class ExportService {
         row,
         DateCellValue.fromDateTime(item.date),
         bodyStyle.copyWith(
-          numberFormat: CustomDateTimeNumFormat('ddd, dd mmm yyyy'),
+          numberFormat: const CustomDateTimeNumFormat(
+            formatCode: 'ddd, dd mmm yyyy',
+          ),
         ),
       );
       _put(
@@ -310,7 +312,9 @@ class ExportService {
             ? null
             : DateTimeCellValue.fromDateTime(item.recordedAt!),
         bodyStyle.copyWith(
-          numberFormat: CustomDateTimeNumFormat('dd mmm yyyy, h:mm AM/PM'),
+          numberFormat: const CustomDateTimeNumFormat(
+            formatCode: 'dd mmm yyyy, h:mm AM/PM',
+          ),
         ),
       );
       _put(
