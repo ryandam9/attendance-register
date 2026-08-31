@@ -401,26 +401,34 @@ class _Dashboard extends ConsumerWidget {
 
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: monthBreakdown.when(
-              loading: () => const Card(
-                margin: EdgeInsets.zero,
-                child: SizedBox(
-                  height: 112,
+            child: SizedBox(
+              // Keep the dashboard below this tile anchored while a newly
+              // selected month loads or renders longer labels.
+              height: 112,
+              child: monthBreakdown.when(
+                loading: () => const Card(
+                  margin: EdgeInsets.zero,
                   child: Center(child: CircularProgressIndicator()),
                 ),
-              ),
-              error: (e, _) => Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text('Could not load month progress: $e'),
+                error: (e, _) => Card(
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Center(
+                      child: Text(
+                        'Could not load month progress: $e',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-              data: (b) => _MobileProgressCard(
-                breakdown: b,
-                target: settings.rtoTarget,
-                periodLabel: monthPeriod.label,
-                onTap: () => ref.read(tabIndexProvider.notifier).set(1),
+                data: (b) => _MobileProgressCard(
+                  breakdown: b,
+                  target: settings.rtoTarget,
+                  periodLabel: monthPeriod.label,
+                  onTap: () => ref.read(tabIndexProvider.notifier).set(1),
+                ),
               ),
             ),
           ),
@@ -436,8 +444,9 @@ class _Dashboard extends ConsumerWidget {
               focusedDay: focusedDay,
               calendarFormat: calendarFormat,
               startingDayOfWeek: StartingDayOfWeek.monday,
-              // Let short months use less vertical space on phones.
-              sixWeekMonthsEnforced: false,
+              // A fixed six-row grid prevents the content below the calendar
+              // jumping when moving between four-, five- and six-week months.
+              sixWeekMonthsEnforced: true,
               onFormatChanged: (f) =>
                   ref.read(calendarFormatProvider.notifier).set(f),
               onPageChanged: onPageChanged,
@@ -571,6 +580,8 @@ class _MobileProgressCard extends StatelessWidget {
                       children: [
                         Text(
                           'Return to office · $periodLabel',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
                         Text(
@@ -579,17 +590,27 @@ class _MobileProgressCard extends StatelessWidget {
                               : needed == 0
                               ? 'Target met'
                               : '$needed more office ${needed == 1 ? 'day' : 'days'} to reach $target%',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: cs.onSurfaceVariant),
                         ),
                       ],
                     ),
                   ),
-                  Text(
-                    pct == null ? '—' : '${pct.round()}%',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: cs.primary,
+                  SizedBox(
+                    // Reserve room for values from “—” through “100%” so the
+                    // text column does not resize as months change.
+                    width: 58,
+                    child: Text(
+                      pct == null ? '—' : '${pct.round()}%',
+                      textAlign: TextAlign.end,
+                      maxLines: 1,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: cs.primary,
+                          ),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -620,9 +641,8 @@ class _MobileProgressCard extends StatelessWidget {
 /// A single calendar day rendered per the Feathers spec:
 /// • today           → solid navy (primary) circle with the day number
 /// • attended        → solid green circle with the day number
-/// • sick leave      → orange outlined ring with the day number
-/// • other statuses  → the status' icon in its colour (WFH home, holiday
-///   umbrella, annual suitcase, carer's hands, misc dots)
+/// • other statuses  → the status' icon in its colour (sick face, WFH home,
+///   holiday umbrella, annual suitcase, carer's hands, misc dots)
 /// • no status       → the plain day number
 class _DayCell extends StatelessWidget {
   final DateTime day;
@@ -656,26 +676,7 @@ class _DayCell extends StatelessWidget {
       if (st == DayStatus.attended) {
         return filled(st.colorIn(context), Colors.white);
       }
-      if (st == DayStatus.sickLeave) {
-        final color = st.colorIn(context);
-        return Container(
-          margin: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: color, width: 2),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            number,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-        );
-      }
-      // Leave / WFH / holiday / misc — show the status icon (no number).
+      // Sick / leave / WFH / holiday / misc — show the status icon.
       return Center(child: Icon(st.icon, color: st.colorIn(context), size: 22));
     }
 
