@@ -48,10 +48,18 @@ class AttendanceBreakdown {
   /// denominator's weekday-only rule.
   final Map<DayType, int> specialDayCounts;
 
+  /// Eligible working days left in the period, today included: the weekdays
+  /// from today to the period's end, minus the leave already booked in them.
+  /// Zero once the period is over — that is what tells the UI the percentage
+  /// is final and it should report the outcome instead of asking for office
+  /// days that can no longer be recorded.
+  final int remainingEligibleDays;
+
   const AttendanceBreakdown({
     required this.weekdays,
     required this.officeDays,
     required this.specialDayCounts,
+    required this.remainingEligibleDays,
     this.weekendOfficeDays = 0,
   });
 
@@ -72,4 +80,18 @@ class AttendanceBreakdown {
     if (eligibleWorkingDays <= 0) return null;
     return (officeDays / eligibleWorkingDays * 100).clamp(0.0, 100.0);
   }
+
+  /// Office days still needed to reach [target] percent — 0 once it is met.
+  int officeDaysToTarget(int target) =>
+      ((target / 100 * eligibleWorkingDays).ceil() - officeDays).clamp(0, 9999);
+
+  /// Whether [target] percent is still achievable: reaching it must not need
+  /// more office days than there are working days left in the period. A month
+  /// that has ended has none left, so an unmet target there is simply missed.
+  bool targetReachable(int target) =>
+      officeDaysToTarget(target) <= remainingEligibleDays;
+
+  /// True when no eligible working day remains — the period is over, or every
+  /// weekday left in it is already booked as leave. The percentage is final.
+  bool get isFinal => remainingEligibleDays <= 0;
 }
