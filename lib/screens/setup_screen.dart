@@ -407,12 +407,12 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 ),
               ] else ...[
                 const SizedBox(height: 16),
-                Card(
+                const Card(
                   margin: EdgeInsets.zero,
                   child: ListTile(
-                    leading: const Icon(Icons.lock_outline),
-                    title: const Text('No location access'),
-                    subtitle: const Text(
+                    leading: Icon(Icons.lock_outline),
+                    title: Text('No location access'),
+                    subtitle: Text(
                       'You can change this office to automatic tracking later.',
                     ),
                   ),
