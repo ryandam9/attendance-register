@@ -277,7 +277,9 @@ class ExportService {
         row,
         DateCellValue.fromDateTime(item.date),
         bodyStyle.copyWith(
-          numberFormat: CustomDateTimeNumFormat('ddd, dd mmm yyyy'),
+          numberFormat: const CustomDateTimeNumFormat(
+            formatCode: 'ddd, dd mmm yyyy',
+          ),
         ),
       );
       _put(
@@ -310,7 +312,9 @@ class ExportService {
             ? null
             : DateTimeCellValue.fromDateTime(item.recordedAt!),
         bodyStyle.copyWith(
-          numberFormat: CustomDateTimeNumFormat('dd mmm yyyy, h:mm AM/PM'),
+          numberFormat: const CustomDateTimeNumFormat(
+            formatCode: 'dd mmm yyyy, h:mm AM/PM',
+          ),
         ),
       );
       _put(
@@ -352,6 +356,10 @@ class ExportService {
       customValue: TextCellValue(text),
     );
     sheet.setMergedCellStyle(startCell, style);
+    // excel 4.x applies a merged-range style to the surrounding cells, but the
+    // start cell can lose its font flags when the workbook is encoded. Style
+    // that value explicitly so headings stay bold in Excel and after decoding.
+    sheet.updateCell(startCell, TextCellValue(text), cellStyle: style);
   }
 
   static void _sectionHeading(Sheet sheet, int row, String text, int columns) {
@@ -362,6 +370,7 @@ class ExportService {
       customValue: TextCellValue(text),
     );
     sheet.setMergedCellStyle(start, _sectionStyle);
+    sheet.updateCell(start, TextCellValue(text), cellStyle: _sectionStyle);
     sheet.setRowHeight(row, 26);
   }
 
