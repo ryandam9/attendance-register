@@ -69,8 +69,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     if (pos == null) {
       setState(() {
         _busy = false;
-        _locationError =
-            'Could not get your location. Check location permissions and try again.';
+        _locationError = noPositionMessage;
       });
       return;
     }

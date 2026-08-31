@@ -58,6 +58,23 @@ class GeoPlace {
   const GeoPlace({this.address, this.state, this.country});
 }
 
+/// What to tell the user when a position read comes back empty, phrased for the
+/// platform.
+///
+/// On macOS the answer is almost always Wi-Fi. A Mac has no GPS, so Core
+/// Location places it by scanning nearby Wi-Fi networks; with the radio off it
+/// fails every time, Ethernet or not. Blaming permissions there sends the user
+/// to a setting that is already correct.
+String get noPositionMessage {
+  if (defaultTargetPlatform == TargetPlatform.macOS) {
+    return 'Could not read your location. A Mac has no GPS — macOS works out '
+        'where it is from nearby Wi-Fi networks, so Wi-Fi has to be switched '
+        'on, even when you are on Ethernet.';
+  }
+  return 'Could not read your location. Check that location services are '
+      'switched on, then try again.';
+}
+
 /// Why a foreground (app-open) auto check-in did or didn't happen, so the UI can
 /// explain itself instead of failing silently.
 enum ForegroundCheckStatus {
@@ -77,9 +94,21 @@ enum ForegroundCheckStatus {
   /// Only used when reasonably close; far-away opens stay [none].
   tooFar,
 
-  /// Nothing to report and nothing wrong: no offices, already recorded, the
-  /// position couldn't be read, or you're simply not at an office. The UI stays
-  /// quiet for this — it would otherwise nag on every app open.
+  /// Permission is granted but no position could be read at all — not from a
+  /// fresh fix, not from the OS's last-known one.
+  ///
+  /// On a Mac this is almost never a permission problem: Core Location has no
+  /// GPS to fall back on and places the machine by scanning nearby Wi-Fi
+  /// networks, so with Wi-Fi switched off (Ethernet included) it fails with
+  /// kCLErrorLocationUnknown every time. geolocator logs that as "LOCATION
+  /// UPDATE FAILURE" and never completes the request, so it surfaces here as a
+  /// timeout. Worth saying out loud — the user has granted everything the app
+  /// asked for and would otherwise see nothing happen.
+  positionUnavailable,
+
+  /// Nothing to report and nothing wrong: no offices, already recorded, or
+  /// you're simply not at an office. The UI stays quiet for this — it would
+  /// otherwise nag on every app open.
   none,
 }
 
@@ -368,7 +397,8 @@ class LocationService {
       }
     }
     if (pos == null) {
-      return const ForegroundCheck(ForegroundCheckStatus.none);
+      _autolog('no position available (fresh read and last-known both failed)');
+      return const ForegroundCheck(ForegroundCheckStatus.positionUnavailable);
     }
     _autolog('position=${pos.latitude},${pos.longitude} acc=${pos.accuracy}');
 
