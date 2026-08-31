@@ -36,11 +36,29 @@ final breakdownProvider = FutureProvider.autoDispose
         args.end,
       );
 
+      // Eligible days still ahead, today included — the difference between
+      // "3 more office days to reach 50%" and a period whose figure can no
+      // longer change. A period that has ended leaves none, so its unmet
+      // target is reported as missed rather than as days still to earn.
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final from = today.isAfter(args.start) ? today : args.start;
+      final remainingWeekdays = countWeekdays(from, args.end);
+      final remainingExcluded = remainingWeekdays == 0
+          ? 0
+          : await db.getSpecialDayCount(
+              from,
+              args.end,
+              types: excludedFromAttendanceDenominator,
+            );
+      final remaining = remainingWeekdays - remainingExcluded;
+
       return AttendanceBreakdown(
         weekdays: countWeekdays(args.start, args.end),
         officeDays: officeWeekdays,
         weekendOfficeDays: officeTotal - officeWeekdays,
         specialDayCounts: specialDayCounts,
+        remainingEligibleDays: remaining < 0 ? 0 : remaining,
       );
     });
 

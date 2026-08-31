@@ -43,11 +43,6 @@ class RtoArcCard extends StatelessWidget {
     final theme = Theme.of(context);
     final pct = breakdown.returnToOfficePercentage;
     final metTarget = pct != null && pct >= target;
-    final daysToTarget = pct == null
-        ? null
-        : ((target / 100 * breakdown.eligibleWorkingDays).ceil() -
-                  breakdown.officeDays)
-              .clamp(0, 9999);
     final accent = pct == null
         ? cs.onSurfaceVariant
         : (metTarget ? _success : _warning);
@@ -130,7 +125,9 @@ class RtoArcCard extends StatelessWidget {
             _TargetBanner(
               metTarget: metTarget,
               target: target,
-              daysToTarget: daysToTarget ?? 0,
+              daysToTarget: breakdown.officeDaysToTarget(target),
+              daysLeft: breakdown.remainingEligibleDays,
+              reachable: breakdown.targetReachable(target),
               success: _success,
               warning: _warning,
             ),
@@ -153,6 +150,13 @@ class _TargetBanner extends StatelessWidget {
   final bool metTarget;
   final int target;
   final int daysToTarget;
+
+  /// Eligible working days left in the period (today included).
+  final int daysLeft;
+
+  /// Whether [daysToTarget] can still be earned in the days that are left.
+  final bool reachable;
+
   final Color success;
   final Color warning;
 
@@ -160,9 +164,25 @@ class _TargetBanner extends StatelessWidget {
     required this.metTarget,
     required this.target,
     required this.daysToTarget,
+    required this.daysLeft,
+    required this.reachable,
     required this.success,
     required this.warning,
   });
+
+  /// What the period still asks of you, or — once the target can no longer be
+  /// reached — what it ended up being. Asking for "5 more office days" in a
+  /// month that is over is advice nobody can act on.
+  String get _message {
+    if (metTarget) return 'Target of $target% met — nice work!';
+    if (reachable) {
+      return '$daysToTarget more office '
+          '${daysToTarget == 1 ? 'day' : 'days'} to reach $target%';
+    }
+    if (daysLeft == 0) return 'Target of $target% not met';
+    return '$target% is out of reach — '
+        '${daysLeft == 1 ? '1 working day' : '$daysLeft working days'} left';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -185,9 +205,7 @@ class _TargetBanner extends StatelessWidget {
           const SizedBox(width: 8),
           Flexible(
             child: Text(
-              metTarget
-                  ? 'Target of $target% met — nice work!'
-                  : '$daysToTarget more office ${daysToTarget == 1 ? 'day' : 'days'} to reach $target%',
+              _message,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w600,

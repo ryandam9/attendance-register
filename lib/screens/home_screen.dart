@@ -553,14 +553,25 @@ class _MobileProgressCard extends StatelessWidget {
     required this.onTap,
   });
 
+  /// The line under the title: what is still needed, or — once the target can
+  /// no longer be reached — how the period ended. A month that is over cannot
+  /// take "5 more office days", so it reports the outcome instead.
+  String _subtitle(double? pct) {
+    if (pct == null) return 'No eligible working days yet';
+    final needed = breakdown.officeDaysToTarget(target);
+    if (needed == 0) return 'Target met';
+    if (breakdown.targetReachable(target)) {
+      return '$needed more office ${needed == 1 ? 'day' : 'days'} '
+          'to reach $target%';
+    }
+    if (breakdown.isFinal) return 'Did not reach $target%';
+    return '$target% is out of reach';
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final pct = breakdown.returnToOfficePercentage;
-    final needed =
-        ((target / 100 * breakdown.eligibleWorkingDays).ceil() -
-                breakdown.officeDays)
-            .clamp(0, 9999);
     final progress = ((pct ?? 0) / 100).clamp(0.0, 1.0);
     return Card(
       margin: EdgeInsets.zero,
@@ -585,11 +596,7 @@ class _MobileProgressCard extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
                         Text(
-                          pct == null
-                              ? 'No eligible working days yet'
-                              : needed == 0
-                              ? 'Target met'
-                              : '$needed more office ${needed == 1 ? 'day' : 'days'} to reach $target%',
+                          _subtitle(pct),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall
