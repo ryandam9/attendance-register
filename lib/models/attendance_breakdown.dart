@@ -25,8 +25,14 @@ int countWeekdays(DateTime start, DateTime end) {
 /// of weekdays minus the leave types listed in
 /// [excludedFromAttendanceDenominator]; work-from-home and not-attended days
 /// stay in the denominator and therefore lower the percentage.
+///
+/// The period is always the whole reporting window (a full month or year), not
+/// the part of it that has elapsed. Dividing by elapsed days only would report
+/// 100% after a single office day on the first of the month — a number that
+/// says nothing about whether the target will be met.
 class AttendanceBreakdown {
-  /// Weekdays (Mon–Fri) in the period.
+  /// Weekdays (Mon–Fri) in the period — every one of them, including weekdays
+  /// still to come in a period that is under way.
   final int weekdays;
 
   /// Weekdays you were recorded at the office (the percentage numerator).

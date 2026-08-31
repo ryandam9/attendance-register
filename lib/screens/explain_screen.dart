@@ -49,21 +49,21 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
     final bird = birdAssetForTheme(settings.themeId);
 
     // One active reporting context at a time keeps the headline, calculation
-    // and charts aligned. Current periods are capped at today so future
-    // weekdays never dilute the result.
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    // and charts aligned. The window is always the whole period — weekdays
+    // still to come included — so the percentage is the share of the month (or
+    // year) you have attended, the same figure the home dashboard shows. An
+    // elapsed-days-only denominator would read 100% on the first working day
+    // of the month, which says nothing about meeting the target.
     final period = ReportPeriod(
       kind: _kind,
       anchor: _anchor,
       financialYearStart: fyStart,
     );
-    final effectiveEnd = period.end.isAfter(today) ? today : period.end;
     final breakdown = ref.watch(
       breakdownProvider((
         officeId: office.id!,
         start: period.start,
-        end: effectiveEnd,
+        end: period.end,
       )),
     );
 

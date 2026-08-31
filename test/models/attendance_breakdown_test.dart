@@ -88,6 +88,19 @@ void main() {
       expect(b.returnToOfficePercentage, 100.0);
     });
 
+    test('a single office day is a share of the whole month, not 100%', () {
+      // Regression: the Insights gauge divided by the weekdays that had
+      // elapsed, so checking in on the 1st read as 100%. The denominator is
+      // the whole month — Tue 1 Sep 2026 to Wed 30 Sep 2026 is 22 weekdays —
+      // so one office day is 4.5%, the same figure the home dashboard shows.
+      final sep = countWeekdays(DateTime(2026, 9, 1), DateTime(2026, 9, 30));
+      expect(sep, 22);
+
+      final b = make(weekdays: sep, officeDays: 1, counts: const {});
+      expect(b.eligibleWorkingDays, 22);
+      expect(b.returnToOfficePercentage, closeTo(4.5454, 1e-3));
+    });
+
     test('weekend office days do not affect the percentage', () {
       const withWeekend = AttendanceBreakdown(
         weekdays: 10,
