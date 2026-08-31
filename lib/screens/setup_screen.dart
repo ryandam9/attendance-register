@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -250,13 +251,28 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                     setState(() => _trackingMode = selection.first),
               ),
               const SizedBox(height: 8),
-              Text(
-                _trackingMode == _TrackingMode.automatic
-                    ? 'The app records a day when you arrive at this verified location.'
-                    : 'You will record office days yourself. Location permissions are not needed.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+              PageTransitionSwitcher(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 240),
+                reverse: _trackingMode == _TrackingMode.manual,
+                transitionBuilder: (child, animation, secondaryAnimation) =>
+                    SharedAxisTransition(
+                      animation: animation,
+                      secondaryAnimation: secondaryAnimation,
+                      transitionType: SharedAxisTransitionType.horizontal,
+                      fillColor: Colors.transparent,
+                      child: child,
+                    ),
+                child: Text(
+                  _trackingMode == _TrackingMode.automatic
+                      ? 'The app records a day when you arrive at this verified location.'
+                      : 'You will record office days yourself. Location permissions are not needed.',
+                  key: ValueKey(_trackingMode),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                ),
               ),
 
               if (_trackingMode == _TrackingMode.automatic) ...[

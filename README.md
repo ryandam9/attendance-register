@@ -8,14 +8,14 @@ A Flutter mobile app that automatically tracks your return-to-office days using 
 - **Auto check-in** — each office is registered as an OS-level geofence; when your phone enters the radius the OS wakes the app (even if it was killed) and attendance is recorded once per day in a local SQLite database. Opening the app while at the office records it too (a safety net for missed geofence events)
 - **Permission setup flow** — after the first office is saved, the app walks you through granting background location, notifications and battery-optimisation exemption, with one-tap requests (also available later under Settings → Permissions)
 - **Push notification** — you get a notification the moment attendance is recorded
-- **Dashboard** — a monthly calendar highlights every recorded day, with animated monthly and yearly totals and return-to-office percentages; bottom navigation switches between Home, Insights and History
+- **Dashboard** — a monthly calendar highlights every recorded day, with stable monthly progress and return-to-office percentages; adaptive navigation switches between Home, Insights, History and Settings
 - **Quick day marking** — tapping a calendar day opens a bottom sheet with one-tap statuses (Attended, Public Holiday, Sick / Annual / Carer's / Misc Leave, Work from Home) and an optional comment; "All options" opens the full editor
 - **Explain page** — itemises exactly how the return-to-office percentage is calculated for a month or a (financial) year
 - **Configurable target** — set the RTO percentage your employer expects; dashboard stats turn green at or above it
 - **History** — a chronological list of every recorded day
 - **Multi-office** — track multiple office locations independently
 - **Auto public holidays** — public holidays for your office's region are highlighted automatically from a list published in this repo (see [Public Holidays](#public-holidays)); anything you mark or remove yourself always wins
-- **Data export** — copy a CSV of every recorded day to the clipboard as a backup
+- **Data export** — download a styled Excel workbook containing a summary and complete history across every office, or copy a compact CSV backup
 - **Themes** — colour palettes inspired by Australian birds, Material You dynamic colour ("match my wallpaper", Android 12+), and a light/dark/system toggle
 - **Edit / delete** — update the radius or remove an office at any time
 
@@ -145,7 +145,8 @@ lib/
 │   ├── notification_service.dart    # Local notifications
 │   ├── permission_service.dart      # Runtime permission requests
 │   ├── app_settings_service.dart    # Deep links into system settings pages
-│   └── export_service.dart          # CSV backup of all recorded days
+│   ├── export_service.dart          # Styled Excel + CSV complete-history exports
+│   └── export_saver.dart            # Desktop save dialog / mobile share sheet
 ├── providers/                       # Riverpod state (Notifier-based)
 │   ├── office_provider.dart
 │   ├── attendance_provider.dart
@@ -187,9 +188,12 @@ lib/
 | `flutter_local_notifications` | Attendance notifications |
 | `permission_handler` | Runtime permission requests & status |
 | `flutter_riverpod` | State management |
-| `animations` | Fade-through tab switches, container transforms |
+| `animations` | Fade-through and shared-axis state transitions |
 | `confetti` | Check-in celebration |
 | `dynamic_color` | Material You wallpaper theming |
+| `excel` | Styled `.xlsx` workbook creation |
+| `file_selector` | Native desktop Save dialog |
+| `share_plus` | Mobile Excel share sheet |
 
 ## How Auto Check-In Works
 
@@ -297,10 +301,18 @@ Auto-imported holidays never fight with your own entries:
 
 ## Data Export
 
-**Settings → Data → Export All Data (CSV)** copies every recorded day —
-attendance (with office name), leave, holidays and WFH — to the clipboard as
-CSV (`date,status,office,comment`), newest first. Paste it into a file or
-spreadsheet to keep a backup outside the device.
+**Settings → Data & Privacy → Export History** creates a styled `.xlsx`
+workbook with two sheets:
+
+- **Summary** — export date, complete date range, status totals and office-day
+  totals.
+- **History** — every attendance, leave, holiday and work-from-home entry from
+  every office, newest first. It includes proper Excel dates, office, entry
+  source, recorded timestamp and notes.
+
+Desktop platforms show a native Save dialog; mobile opens the system share
+sheet. **Copy All Data (CSV)** remains available as a compact clipboard backup
+using `date,status,office,comment`.
 
 ## Running Tests
 

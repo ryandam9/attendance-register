@@ -66,7 +66,7 @@ class ExportSaver {
       await file.writeAsBytes(bytes, flush: true);
       await Share.shareXFiles([
         XFile(file.path, mimeType: mimeType, name: suggestedName),
-      ], subject: 'Attendance history');
+      ], subject: 'Complete attendance history');
       return SaveExportResult(SaveOutcome.shared, path: file.path);
     } catch (_) {
       return const SaveExportResult(SaveOutcome.error);

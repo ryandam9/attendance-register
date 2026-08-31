@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -188,6 +189,28 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       );
     }
 
+    Widget animatedResults({required bool desktop}) {
+      final child = KeyedSubtree(
+        key: ValueKey(
+          _loading
+              ? 'history-loading'
+              : 'history-${_filter.name}-${visibleItems.isEmpty}',
+        ),
+        child: results(desktop: desktop),
+      );
+      if (MediaQuery.disableAnimationsOf(context)) return child;
+      return PageTransitionSwitcher(
+        duration: const Duration(milliseconds: 240),
+        transitionBuilder: (child, animation, secondaryAnimation) =>
+            FadeThroughTransition(
+              animation: animation,
+              secondaryAnimation: secondaryAnimation,
+              child: child,
+            ),
+        child: child,
+      );
+    }
+
     // Desktop: master-detail — a table-style list on the left, the selected
     // day's details on the right.
     if (isDesktopWidth(context)) {
@@ -205,7 +228,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 _controls(),
                 const SizedBox(height: 16),
               ],
-              Expanded(child: results(desktop: true)),
+              Expanded(child: animatedResults(desktop: true)),
             ],
           ),
         ),
@@ -219,7 +242,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (!_loading && _items.isNotEmpty) _controls(),
-            Expanded(child: results(desktop: false)),
+            Expanded(child: animatedResults(desktop: false)),
           ],
         ),
       ),
