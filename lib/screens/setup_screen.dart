@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
 import '../providers/office_provider.dart';
+import '../services/holiday_service.dart';
 import '../services/location_service.dart';
 import '../widgets/responsive_body.dart';
 import 'permission_setup_screen.dart';
@@ -24,11 +25,18 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _addressCtrl;
+  // Editable so an office still gets a region when geocoding cannot supply one
+  // — public holidays are matched on these two fields alone.
+  late final TextEditingController _countryCtrl;
+  late final TextEditingController _stateCtrl;
   double _radius = 200;
   double? _lat;
   double? _lng;
-  String? _country;
-  String? _state;
+
+  /// Regions the published holiday list covers, offered as choices so the user
+  /// never has to guess its spelling. Null until loaded, and stays null when
+  /// the list cannot be fetched — the free-text fields stand in then.
+  List<HolidayRegion>? _regions;
   late _TrackingMode _trackingMode;
   bool _busy = false;
   String? _locationError;
@@ -44,18 +52,70 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     _radius = o?.radius ?? 200;
     _lat = o?.hasLocation == true ? o!.latitude : null;
     _lng = o?.hasLocation == true ? o!.longitude : null;
-    _country = o?.country;
-    _state = o?.state;
+    _countryCtrl = TextEditingController(text: o?.country ?? '');
+    _stateCtrl = TextEditingController(text: o?.state ?? '');
     _trackingMode = o == null || o.hasLocation
         ? _TrackingMode.automatic
         : _TrackingMode.manual;
+    _loadRegions();
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _addressCtrl.dispose();
+    _countryCtrl.dispose();
+    _stateCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadRegions() async {
+    final regions = await HolidayService.instance.availableRegions();
+    if (!mounted || regions == null || regions.isEmpty) return;
+    setState(() => _regions = regions);
+  }
+
+  /// The selected region as a `country|state` key, or null while either half is
+  /// blank. Matches [HolidayService]'s own case-insensitive keying so a region
+  /// typed in a different case still selects its entry in the picker.
+  String? get _regionKey {
+    final c = _countryCtrl.text.trim();
+    final st = _stateCtrl.text.trim();
+    if (c.isEmpty || st.isEmpty) return null;
+    return '${c.toLowerCase()}|${st.toLowerCase()}';
+  }
+
+  static String _keyOf(HolidayRegion r) =>
+      '${r.country.toLowerCase()}|${r.state.toLowerCase()}';
+
+  /// Writes a resolved region into the fields, leaving anything the user typed
+  /// in place when the geocoder came back empty — a failed lookup must not
+  /// erase a region that was entered by hand.
+  void _applyRegion(GeoPlace? place) {
+    final country = place?.country;
+    final state = place?.state;
+    if (country != null && country.isNotEmpty) _countryCtrl.text = country;
+    if (state != null && state.isNotEmpty) _stateCtrl.text = state;
+  }
+
+  static String? _trimmedOrNull(String s) {
+    final t = s.trim();
+    return t.isEmpty ? null : t;
+  }
+
+  /// True when either field is empty. A holiday row is matched on the pair, so
+  /// one without the other matches nothing.
+  bool get _regionMissing =>
+      _countryCtrl.text.trim().isEmpty || _stateCtrl.text.trim().isEmpty;
+
+  /// Warn when a lookup resolved coordinates but no region: the office looks
+  /// fully configured, yet no public holiday can ever match it.
+  void _warnIfRegionMissing() {
+    if (!_regionMissing) return;
+    _showSnack(
+      'Could not work out the region for this address — set it below so '
+      'public holidays are matched.',
+    );
   }
 
   Future<void> _useCurrentLocation() async {
@@ -82,6 +142,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     setState(() {
       _lat = pos.latitude;
       _lng = pos.longitude;
+      _applyRegion(place);
       final resolved = place?.address;
       if (resolved != null && resolved.isNotEmpty) {
         _addressCtrl.text = resolved;
@@ -93,11 +154,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         _addressCtrl.text =
             '${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}';
       }
-      _country = place?.country;
-      _state = place?.state;
       _busy = false;
       _locationError = null;
     });
+    _warnIfRegionMissing();
   }
 
   Future<bool> _lookupAddress() async {
@@ -134,15 +194,136 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     setState(() {
       _lat = lat;
       _lng = lng;
-      _country = place?.country;
-      _state = place?.state;
+      _applyRegion(place);
       _busy = false;
       _locationError = null;
     });
     _showSnack(
       'Location resolved: ${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
     );
+    _warnIfRegionMissing();
     return true;
+  }
+
+  /// Help text under the region heading. It changes with the control: a picker
+  /// needs no warning about spelling, free-text does.
+  String get _regionHelp {
+    if (_regions == null) {
+      return 'Filled in automatically when a location is resolved. It has to '
+          'match the published holiday list.';
+    }
+    return 'Filled in automatically when a location is resolved. Otherwise '
+        'pick the region your office is in.';
+  }
+
+  /// True when the chosen region appears in the published list. Only meaningful
+  /// once [_regions] has loaded.
+  bool get _regionIsPublished {
+    final key = _regionKey;
+    if (key == null) return false;
+    return _regions?.any((r) => _keyOf(r) == key) ?? false;
+  }
+
+  /// The region control: a picker over the published list when it loaded, and
+  /// free-text country/state when it did not (offline, or the fetch failed) so
+  /// the office can still be given a region.
+  Widget _regionField() {
+    final regions = _regions;
+    if (regions == null) return _regionTextFields();
+
+    // An office may already carry a region the list does not publish (an older
+    // save, or a geocoder result for a region nobody has added holidays for).
+    // Offer it rather than silently dropping it on the next save.
+    final items = [
+      for (final r in regions)
+        DropdownMenuItem(value: _keyOf(r), child: Text(r.label)),
+    ];
+    final key = _regionKey;
+    if (key != null && !regions.any((r) => _keyOf(r) == key)) {
+      items.add(
+        DropdownMenuItem(
+          value: key,
+          child: Text('${_stateCtrl.text.trim()}, ${_countryCtrl.text.trim()}'),
+        ),
+      );
+    }
+
+    return DropdownButtonFormField<String>(
+      // Rebuilt when the region changes underneath it: a form field keeps its
+      // own state, so a geocoded region would not otherwise show as selected.
+      key: ValueKey(key),
+      initialValue: key,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Region',
+        prefixIcon: Icon(Icons.public_outlined),
+        border: OutlineInputBorder(),
+      ),
+      hint: const Text('Select the region'),
+      items: items,
+      onChanged: (value) {
+        if (value == null) return;
+        final match = regions.where((r) => _keyOf(r) == value);
+        if (match.isEmpty) return;
+        setState(() {
+          _countryCtrl.text = match.first.country;
+          _stateCtrl.text = match.first.state;
+        });
+      },
+    );
+  }
+
+  /// Fallback entry used when the published list is unavailable.
+  Widget _regionTextFields() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 120,
+          child: TextFormField(
+            controller: _countryCtrl,
+            textCapitalization: TextCapitalization.characters,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              labelText: 'Country',
+              hintText: 'AU',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: TextFormField(
+            controller: _stateCtrl,
+            textCapitalization: TextCapitalization.words,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              labelText: 'State',
+              hintText: 'Victoria',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _regionNote(ColorScheme cs, String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.info_outline, size: 18, color: cs.onSurfaceVariant),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+          ),
+        ),
+      ],
+    );
   }
 
   void _showSnack(String msg) {
@@ -172,8 +353,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       latitude: automatic ? _lat! : 0.0,
       longitude: automatic ? _lng! : 0.0,
       radius: _radius,
-      country: automatic ? _country : null,
-      state: automatic ? _state : null,
+      // Not gated on [automatic]: the region drives public-holiday matching,
+      // which has nothing to do with whether the app watches for arrivals.
+      country: _trimmedOrNull(_countryCtrl.text),
+      state: _trimmedOrNull(_stateCtrl.text),
     );
 
     final notifier = ref.read(officeProvider.notifier);
@@ -282,8 +465,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                   onChanged: (_) => setState(() {
                     _lat = null;
                     _lng = null;
-                    _country = null;
-                    _state = null;
                     _locationError = null;
                   }),
                   decoration: const InputDecoration(
@@ -376,11 +557,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                                 '${_lat!.toStringAsFixed(5)}, ${_lng!.toStringAsFixed(5)}',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
-                              if (_state != null || _country != null)
-                                Text(
-                                  'Region: ${[_state, _country].where((s) => s != null && s.isNotEmpty).join(', ')}',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
                             ],
                           ),
                         ),
@@ -431,6 +607,40 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                       'You can change this office to automatic tracking later.',
                     ),
                   ),
+                ),
+              ],
+
+              // ── Region ────────────────────────────────────────────────────
+              // Outside the tracking-mode branch on purpose: public holidays
+              // are matched on country + state, whether or not the app watches
+              // for arrivals.
+              const SizedBox(height: 24),
+              Text(
+                'Region for public holidays',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _regionHelp,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+              ),
+              const SizedBox(height: 12),
+              _regionField(),
+              if (_regionMissing) ...[
+                const SizedBox(height: 8),
+                _regionNote(
+                  cs,
+                  'Without a region, public holidays are never imported for '
+                  'this office.',
+                ),
+              ] else if (_regions != null && !_regionIsPublished) ...[
+                const SizedBox(height: 8),
+                _regionNote(
+                  cs,
+                  'No public holidays are published for this region yet, so '
+                  'none will be imported.',
                 ),
               ],
 

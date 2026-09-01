@@ -20,6 +20,60 @@ class HolidayRow {
   });
 }
 
+/// A country+state pair that appears in the published list.
+///
+/// These are the only values an office can carry and still match a holiday, so
+/// the app offers them as choices rather than asking the user to guess the
+/// spelling the list happens to use ("Victoria", not "VIC").
+class HolidayRegion {
+  final String country;
+  final String state;
+  const HolidayRegion(this.country, this.state);
+
+  /// How the region reads in a picker, e.g. "Victoria, AU".
+  String get label => '$state, $country';
+
+  @override
+  bool operator ==(Object other) =>
+      other is HolidayRegion &&
+      other.country == country &&
+      other.state == state;
+
+  @override
+  int get hashCode => Object.hash(country, state);
+}
+
+/// How a holiday sync ended, so the UI can tell "nothing new to add" apart from
+/// "nothing could ever match".
+enum HolidaySyncOutcome {
+  /// Holidays were imported.
+  added,
+
+  /// Everything that matched is already on the calendar.
+  unchanged,
+
+  /// There are no offices yet — nothing to match holidays against.
+  noOffices,
+
+  /// Offices exist, but none records both a country and a state, so no CSV row
+  /// can match. Usually an office whose region could not be resolved when it
+  /// was saved: away from Android and iOS the app falls back to an HTTP
+  /// geocoder, and when that returns nothing the office keeps its coordinates
+  /// but no region — silently ruling out every holiday.
+  noRegion,
+
+  /// The published list could not be fetched (offline, or the request failed).
+  unavailable,
+}
+
+/// The result of a [HolidayService.sync]: how many holidays were imported, and
+/// why that number is what it is.
+class HolidaySyncResult {
+  final int inserted;
+  final HolidaySyncOutcome outcome;
+  const HolidaySyncResult(this.inserted, this.outcome);
+}
+
 /// Reads a public-holiday list published in the GitHub repo and, for every
 /// holiday whose country+state matches one of the user's registered offices,
 /// inserts an auto-sourced [SpecialDay] of type [DayType.holiday] — which the
@@ -79,6 +133,33 @@ class HolidayService {
     return rows;
   }
 
+  /// The distinct regions covered by [rows], sorted by country then state.
+  /// Pure, so the picker's contents can be tested without a network call.
+  static List<HolidayRegion> regionsFrom(List<HolidayRow> rows) {
+    final seen = <String, HolidayRegion>{};
+    for (final r in rows) {
+      final country = r.country.trim();
+      final state = r.state.trim();
+      if (country.isEmpty || state.isEmpty) continue;
+      // Keyed case-insensitively so one spelling wins, matching how a holiday
+      // is matched to an office.
+      seen.putIfAbsent(
+        _key(country, state),
+        () => HolidayRegion(country, state),
+      );
+    }
+    final out = seen.values.toList()
+      ..sort((a, b) {
+        final byCountry = a.country.toLowerCase().compareTo(
+          b.country.toLowerCase(),
+        );
+        return byCountry != 0
+            ? byCountry
+            : a.state.toLowerCase().compareTo(b.state.toLowerCase());
+      });
+    return out;
+  }
+
   /// Case-insensitive country+state key used to match a holiday to an office.
   static String _key(String? country, String? state) =>
       '${country?.trim().toLowerCase()}|${state?.trim().toLowerCase()}';
@@ -86,10 +167,7 @@ class HolidayService {
   /// The distinct country+state keys covered by [offices] (those with both
   /// fields populated).
   static Set<String> officeKeys(List<OfficeLocation> offices) => offices
-      .where(
-        (o) =>
-            (o.country?.isNotEmpty ?? false) && (o.state?.isNotEmpty ?? false),
-      )
+      .where((o) => o.hasRegion)
       .map((o) => _key(o.country, o.state))
       .toSet();
 
@@ -119,20 +197,39 @@ class HolidayService {
     }
   }
 
-  /// Fetches the CSV and imports matching holidays. Returns the number of new
-  /// holidays inserted (0 on no offices, no network, or nothing new). Never
-  /// throws — a failed sync is a no-op the UI can ignore.
-  Future<int> sync() async {
+  /// The regions the published list covers, for the office editor's region
+  /// picker. Returns null when the list cannot be fetched, so the UI can offer
+  /// free-text entry instead of an empty picker.
+  Future<List<HolidayRegion>?> availableRegions() async {
+    final csv = await _fetchCsv();
+    if (csv == null) return null;
+    return regionsFrom(parseCsv(csv));
+  }
+
+  /// Fetches the CSV and imports matching holidays. Never throws — a failed
+  /// sync is a no-op — but the returned [HolidaySyncResult] says why nothing
+  /// was added, so a sync that can never succeed does not read as "no new
+  /// holidays".
+  Future<HolidaySyncResult> sync() async {
     final db = DatabaseService.instance;
     final offices = await db.getOfficeLocations();
+    if (offices.isEmpty) {
+      return const HolidaySyncResult(0, HolidaySyncOutcome.noOffices);
+    }
     final keys = officeKeys(offices);
-    if (keys.isEmpty) return 0;
+    if (keys.isEmpty) {
+      return const HolidaySyncResult(0, HolidaySyncOutcome.noRegion);
+    }
 
     final csv = await _fetchCsv();
-    if (csv == null) return 0;
+    if (csv == null) {
+      return const HolidaySyncResult(0, HolidaySyncOutcome.unavailable);
+    }
 
     final matches = matchingHolidays(parseCsv(csv), keys);
-    if (matches.isEmpty) return 0;
+    if (matches.isEmpty) {
+      return const HolidaySyncResult(0, HolidaySyncOutcome.unchanged);
+    }
 
     // One query per table instead of two queries per CSV row.
     final dismissed = await db.getDismissedHolidayDates();
@@ -160,6 +257,9 @@ class HolidayService {
       existingSpecial.add(h.date);
       inserted++;
     }
-    return inserted;
+    return HolidaySyncResult(
+      inserted,
+      inserted > 0 ? HolidaySyncOutcome.added : HolidaySyncOutcome.unchanged,
+    );
   }
 }

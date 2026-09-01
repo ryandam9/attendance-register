@@ -45,6 +45,9 @@ class _MainShellState extends ConsumerState<MainShell>
     with WidgetsBindingObserver {
   bool _foregroundCheckRunning = false;
 
+  /// Whether the "set your office region" ask has already been shown this run.
+  bool _regionPromptShown = false;
+
   /// Whether the "couldn't read your location" notice has already been shown
   /// this run — the cause (Wi-Fi off, no signal) persists, so repeating it on
   /// every resume would nag.
@@ -114,8 +117,70 @@ class _MainShellState extends ConsumerState<MainShell>
   }
 
   Future<void> _syncHolidays() async {
-    final inserted = await HolidayService.instance.sync();
-    if (inserted > 0 && mounted) _refreshFocusedMonth();
+    final result = await HolidayService.instance.sync();
+    if (!mounted) return;
+    if (result.inserted > 0) _refreshFocusedMonth();
+
+    // No office carries a country and state, so no holiday in the published
+    // list can ever match. The automatic lookup is best-effort — off Android
+    // and iOS it is an HTTP geocoder that may return nothing — so ask for the
+    // region rather than importing nothing in silence. Once per run: the ask
+    // stands until it is answered, and repeating it on every resume nags.
+    if (result.outcome == HolidaySyncOutcome.noRegion && !_regionPromptShown) {
+      await _promptForRegion();
+    }
+  }
+
+  /// Asks for the office region in a dialog rather than a snackbar: until it is
+  /// set no public holiday appears at all, and a notice that slides away after
+  /// a few seconds is too easy to miss for something that silently disables a
+  /// whole feature.
+  Future<void> _promptForRegion() async {
+    // Never stack the ask on another dialog or a pushed screen — it would be
+    // dismissed along with whatever sits above it and never actually be read.
+    if (!(ModalRoute.of(context)?.isCurrent ?? false)) return;
+    _regionPromptShown = true;
+
+    final setNow = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.info_outline),
+        title: const Text('Set your office region'),
+        content: const Text(
+          'Public holidays are matched to your office\'s country and state, '
+          'and they could not be looked up automatically.\n\n'
+          'Until the region is set no public holidays are shown, and they '
+          'count as ordinary working days in your return-to-office figure.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Not now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Set region'),
+          ),
+        ],
+      ),
+    );
+    if (setNow == true && mounted) await _editOfficeRegion();
+  }
+
+  /// Opens the office editor on the first office missing a region so it can be
+  /// set, then re-syncs so the holidays land without another prompt.
+  Future<void> _editOfficeRegion() async {
+    final offices = ref.read(officeProvider).offices;
+    if (offices.isEmpty) return;
+    final target = offices.firstWhere(
+      (o) => !o.hasRegion,
+      orElse: () => offices.first,
+    );
+    await Navigator.push(context, appRoute(SetupScreen(office: target)));
+    if (!mounted) return;
+    await ref.read(officeProvider.notifier).load();
+    if (!mounted) return;
+    await _syncHolidays();
   }
 
   /// Safety net for missed geofence events: opening the app while standing in
