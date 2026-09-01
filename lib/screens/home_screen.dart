@@ -393,7 +393,9 @@ class _Dashboard extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: _MobileTodayCard(
-              status: statusFor(DateTime.now()),
+              // From today's own record, not the focused month's: paging the
+              // calendar must not change what "Today" says.
+              status: ap.todayStatus,
               onCheckIn: onCheckIn,
               onEdit: () => onDayTapped(DateTime.now()),
             ),

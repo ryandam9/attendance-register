@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../helpers/day_type_helper.dart';
 import '../models/attendance_breakdown.dart';
 import '../models/attendance_record.dart';
 import '../models/report_period.dart';
@@ -31,6 +32,13 @@ class AttendanceState {
   // sick, annual, carer's) — see excludedFromAttendanceDenominator.
   final int monthlyExcludedCount;
   final int yearlyExcludedCount;
+
+  /// Today's status, loaded independently of the month on screen. The "Today"
+  /// card describes today whatever the calendar is paged to, so it must not be
+  /// read out of the focused month's records — swiping back to August would
+  /// otherwise report today as unrecorded and offer to check in again.
+  final DayStatus? todayStatus;
+
   final bool loading;
 
   const AttendanceState({
@@ -43,6 +51,7 @@ class AttendanceState {
     this.yearlyWeekdays = 0,
     this.monthlyExcludedCount = 0,
     this.yearlyExcludedCount = 0,
+    this.todayStatus,
     this.loading = false,
   });
 
@@ -56,6 +65,7 @@ class AttendanceState {
     int? yearlyWeekdays,
     int? monthlyExcludedCount,
     int? yearlyExcludedCount,
+    DayStatus? todayStatus,
     bool? loading,
   }) {
     return AttendanceState(
@@ -69,6 +79,7 @@ class AttendanceState {
       yearlyWeekdays: yearlyWeekdays ?? this.yearlyWeekdays,
       monthlyExcludedCount: monthlyExcludedCount ?? this.monthlyExcludedCount,
       yearlyExcludedCount: yearlyExcludedCount ?? this.yearlyExcludedCount,
+      todayStatus: todayStatus ?? this.todayStatus,
       loading: loading ?? this.loading,
     );
   }
@@ -151,6 +162,15 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
       types: excludedFromAttendanceDenominator,
     );
 
+    // Today, not the month on screen: the "Today" card has to keep telling the
+    // truth while the user pages through the calendar.
+    final todayKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final todayRecord = await db.getAttendanceForDate(todayKey, officeId);
+    final todaySpecial = await db.getSpecialDayForDate(todayKey);
+    final todayStatus = todayRecord != null
+        ? DayStatus.attended
+        : todaySpecial?.type.dayStatus;
+
     state = AttendanceState(
       records: records,
       monthlyCount: monthlyCount,
@@ -161,6 +181,7 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
       yearlyWeekdays: countWeekdays(yearStart, yearEnd),
       monthlyExcludedCount: monthlyExcludedCount,
       yearlyExcludedCount: yearlyExcludedCount,
+      todayStatus: todayStatus,
     );
   }
 
