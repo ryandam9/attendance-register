@@ -69,6 +69,31 @@ void main() {
     });
   });
 
+  group('regionsFrom', () {
+    test('lists each region once, sorted, for the office picker', () {
+      // The picker is built from these, so the user chooses the spelling the
+      // list uses instead of guessing between "Victoria" and "VIC".
+      final regions = HolidayService.regionsFrom(HolidayService.parseCsv(_csv));
+
+      expect(regions.map((r) => r.label), [
+        'New South Wales, AU',
+        'Western Australia, AU',
+        'California, US',
+      ]);
+    });
+
+    test('collapses spellings that differ only in case', () {
+      final regions = HolidayService.regionsFrom(
+        HolidayService.parseCsv(
+          'AU,Victoria,2026-01-01,New Year\'s Day\n'
+          'au,victoria,2026-01-26,Australia Day\n',
+        ),
+      );
+      expect(regions, hasLength(1));
+      expect(regions.single.label, 'Victoria, AU');
+    });
+  });
+
   group('officeKeys', () {
     test('includes only offices with both country and state', () {
       final keys = HolidayService.officeKeys([

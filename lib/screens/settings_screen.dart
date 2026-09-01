@@ -388,8 +388,8 @@ class SettingsScreen extends ConsumerWidget {
         return 'Add an office first — public holidays are matched on its '
             'country and state.';
       case HolidaySyncOutcome.noRegion:
-        return 'No office has a country and state set, so no holiday can '
-            'match. Add them on the office, then sync again.';
+        return 'No office has a region set, so no holiday can match. Pick one '
+            'on the office, then sync again.';
       case HolidaySyncOutcome.unavailable:
         return 'Could not fetch the public holiday list. Check your '
             'connection and try again.';

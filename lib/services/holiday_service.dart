@@ -20,6 +20,29 @@ class HolidayRow {
   });
 }
 
+/// A country+state pair that appears in the published list.
+///
+/// These are the only values an office can carry and still match a holiday, so
+/// the app offers them as choices rather than asking the user to guess the
+/// spelling the list happens to use ("Victoria", not "VIC").
+class HolidayRegion {
+  final String country;
+  final String state;
+  const HolidayRegion(this.country, this.state);
+
+  /// How the region reads in a picker, e.g. "Victoria, AU".
+  String get label => '$state, $country';
+
+  @override
+  bool operator ==(Object other) =>
+      other is HolidayRegion &&
+      other.country == country &&
+      other.state == state;
+
+  @override
+  int get hashCode => Object.hash(country, state);
+}
+
 /// How a holiday sync ended, so the UI can tell "nothing new to add" apart from
 /// "nothing could ever match".
 enum HolidaySyncOutcome {
@@ -110,6 +133,33 @@ class HolidayService {
     return rows;
   }
 
+  /// The distinct regions covered by [rows], sorted by country then state.
+  /// Pure, so the picker's contents can be tested without a network call.
+  static List<HolidayRegion> regionsFrom(List<HolidayRow> rows) {
+    final seen = <String, HolidayRegion>{};
+    for (final r in rows) {
+      final country = r.country.trim();
+      final state = r.state.trim();
+      if (country.isEmpty || state.isEmpty) continue;
+      // Keyed case-insensitively so one spelling wins, matching how a holiday
+      // is matched to an office.
+      seen.putIfAbsent(
+        _key(country, state),
+        () => HolidayRegion(country, state),
+      );
+    }
+    final out = seen.values.toList()
+      ..sort((a, b) {
+        final byCountry = a.country.toLowerCase().compareTo(
+          b.country.toLowerCase(),
+        );
+        return byCountry != 0
+            ? byCountry
+            : a.state.toLowerCase().compareTo(b.state.toLowerCase());
+      });
+    return out;
+  }
+
   /// Case-insensitive country+state key used to match a holiday to an office.
   static String _key(String? country, String? state) =>
       '${country?.trim().toLowerCase()}|${state?.trim().toLowerCase()}';
@@ -145,6 +195,15 @@ class HolidayService {
     } finally {
       client.close();
     }
+  }
+
+  /// The regions the published list covers, for the office editor's region
+  /// picker. Returns null when the list cannot be fetched, so the UI can offer
+  /// free-text entry instead of an empty picker.
+  Future<List<HolidayRegion>?> availableRegions() async {
+    final csv = await _fetchCsv();
+    if (csv == null) return null;
+    return regionsFrom(parseCsv(csv));
   }
 
   /// Fetches the CSV and imports matching holidays. Never throws — a failed
