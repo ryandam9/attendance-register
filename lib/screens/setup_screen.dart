@@ -32,6 +32,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   double _radius = 200;
   double? _lat;
   double? _lng;
+
   /// Regions the published holiday list covers, offered as choices so the user
   /// never has to guess its spelling. Null until loaded, and stays null when
   /// the list cannot be fetched — the free-text fields stand in then.
@@ -242,9 +243,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       items.add(
         DropdownMenuItem(
           value: key,
-          child: Text(
-            '${_stateCtrl.text.trim()}, ${_countryCtrl.text.trim()}',
-          ),
+          child: Text('${_stateCtrl.text.trim()}, ${_countryCtrl.text.trim()}'),
         ),
       );
     }
