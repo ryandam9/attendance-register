@@ -71,7 +71,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _onPullRefresh() async {
-    final inserted = await HolidayService.instance.sync();
+    final inserted = (await HolidayService.instance.sync()).inserted;
     if (!mounted) return;
     _refreshAttendance();
     if (inserted > 0) {

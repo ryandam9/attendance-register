@@ -20,6 +20,37 @@ class HolidayRow {
   });
 }
 
+/// How a holiday sync ended, so the UI can tell "nothing new to add" apart from
+/// "nothing could ever match".
+enum HolidaySyncOutcome {
+  /// Holidays were imported.
+  added,
+
+  /// Everything that matched is already on the calendar.
+  unchanged,
+
+  /// There are no offices yet — nothing to match holidays against.
+  noOffices,
+
+  /// Offices exist, but none records both a country and a state, so no CSV row
+  /// can match. Usually an office whose region could not be resolved when it
+  /// was saved: away from Android and iOS the app falls back to an HTTP
+  /// geocoder, and when that returns nothing the office keeps its coordinates
+  /// but no region — silently ruling out every holiday.
+  noRegion,
+
+  /// The published list could not be fetched (offline, or the request failed).
+  unavailable,
+}
+
+/// The result of a [HolidayService.sync]: how many holidays were imported, and
+/// why that number is what it is.
+class HolidaySyncResult {
+  final int inserted;
+  final HolidaySyncOutcome outcome;
+  const HolidaySyncResult(this.inserted, this.outcome);
+}
+
 /// Reads a public-holiday list published in the GitHub repo and, for every
 /// holiday whose country+state matches one of the user's registered offices,
 /// inserts an auto-sourced [SpecialDay] of type [DayType.holiday] — which the
@@ -119,20 +150,30 @@ class HolidayService {
     }
   }
 
-  /// Fetches the CSV and imports matching holidays. Returns the number of new
-  /// holidays inserted (0 on no offices, no network, or nothing new). Never
-  /// throws — a failed sync is a no-op the UI can ignore.
-  Future<int> sync() async {
+  /// Fetches the CSV and imports matching holidays. Never throws — a failed
+  /// sync is a no-op — but the returned [HolidaySyncResult] says why nothing
+  /// was added, so a sync that can never succeed does not read as "no new
+  /// holidays".
+  Future<HolidaySyncResult> sync() async {
     final db = DatabaseService.instance;
     final offices = await db.getOfficeLocations();
+    if (offices.isEmpty) {
+      return const HolidaySyncResult(0, HolidaySyncOutcome.noOffices);
+    }
     final keys = officeKeys(offices);
-    if (keys.isEmpty) return 0;
+    if (keys.isEmpty) {
+      return const HolidaySyncResult(0, HolidaySyncOutcome.noRegion);
+    }
 
     final csv = await _fetchCsv();
-    if (csv == null) return 0;
+    if (csv == null) {
+      return const HolidaySyncResult(0, HolidaySyncOutcome.unavailable);
+    }
 
     final matches = matchingHolidays(parseCsv(csv), keys);
-    if (matches.isEmpty) return 0;
+    if (matches.isEmpty) {
+      return const HolidaySyncResult(0, HolidaySyncOutcome.unchanged);
+    }
 
     // One query per table instead of two queries per CSV row.
     final dismissed = await db.getDismissedHolidayDates();
@@ -160,6 +201,9 @@ class HolidayService {
       existingSpecial.add(h.date);
       inserted++;
     }
-    return inserted;
+    return HolidaySyncResult(
+      inserted,
+      inserted > 0 ? HolidaySyncOutcome.added : HolidaySyncOutcome.unchanged,
+    );
   }
 }

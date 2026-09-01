@@ -114,8 +114,8 @@ class _MainShellState extends ConsumerState<MainShell>
   }
 
   Future<void> _syncHolidays() async {
-    final inserted = await HolidayService.instance.sync();
-    if (inserted > 0 && mounted) _refreshFocusedMonth();
+    final result = await HolidayService.instance.sync();
+    if (result.inserted > 0 && mounted) _refreshFocusedMonth();
   }
 
   /// Safety net for missed geofence events: opening the app while standing in

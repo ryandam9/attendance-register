@@ -78,6 +78,15 @@ void main() {
       ]);
       expect(keys, hasLength(1));
     });
+
+    test('an office whose region is blank is excluded', () {
+      // The reported macOS case: the address resolved to coordinates but the
+      // geocoder returned no region, so the office carries empty strings and
+      // can never match a holiday row — the sync ends before it even fetches
+      // the list.
+      final keys = HolidayService.officeKeys([_office(country: '', state: '')]);
+      expect(keys, isEmpty);
+    });
   });
 
   group('matchingHolidays', () {

@@ -364,18 +364,36 @@ class SettingsScreen extends ConsumerWidget {
     messenger.showSnackBar(
       const SnackBar(content: Text('Syncing public holidays…')),
     );
-    final inserted = await HolidayService.instance.sync();
-    if (inserted > 0) ref.invalidate(specialDayProvider);
+    final result = await HolidayService.instance.sync();
+    if (result.inserted > 0) ref.invalidate(specialDayProvider);
     messenger.showSnackBar(
       SnackBar(
-        content: Text(
-          inserted > 0
-              ? 'Added $inserted public holiday${inserted == 1 ? '' : 's'}.'
-              : 'No new public holidays to add.',
-        ),
+        content: Text(_syncMessage(result)),
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  /// Says why nothing was added. "No new public holidays" reads as "you are up
+  /// to date" even when the sync could never have matched anything — an office
+  /// with no country and state rules out every row in the list.
+  static String _syncMessage(HolidaySyncResult result) {
+    final n = result.inserted;
+    switch (result.outcome) {
+      case HolidaySyncOutcome.added:
+        return 'Added $n public holiday${n == 1 ? '' : 's'}.';
+      case HolidaySyncOutcome.unchanged:
+        return 'No new public holidays to add.';
+      case HolidaySyncOutcome.noOffices:
+        return 'Add an office first — public holidays are matched on its '
+            'country and state.';
+      case HolidaySyncOutcome.noRegion:
+        return 'No office has a country and state set, so no holiday can '
+            'match. Add them on the office, then sync again.';
+      case HolidaySyncOutcome.unavailable:
+        return 'Could not fetch the public holiday list. Check your '
+            'connection and try again.';
+    }
   }
 
   Future<void> _confirmDeleteAll(BuildContext context, WidgetRef ref) async {
