@@ -117,10 +117,7 @@ class HolidayService {
   /// The distinct country+state keys covered by [offices] (those with both
   /// fields populated).
   static Set<String> officeKeys(List<OfficeLocation> offices) => offices
-      .where(
-        (o) =>
-            (o.country?.isNotEmpty ?? false) && (o.state?.isNotEmpty ?? false),
-      )
+      .where((o) => o.hasRegion)
       .map((o) => _key(o.country, o.state))
       .toSet();
 

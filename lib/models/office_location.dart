@@ -50,6 +50,13 @@ class OfficeLocation {
   /// manual-only — no geofencing / auto check-in. 0,0 marks "no location".
   bool get hasLocation => latitude != 0 || longitude != 0;
 
+  /// Whether both fields public holidays are matched on are set. Without them
+  /// no row of the published list can apply to this office, so the app asks for
+  /// them when the geocoder could not supply them.
+  bool get hasRegion =>
+      (country?.trim().isNotEmpty ?? false) &&
+      (state?.trim().isNotEmpty ?? false);
+
   OfficeLocation copyWith({
     int? id,
     String? name,

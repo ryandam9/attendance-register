@@ -45,6 +45,9 @@ class _MainShellState extends ConsumerState<MainShell>
     with WidgetsBindingObserver {
   bool _foregroundCheckRunning = false;
 
+  /// Whether the "set your office region" ask has already been shown this run.
+  bool _regionPromptShown = false;
+
   /// Whether the "couldn't read your location" notice has already been shown
   /// this run — the cause (Wi-Fi off, no signal) persists, so repeating it on
   /// every resume would nag.
@@ -115,7 +118,39 @@ class _MainShellState extends ConsumerState<MainShell>
 
   Future<void> _syncHolidays() async {
     final result = await HolidayService.instance.sync();
-    if (result.inserted > 0 && mounted) _refreshFocusedMonth();
+    if (!mounted) return;
+    if (result.inserted > 0) _refreshFocusedMonth();
+
+    // No office carries a country and state, so no holiday in the published
+    // list can ever match. The automatic lookup is best-effort — off Android
+    // and iOS it is an HTTP geocoder that may return nothing — so ask for the
+    // region rather than importing nothing in silence. Once per run: the ask
+    // stands until it is answered, and repeating it on every resume nags.
+    if (result.outcome == HolidaySyncOutcome.noRegion && !_regionPromptShown) {
+      _regionPromptShown = true;
+      _checkInSnack(
+        'Public holidays are matched on your office\'s country and state, '
+        'which could not be looked up automatically.',
+        actionLabel: 'Add region',
+        onAction: _editOfficeRegion,
+      );
+    }
+  }
+
+  /// Opens the office editor on the first office missing a region so it can be
+  /// typed in, then re-syncs so the holidays land without another prompt.
+  Future<void> _editOfficeRegion() async {
+    final offices = ref.read(officeProvider).offices;
+    if (offices.isEmpty) return;
+    final target = offices.firstWhere(
+      (o) => !o.hasRegion,
+      orElse: () => offices.first,
+    );
+    await Navigator.push(context, appRoute(SetupScreen(office: target)));
+    if (!mounted) return;
+    await ref.read(officeProvider.notifier).load();
+    if (!mounted) return;
+    await _syncHolidays();
   }
 
   /// Safety net for missed geofence events: opening the app while standing in

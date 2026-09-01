@@ -85,6 +85,20 @@ void main() {
       expect(copy.hashCode, office.hashCode);
     });
 
+    test('hasRegion needs both country and state', () {
+      // Public holidays are matched on the pair, so a half-filled region is no
+      // better than none — the app asks for it either way.
+      expect(office.hasRegion, isFalse);
+      expect(office.copyWith(country: 'AU').hasRegion, isFalse);
+      expect(office.copyWith(state: 'Victoria').hasRegion, isFalse);
+      expect(
+        office.copyWith(country: 'AU', state: 'Victoria').hasRegion,
+        isTrue,
+      );
+      // Whitespace is not a region.
+      expect(office.copyWith(country: 'AU', state: '  ').hasRegion, isFalse);
+    });
+
     test('differing fields break equality', () {
       expect(office.copyWith(name: 'Branch'), isNot(equals(office)));
       expect(office.copyWith(radius: 50.0), isNot(equals(office)));
