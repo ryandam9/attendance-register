@@ -355,6 +355,8 @@ class LocationService {
     final granted =
         perm == LocationPermission.always ||
         perm == LocationPermission.whileInUse;
+    // Access is there now, so a later loss is worth reporting again.
+    if (granted) await resetDeniedNotice();
     if (!granted) {
       final denied =
           perm == LocationPermission.denied ||
@@ -548,4 +550,29 @@ class LocationService {
     );
     return v == 'true';
   }
+
+  /// Records that the "location access is off" notice has been shown.
+  ///
+  /// Persisted rather than held for the session: the setting can be out of the
+  /// user's hands entirely — a managed Mac where Location Services is off and
+  /// they have no admin rights — and repeating the same notice on every launch
+  /// is nagging, not help. Said once, then the app stays quiet and lets them
+  /// mark days by hand.
+  static const locationDeniedNoticeKey = 'location_denied_notice_shown';
+
+  /// Whether the one-time "location access is off" notice is still owed.
+  static Future<bool> shouldShowDeniedNotice() async {
+    final v = await DatabaseService.instance.getSetting(
+      locationDeniedNoticeKey,
+    );
+    return v != 'true';
+  }
+
+  static Future<void> markDeniedNoticeShown() =>
+      DatabaseService.instance.setSetting(locationDeniedNoticeKey, 'true');
+
+  /// Forgets that the notice was shown, so access being lost *after* it was
+  /// granted is reported once more rather than silently.
+  static Future<void> resetDeniedNotice() =>
+      DatabaseService.instance.setSetting(locationDeniedNoticeKey, 'false');
 }
