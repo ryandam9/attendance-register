@@ -48,6 +48,10 @@ class _MainShellState extends ConsumerState<MainShell>
   /// Whether the "set your office region" ask has already been shown this run.
   bool _regionPromptShown = false;
 
+  /// Whether the location-denied notice has been considered this run, so the
+  /// persisted flag is read once rather than on every resume.
+  bool _locationDeniedChecked = false;
+
   /// Whether the "couldn't read your location" notice has already been shown
   /// this run — the cause (Wi-Fi off, no signal) persists, so repeating it on
   /// every resume would nag.
@@ -210,13 +214,7 @@ class _MainShellState extends ConsumerState<MainShell>
             onAction: _editOfficeLocation,
           );
         case ForegroundCheckStatus.permissionDenied:
-          // Actionable: send the user to the OS location settings.
-          _checkInSnack(
-            'Location access is off, so auto check-in can\'t run. Turn on '
-            'Location Services for this app.',
-            actionLabel: 'Open Settings',
-            onAction: LocationService.openLocationSettings,
-          );
+          await _showLocationDeniedNotice();
         case ForegroundCheckStatus.tooFar:
           // Read a position, but you're just outside the office radius — say so
           // (a silent miss looks like a bug) and offer to record anyway.
@@ -245,6 +243,25 @@ class _MainShellState extends ConsumerState<MainShell>
     } finally {
       _foregroundCheckRunning = false;
     }
+  }
+
+  /// Tells the user once — ever — that location access is off, then stays
+  /// quiet. Turning it on may be out of their hands (a managed machine, no
+  /// admin rights), and a notice they cannot act on is irritating on every
+  /// launch. The record is cleared the moment access is granted, so losing it
+  /// later is still reported.
+  Future<void> _showLocationDeniedNotice() async {
+    if (_locationDeniedChecked) return;
+    _locationDeniedChecked = true;
+    if (!await LocationService.shouldShowDeniedNotice()) return;
+    await LocationService.markDeniedNoticeShown();
+    if (!mounted) return;
+    _checkInSnack(
+      'Location access is off, so auto check-in can\'t run — mark days '
+      'yourself, or turn on Location Services for this app.',
+      actionLabel: 'Open Settings',
+      onAction: LocationService.openLocationSettings,
+    );
   }
 
   void _checkInSnack(
