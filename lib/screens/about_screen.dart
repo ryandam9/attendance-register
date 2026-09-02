@@ -88,13 +88,32 @@ class AboutScreen extends ConsumerWidget {
         body: DesktopPage(
           title: 'About',
           maxContentWidth: 680,
-          onBack: () => Navigator.maybePop(context),
+          onBack: isDesktopPlatform ? null : () => Navigator.maybePop(context),
+          actions: [
+            if (isDesktopPlatform)
+              IconButton(
+                tooltip: 'Close',
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.maybePop(context),
+              ),
+          ],
           child: body,
         ),
       );
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('About')),
+      appBar: AppBar(
+        automaticallyImplyLeading: !isDesktopPlatform,
+        title: const Text('About'),
+        actions: [
+          if (isDesktopPlatform)
+            IconButton(
+              tooltip: 'Close',
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.maybePop(context),
+            ),
+        ],
+      ),
       body: ResponsiveBody(child: body),
     );
   }

@@ -20,10 +20,11 @@ enum _SheetResult { saved, removed, openFull }
 
 /// One-tap day marking: tapping a calendar day opens this bottom sheet with
 /// the seven statuses as chips and an optional comment — covering most edits
-/// without the full-screen push. "All options" escalates to [DayEntryScreen].
+/// without the full editor. "All options" escalates to [DayEntryScreen] as a
+/// desktop dialog or a full-screen mobile page.
 ///
 /// Returns true when something changed (saved, removed, or edited via the
-/// full screen) so the caller knows to refresh.
+/// full editor) so the caller knows to refresh.
 Future<bool> showQuickMarkSheet(
   BuildContext context, {
   required OfficeLocation office,
@@ -77,9 +78,10 @@ Future<bool> showQuickMarkSheet(
   }
 
   if (result == _SheetResult.openFull && context.mounted) {
-    final changed = await Navigator.push<bool>(
+    final changed = await openAdaptivePage<bool>(
       context,
-      appRoute(DayEntryScreen(office: office, initialDate: date)),
+      DayEntryScreen(office: office, initialDate: date),
+      desktopSize: const Size(640, 760),
     );
     return changed == true;
   }

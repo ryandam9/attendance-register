@@ -83,9 +83,9 @@ class SettingsScreen extends ConsumerWidget {
       ...officeState.offices.map(
         (o) => _OfficeTile(
           office: o,
-          onEdit: () => Navigator.push(
+          onEdit: () => openAdaptivePage(
             context,
-            appRoute(SetupScreen(office: o)),
+            SetupScreen(office: o),
           ).then((_) => notifier.load()),
           onDelete: () => _confirmDelete(context, notifier, o),
         ),
@@ -95,9 +95,9 @@ class SettingsScreen extends ConsumerWidget {
         title: Text(
           officeState.offices.isEmpty ? 'Add Office' : 'Add Another Office',
         ),
-        onTap: () => Navigator.push(
+        onTap: () => openAdaptivePage(
           context,
-          appRoute(const SetupScreen()),
+          const SetupScreen(),
         ).then((_) => notifier.load()),
       ),
     ]);
@@ -110,7 +110,12 @@ class SettingsScreen extends ConsumerWidget {
         title: const Text('Theme & Dark Mode'),
         subtitle: const Text('Bird palettes, Material You, light/dark'),
         trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.push(context, appRoute(const ThemeScreen())),
+        onTap: () => openAdaptivePage(
+          context,
+          const ThemeScreen(),
+          desktopSize: const Size(920, 820),
+          desktopBarrierDismissible: true,
+        ),
       ),
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
@@ -230,7 +235,12 @@ class SettingsScreen extends ConsumerWidget {
           '${BuildInfo.isStamped ? BuildInfo.commit : 'local build'}',
         ),
         trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.push(context, appRoute(const AboutScreen())),
+        onTap: () => openAdaptivePage(
+          context,
+          const AboutScreen(),
+          desktopSize: const Size(720, 800),
+          desktopBarrierDismissible: true,
+        ),
       ),
     ]);
     // A column of blocks separated by dividers.

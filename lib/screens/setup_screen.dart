@@ -2,6 +2,7 @@ import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../helpers/layout.dart';
 import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
 import '../providers/office_provider.dart';
@@ -371,9 +372,11 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 
     if (mounted) {
       setState(() => _busy = false);
-      if (isFirstOffice && automatic) {
-        // First office registered — walk through the permissions auto check-in
-        // needs, instead of leaving them silently ungranted.
+      if (isFirstOffice && automatic && isMobilePlatform) {
+        // First office registered on mobile — walk through the permissions
+        // background auto check-in needs, instead of leaving them silently
+        // ungranted. Desktop uses app-open checks and must not enter this
+        // mobile-only route.
         Navigator.pushReplacement(
           context,
           appRoute(const PermissionSetupScreen()),
@@ -388,7 +391,18 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(_isEditing ? 'Edit Office' : 'Add Office')),
+      appBar: AppBar(
+        automaticallyImplyLeading: !isDesktopPlatform,
+        title: Text(_isEditing ? 'Edit Office' : 'Add Office'),
+        actions: [
+          if (isDesktopPlatform)
+            IconButton(
+              tooltip: 'Close',
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.maybePop(context),
+            ),
+        ],
+      ),
       body: ResponsiveBody(
         child: Form(
           key: _formKey,

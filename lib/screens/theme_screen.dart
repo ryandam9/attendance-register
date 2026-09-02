@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app_colors.dart';
+import '../helpers/layout.dart';
 import '../providers/settings_provider.dart';
 import '../themes/bird_art.dart';
 import '../themes/bird_themes.dart';
@@ -17,7 +18,18 @@ class ThemeScreen extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Appearance')),
+      appBar: AppBar(
+        automaticallyImplyLeading: !isDesktopPlatform,
+        title: const Text('Appearance'),
+        actions: [
+          if (isDesktopPlatform)
+            IconButton(
+              tooltip: 'Close',
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.maybePop(context),
+            ),
+        ],
+      ),
       body: ResponsiveBody(
         maxWidth: 920,
         child: ListView(
