@@ -8,6 +8,7 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../helpers/day_marking.dart';
 import '../helpers/day_type_helper.dart';
+import '../helpers/layout.dart';
 import '../models/attendance_record.dart';
 import '../models/office_location.dart';
 import '../models/special_day.dart';
@@ -214,7 +215,18 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Mark a Day')),
+        appBar: AppBar(
+          automaticallyImplyLeading: !isDesktopPlatform,
+          title: const Text('Mark a Day'),
+          actions: [
+            if (isDesktopPlatform)
+              IconButton(
+                tooltip: 'Close',
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.maybePop(context),
+              ),
+          ],
+        ),
         body: ResponsiveBody(
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 250),

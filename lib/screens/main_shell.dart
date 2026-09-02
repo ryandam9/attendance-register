@@ -180,7 +180,7 @@ class _MainShellState extends ConsumerState<MainShell>
       (o) => !o.hasRegion,
       orElse: () => offices.first,
     );
-    await Navigator.push(context, appRoute(SetupScreen(office: target)));
+    await openAdaptivePage(context, SetupScreen(office: target));
     if (!mounted) return;
     await ref.read(officeProvider.notifier).load();
     if (!mounted) return;
@@ -321,7 +321,7 @@ class _MainShellState extends ConsumerState<MainShell>
       (o) => !o.hasLocation,
       orElse: () => offices.first,
     );
-    await Navigator.push(context, appRoute(SetupScreen(office: target)));
+    await openAdaptivePage(context, SetupScreen(office: target));
     if (!mounted) return;
     await ref.read(officeProvider.notifier).load();
     if (mounted) _refreshFocusedMonth();
