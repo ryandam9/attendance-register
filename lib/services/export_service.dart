@@ -20,7 +20,7 @@ typedef ExportResult = ({String csv, int rows});
 typedef XlsxResult = ({List<int> bytes, int rows});
 
 /// Builds complete backups across every office. CSV remains a compact clipboard
-/// backup; Excel is a polished workbook with a summary and full History sheet.
+/// backup; Excel is a polished worksheet with an overview and full history.
 class ExportService {
   ExportService._();
 
@@ -94,145 +94,17 @@ class ExportService {
     return (csv: buf.toString(), rows: rows.length);
   }
 
-  /// Builds an `.xlsx` workbook with a Summary sheet and a complete History
-  /// sheet. [exportedAt] is injectable so workbook metadata is testable.
+  /// Builds a conservative single-sheet `.xlsx` workbook. Keeping the export
+  /// to the original worksheet and avoiding merged cells/custom number formats
+  /// prevents the worksheet XML repairs reported by Microsoft Excel for Mac.
+  /// [exportedAt] is injectable so workbook metadata is testable.
   static Future<XlsxResult> buildXlsx({DateTime? exportedAt}) async {
     final rows = await collectRows();
     final generatedAt = exportedAt ?? DateTime.now();
     final excel = Excel.createExcel();
-    excel.rename(excel.getDefaultSheet()!, 'Summary');
-    _buildSummary(excel['Summary'], rows, generatedAt);
+    excel.rename(excel.getDefaultSheet()!, 'History');
     _buildHistory(excel['History'], rows, generatedAt);
-    excel.setDefaultSheet('Summary');
     return (bytes: excel.save() ?? <int>[], rows: rows.length);
-  }
-
-  static void _buildSummary(
-    Sheet sheet,
-    List<ExportRow> rows,
-    DateTime exportedAt,
-  ) {
-    sheet.setDefaultRowHeight(20);
-    sheet.setColumnWidth(0, 28);
-    sheet.setColumnWidth(1, 18);
-    sheet.setColumnWidth(2, 18);
-    sheet.setColumnWidth(3, 24);
-
-    _mergedHeading(
-      sheet,
-      start: 'A1',
-      end: 'D1',
-      text: 'Attendance Register',
-      style: _titleStyle,
-    );
-    sheet.setRowHeight(0, 34);
-    _mergedHeading(
-      sheet,
-      start: 'A2',
-      end: 'D2',
-      text: 'Complete history export • ${_exportedAtFormat.format(exportedAt)}',
-      style: _subtitleStyle,
-    );
-    sheet.setRowHeight(1, 24);
-
-    _sectionHeading(sheet, 3, 'At a glance', 4);
-    final officeDays = rows.where((r) => r.status == 'Attended').length;
-    final range = rows.isEmpty
-        ? 'No recorded dates'
-        : '${_rangeFormat.format(rows.last.date)} – ${_rangeFormat.format(rows.first.date)}';
-    final metrics = <(String, CellValue)>[
-      ('Total history entries', IntCellValue(rows.length)),
-      ('Office attendance days', IntCellValue(officeDays)),
-      ('Other recorded days', IntCellValue(rows.length - officeDays)),
-      ('Date range', TextCellValue(range)),
-    ];
-    for (var i = 0; i < metrics.length; i++) {
-      final row = 4 + i;
-      _put(sheet, 0, row, TextCellValue(metrics[i].$1), _metricLabelStyle);
-      _put(sheet, 1, row, metrics[i].$2, _metricValueStyle);
-      if (i == metrics.length - 1) {
-        sheet.merge(
-          CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row),
-          CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row),
-        );
-        sheet.setMergedCellStyle(
-          CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row),
-          _metricValueStyle,
-        );
-      }
-    }
-
-    final statusCounts = <String, int>{};
-    for (final row in rows) {
-      statusCounts.update(row.status, (n) => n + 1, ifAbsent: () => 1);
-    }
-    const statusOrder = [
-      'Attended',
-      'Work from Home',
-      'Public Holiday',
-      'Sick Leave',
-      'Annual Leave',
-      "Carer's Leave",
-      'Misc Leave',
-    ];
-    _sectionHeading(sheet, 9, 'Status breakdown', 4);
-    _tableHeader(sheet, 10, const ['Status', 'Days', '% of history', '']);
-    var nextRow = 11;
-    for (final status in statusOrder) {
-      final count = statusCounts[status];
-      if (count == null) continue;
-      _put(sheet, 0, nextRow, TextCellValue(status), _statusStyle(status));
-      _put(sheet, 1, nextRow, IntCellValue(count), _centredBodyStyle);
-      _put(
-        sheet,
-        2,
-        nextRow,
-        TextCellValue('${(count / rows.length * 100).toStringAsFixed(1)}%'),
-        _centredBodyStyle,
-      );
-      _put(sheet, 3, nextRow, null, _bodyStyle);
-      nextRow++;
-    }
-
-    final officeCounts = <String, int>{};
-    for (final row in rows.where((r) => r.office.isNotEmpty)) {
-      officeCounts.update(row.office, (n) => n + 1, ifAbsent: () => 1);
-    }
-    nextRow++;
-    _sectionHeading(sheet, nextRow++, 'Office attendance', 4);
-    _tableHeader(sheet, nextRow++, const ['Office', 'Days', '', '']);
-    if (officeCounts.isEmpty) {
-      _put(
-        sheet,
-        0,
-        nextRow++,
-        TextCellValue('No office attendance recorded'),
-        _mutedBodyStyle,
-      );
-    } else {
-      final offices = officeCounts.entries.toList()
-        ..sort((a, b) => b.value.compareTo(a.value));
-      for (final office in offices) {
-        _put(sheet, 0, nextRow, TextCellValue(office.key), _bodyStyle);
-        _put(
-          sheet,
-          1,
-          nextRow++,
-          IntCellValue(office.value),
-          _centredBodyStyle,
-        );
-      }
-    }
-
-    nextRow += 2;
-    _mergedHeading(
-      sheet,
-      start: 'A${nextRow + 1}',
-      end: 'D${nextRow + 1}',
-      text:
-          'The History sheet contains every attendance, leave, holiday and work-from-home entry.',
-      style: _footerStyle,
-    );
   }
 
   static void _buildHistory(
@@ -246,41 +118,58 @@ class ExportService {
       sheet.setColumnWidth(column, widths[column]);
     }
 
-    _mergedHeading(
+    _put(
       sheet,
-      start: 'A1',
-      end: 'G1',
-      text: 'Complete Attendance History',
-      style: _titleStyle,
+      0,
+      0,
+      TextCellValue('Attendance Register'),
+      _titleStyle,
     );
     sheet.setRowHeight(0, 34);
-    _mergedHeading(
+    _put(
       sheet,
-      start: 'A2',
-      end: 'G2',
-      text:
-          '${rows.length} ${rows.length == 1 ? 'entry' : 'entries'} • Exported ${_exportedAtFormat.format(exportedAt)}',
-      style: _subtitleStyle,
+      0,
+      1,
+      TextCellValue(
+        'Complete history • ${rows.length} '
+        '${rows.length == 1 ? 'entry' : 'entries'} • '
+        'Exported ${_exportedAtFormat.format(exportedAt)}',
+      ),
+      _subtitleStyle,
     );
     sheet.setRowHeight(1, 24);
-    sheet.setRowHeight(2, 8);
-    _tableHeader(sheet, 3, _historyHeader);
-    sheet.setRowHeight(3, 28);
+
+    final officeDays = rows.where((row) => row.status == 'Attended').length;
+    final range = rows.isEmpty
+        ? 'No recorded dates'
+        : '${_rangeFormat.format(rows.last.date)} – '
+              '${_rangeFormat.format(rows.first.date)}';
+    _put(sheet, 0, 3, TextCellValue('Overview'), _sectionStyle);
+    final metrics = <(String, CellValue)>[
+      ('Total history entries', IntCellValue(rows.length)),
+      ('Office attendance days', IntCellValue(officeDays)),
+      ('Other recorded days', IntCellValue(rows.length - officeDays)),
+      ('Date range', TextCellValue(range)),
+    ];
+    for (var i = 0; i < metrics.length; i++) {
+      final row = 4 + i;
+      _put(sheet, 0, row, TextCellValue(metrics[i].$1), _metricLabelStyle);
+      _put(sheet, 1, row, metrics[i].$2, _metricValueStyle);
+    }
+
+    _tableHeader(sheet, 9, _historyHeader);
+    sheet.setRowHeight(9, 28);
 
     for (var i = 0; i < rows.length; i++) {
       final item = rows[i];
-      final row = 4 + i;
+      final row = 10 + i;
       final bodyStyle = _stripedBodyStyle(i.isOdd);
       _put(
         sheet,
         0,
         row,
-        DateCellValue.fromDateTime(item.date),
-        bodyStyle.copyWith(
-          numberFormat: const CustomDateTimeNumFormat(
-            formatCode: 'ddd, dd mmm yyyy',
-          ),
-        ),
+        TextCellValue(_dateKeyFormat.format(item.date)),
+        bodyStyle,
       );
       _put(
         sheet,
@@ -310,12 +199,8 @@ class ExportService {
         row,
         item.recordedAt == null
             ? null
-            : DateTimeCellValue.fromDateTime(item.recordedAt!),
-        bodyStyle.copyWith(
-          numberFormat: const CustomDateTimeNumFormat(
-            formatCode: 'dd mmm yyyy, h:mm AM/PM',
-          ),
-        ),
+            : TextCellValue(_exportedAtFormat.format(item.recordedAt!)),
+        bodyStyle,
       );
       _put(
         sheet,
@@ -340,38 +225,6 @@ class ExportService {
       value,
       cellStyle: style,
     );
-  }
-
-  static void _mergedHeading(
-    Sheet sheet, {
-    required String start,
-    required String end,
-    required String text,
-    required CellStyle style,
-  }) {
-    final startCell = CellIndex.indexByString(start);
-    sheet.merge(
-      startCell,
-      CellIndex.indexByString(end),
-      customValue: TextCellValue(text),
-    );
-    sheet.setMergedCellStyle(startCell, style);
-    // excel 4.x applies a merged-range style to the surrounding cells, but the
-    // start cell can lose its font flags when the workbook is encoded. Style
-    // that value explicitly so headings stay bold in Excel and after decoding.
-    sheet.updateCell(startCell, TextCellValue(text), cellStyle: style);
-  }
-
-  static void _sectionHeading(Sheet sheet, int row, String text, int columns) {
-    final start = CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row);
-    sheet.merge(
-      start,
-      CellIndex.indexByColumnRow(columnIndex: columns - 1, rowIndex: row),
-      customValue: TextCellValue(text),
-    );
-    sheet.setMergedCellStyle(start, _sectionStyle);
-    sheet.updateCell(start, TextCellValue(text), cellStyle: _sectionStyle);
-    sheet.setRowHeight(row, 26);
   }
 
   static void _tableHeader(Sheet sheet, int row, List<String> headings) {
@@ -419,20 +272,6 @@ class ExportService {
     verticalAlign: VerticalAlign.Center,
     bottomBorder: _thinBorder,
   );
-  static final _bodyStyle = CellStyle(
-    verticalAlign: VerticalAlign.Center,
-    bottomBorder: _thinBorder,
-  );
-  static final _centredBodyStyle = CellStyle(
-    horizontalAlign: HorizontalAlign.Center,
-    verticalAlign: VerticalAlign.Center,
-    bottomBorder: _thinBorder,
-  );
-  static final _mutedBodyStyle = CellStyle(
-    fontColorHex: ExcelColor.grey600,
-    italic: true,
-    verticalAlign: VerticalAlign.Center,
-  );
   static final _metricLabelStyle = CellStyle(
     backgroundColorHex: ExcelColor.grey100,
     fontColorHex: ExcelColor.blue900,
@@ -446,14 +285,6 @@ class ExportService {
     verticalAlign: VerticalAlign.Center,
     bottomBorder: _thinBorder,
   );
-  static final _footerStyle = CellStyle(
-    backgroundColorHex: ExcelColor.grey100,
-    fontColorHex: ExcelColor.grey700,
-    italic: true,
-    verticalAlign: VerticalAlign.Center,
-    textWrapping: TextWrapping.WrapText,
-  );
-
   static CellStyle _stripedBodyStyle(bool shaded) => CellStyle(
     backgroundColorHex: shaded ? ExcelColor.blue50 : ExcelColor.white,
     verticalAlign: VerticalAlign.Center,

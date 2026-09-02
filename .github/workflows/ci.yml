@@ -39,6 +39,28 @@ jobs:
       - name: Run tests
         run: flutter test
 
+      # The Dart writer being able to reopen its own bytes is not enough: an
+      # earlier styled workbook produced worksheet XML that Excel for Mac had
+      # to repair. Open the generated fixture with a separate OOXML parser.
+      - name: Validate Excel workbook compatibility
+        run: |
+          python3 -m pip install --quiet openpyxl==3.1.5
+          python3 - <<'PY'
+          from openpyxl import load_workbook
+
+          workbook = load_workbook(
+              'build/compatibility/attendance-history.xlsx',
+              read_only=True,
+              data_only=True,
+          )
+          assert workbook.sheetnames == ['History']
+          sheet = workbook['History']
+          assert sheet['A1'].value == 'Attendance Register'
+          assert sheet['A10'].value == 'Date'
+          assert sheet['A11'].value == '2026-06-10'
+          workbook.close()
+          PY
+
   # Builds portable desktop apps on their native runners (in parallel) on pushes,
   # pull requests and manual dispatch, so build breakages (e.g. a toolchain bump)
   # are caught before merge. The separate release job (push only) publishes them.

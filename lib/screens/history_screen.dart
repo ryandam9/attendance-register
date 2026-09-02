@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../helpers/day_type_helper.dart';
+import '../helpers/export_history.dart';
 import '../helpers/layout.dart';
 import '../models/special_day.dart';
 import '../providers/office_provider.dart';
@@ -41,6 +42,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   List<_HistoryItem> _items = const [];
   bool _loading = true;
+  bool _exporting = false;
   _HistoryItem? _selected; // desktop master-detail selection
   _HistoryFilter _filter = _HistoryFilter.all;
   String _query = '';
@@ -125,6 +127,16 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       date: item.date,
     );
     if (changed && mounted) await _load();
+  }
+
+  Future<void> _exportHistory() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    try {
+      await exportHistoryAsExcel(context);
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
   }
 
   @override
@@ -221,6 +233,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           subtitle: _items.isEmpty
               ? 'Every recorded day'
               : '${visibleItems.length} of ${_items.length} recorded days',
+          actions: [_desktopExportButton()],
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -236,7 +249,23 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('History')),
+      appBar: AppBar(
+        title: const Text('History'),
+        actions: isDesktopPlatform
+            ? [
+                IconButton(
+                  tooltip: 'Export complete history',
+                  onPressed: _exporting ? null : _exportHistory,
+                  icon: _exporting
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                        )
+                      : const Icon(Icons.file_download_outlined),
+                ),
+              ]
+            : null,
+      ),
       body: ResponsiveBody(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -246,6 +275,19 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _desktopExportButton() {
+    return FilledButton.icon(
+      onPressed: _exporting ? null : _exportHistory,
+      icon: _exporting
+          ? const SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            )
+          : const Icon(Icons.file_download_outlined),
+      label: Text(_exporting ? 'Preparing…' : 'Export'),
     );
   }
 

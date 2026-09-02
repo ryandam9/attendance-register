@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:attendance_register/models/attendance_record.dart';
 import 'package:attendance_register/models/office_location.dart';
 import 'package:attendance_register/models/special_day.dart';
@@ -75,7 +77,7 @@ void main() {
     );
   }
 
-  test('buildXlsx produces a styled summary and complete history', () async {
+  test('buildXlsx produces a compatible single-sheet history', () async {
     await seed();
     final result = await ExportService.buildXlsx(
       exportedAt: DateTime(2026, 8, 31, 17, 45),
@@ -84,13 +86,12 @@ void main() {
     expect(result.bytes, isNotEmpty);
 
     final decoded = Excel.decodeBytes(result.bytes);
-    expect(decoded.getDefaultSheet(), 'Summary');
-    final summary = decoded['Summary'];
+    expect(decoded.getDefaultSheet(), 'History');
+    expect(decoded.tables.keys.toList(), ['History']);
     final sheet = decoded['History'];
-    expect(summary, isNotNull);
     expect(sheet, isNotNull);
-    // Title, subtitle, spacer, header + one row per recorded day.
-    expect(sheet.maxRows, 8);
+    // Title, overview, spacer, header + one row per recorded day.
+    expect(sheet.maxRows, 14);
 
     String? text(Sheet target, int row, int col) {
       final value = target
@@ -99,38 +100,36 @@ void main() {
       return value is TextCellValue ? value.value.text : null;
     }
 
-    expect(text(summary, 0, 0), 'Attendance Register');
-    expect(text(sheet, 0, 0), 'Complete Attendance History');
-    expect(text(sheet, 3, 0), 'Date');
-    expect(text(sheet, 3, 4), 'Entry source');
-    expect(text(sheet, 3, 6), 'Notes');
+    expect(text(sheet, 0, 0), 'Attendance Register');
+    expect(text(sheet, 3, 0), 'Overview');
+    expect(text(sheet, 9, 0), 'Date');
+    expect(text(sheet, 9, 4), 'Entry source');
+    expect(text(sheet, 9, 6), 'Notes');
 
     // Newest first, with every office and special day preserved.
-    final firstDate = sheet
-        .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 4))
-        .value;
-    expect(firstDate, isA<DateCellValue>());
-    expect(
-      (firstDate! as DateCellValue).asDateTimeLocal(),
-      DateTime(2026, 6, 10),
-    );
-    expect(text(sheet, 4, 2), 'Attended');
-    expect(text(sheet, 4, 3), 'HQ');
-    expect(text(sheet, 4, 4), 'Automatic check-in');
-    expect(text(sheet, 5, 2), 'Public Holiday');
-    expect(text(sheet, 5, 4), 'GitHub holiday import');
-    expect(text(sheet, 6, 3), 'Branch');
-    expect(text(sheet, 6, 4), 'Manual entry');
-    expect(text(sheet, 7, 2), 'Sick Leave');
+    expect(text(sheet, 10, 0), '2026-06-10');
+    expect(text(sheet, 10, 2), 'Attended');
+    expect(text(sheet, 10, 3), 'HQ');
+    expect(text(sheet, 10, 4), 'Automatic check-in');
+    expect(text(sheet, 11, 2), 'Public Holiday');
+    expect(text(sheet, 11, 4), 'GitHub holiday import');
+    expect(text(sheet, 12, 3), 'Branch');
+    expect(text(sheet, 12, 4), 'Manual entry');
+    expect(text(sheet, 13, 2), 'Sick Leave');
 
     // Visual hierarchy and practical widths survive workbook encoding.
-    expect(
-      summary.cell(CellIndex.indexByString('A1')).cellStyle?.isBold,
-      isTrue,
-    );
-    expect(sheet.cell(CellIndex.indexByString('A4')).cellStyle?.isBold, isTrue);
+    expect(sheet.cell(CellIndex.indexByString('A1')).cellStyle?.isBold, isTrue);
+    expect(sheet.cell(CellIndex.indexByString('A10')).cellStyle?.isBold, isTrue);
     expect(sheet.getColumnWidth(0), 18);
     expect(sheet.getColumnWidth(6), 42);
+
+    // CI opens this with an independent OOXML implementation. Reopening only
+    // with the writer itself can miss worksheet XML that Microsoft Excel rejects.
+    final compatibilityFile = File(
+      'build/compatibility/attendance-history.xlsx',
+    );
+    await compatibilityFile.create(recursive: true);
+    await compatibilityFile.writeAsBytes(result.bytes, flush: true);
   });
 
   test('buildCsv still includes every office and special day', () async {
@@ -149,9 +148,9 @@ void main() {
       final result = await ExportService.buildXlsx();
       expect(result.rows, 0);
       final decoded = Excel.decodeBytes(result.bytes);
-      expect(decoded.getDefaultSheet(), 'Summary');
+      expect(decoded.getDefaultSheet(), 'History');
       final sheet = decoded['History'];
-      expect(sheet.maxRows, 4); // title, subtitle, spacer and header
+      expect(sheet.maxRows, 10); // title, overview, spacer and header
     },
   );
 }
