@@ -20,15 +20,18 @@ void main() {
       );
     });
 
-    test('uses neutral copy and an office fallback when settings are empty', () {
-      final content = buildAttendanceNotificationContent(
-        name: 'there',
-        officeName: '  ',
-        timestamp: DateTime(2026, 6, 19, 7, 25),
-      );
+    test(
+      'uses neutral copy and an office fallback when settings are empty',
+      () {
+        final content = buildAttendanceNotificationContent(
+          name: 'there',
+          officeName: '  ',
+          timestamp: DateTime(2026, 6, 19, 7, 25),
+        );
 
-      expect(content.title, 'You’re checked in');
-      expect(content.body, 'Office · 7:25 AM');
-    });
+        expect(content.title, 'You’re checked in');
+        expect(content.body, 'Office · 7:25 AM');
+      },
+    );
   });
 }
