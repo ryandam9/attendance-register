@@ -15,7 +15,7 @@ A Flutter mobile app that automatically tracks your return-to-office days using 
 - **History** — a chronological list of every recorded day
 - **Multi-office** — track multiple office locations independently
 - **Auto public holidays** — public holidays for your office's region are highlighted automatically from a list published in this repo (see [Public Holidays](#public-holidays)); anything you mark or remove yourself always wins
-- **Data export** — download a styled Excel workbook containing a summary and complete history across every office, or copy a compact CSV backup
+- **Data export** — download a styled Excel workbook containing an overview and complete history across every office, or copy a compact CSV backup
 - **Themes** — colour palettes inspired by Australian birds, Material You dynamic colour ("match my wallpaper", Android 12+), and a light/dark/system toggle
 - **Edit / delete** — update the radius or remove an office at any time
 
@@ -301,14 +301,12 @@ Auto-imported holidays never fight with your own entries:
 
 ## Data Export
 
-**Settings → Data & Privacy → Export History** creates a styled `.xlsx`
-workbook with two sheets:
-
-- **Summary** — export date, complete date range, status totals and office-day
-  totals.
-- **History** — every attendance, leave, holiday and work-from-home entry from
-  every office, newest first. It includes proper Excel dates, office, entry
-  source, recorded timestamp and notes.
+On desktop, use **History → Export**. On mobile, use
+**Settings → Data & Privacy → Export History**. Both create a styled `.xlsx`
+workbook with one Excel-compatible **History** worksheet. It contains an
+overview followed by every attendance, leave, holiday and work-from-home entry
+from every office, newest first, including office, entry source, recorded
+timestamp and notes.
 
 Desktop platforms show a native Save dialog; mobile opens the system share
 sheet. **Copy All Data (CSV)** remains available as a compact clipboard backup
