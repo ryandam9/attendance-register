@@ -35,7 +35,9 @@ AttendanceNotificationContent buildAttendanceNotificationContent({
   required DateTime timestamp,
 }) {
   final displayName = name.trim();
-  final displayOffice = officeName.trim().isEmpty ? 'Office' : officeName.trim();
+  final displayOffice = officeName.trim().isEmpty
+      ? 'Office'
+      : officeName.trim();
   final date = DateFormat('EEE, d MMM yyyy').format(timestamp);
   final time = DateFormat('h:mm a').format(timestamp);
   final title = displayName.isEmpty || displayName.toLowerCase() == 'there'
