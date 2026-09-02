@@ -99,6 +99,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (changed && mounted) _refreshAttendance();
   }
 
+  Future<void> _addOffice() async {
+    await openAdaptivePage<void>(context, const SetupScreen());
+    if (!mounted) return;
+    await ref.read(officeProvider.notifier).load();
+    if (mounted) _refreshAttendance();
+  }
+
   Future<void> _manualCheckIn() async {
     final office = ref.read(officeProvider).selectedOffice;
     if (office == null) return;
@@ -221,14 +228,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ? _EmptyState(
                   key: const ValueKey('empty'),
                   birdAsset: birdAsset,
-                  onAdd: () =>
-                      openAdaptivePage(
-                        context,
-                        const SetupScreen(),
-                      ).then((_) async {
-                        await ref.read(officeProvider.notifier).load();
-                        if (mounted) _refreshAttendance();
-                      }),
+                  onAdd: _addOffice,
                 )
               : _Dashboard(
                   key: ValueKey(officeState.selectedOffice?.id),
