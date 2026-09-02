@@ -88,9 +88,7 @@ class AboutScreen extends ConsumerWidget {
         body: DesktopPage(
           title: 'About',
           maxContentWidth: 680,
-          onBack: isDesktopPlatform
-              ? null
-              : () => Navigator.maybePop(context),
+          onBack: isDesktopPlatform ? null : () => Navigator.maybePop(context),
           actions: [
             if (isDesktopPlatform)
               IconButton(

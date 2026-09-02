@@ -221,13 +221,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ? _EmptyState(
                   key: const ValueKey('empty'),
                   birdAsset: birdAsset,
-                  onAdd: () => openAdaptivePage(
-                    context,
-                    const SetupScreen(),
-                  ).then((_) async {
-                    await ref.read(officeProvider.notifier).load();
-                    if (mounted) _refreshAttendance();
-                  }),
+                  onAdd: () =>
+                      openAdaptivePage(
+                        context,
+                        const SetupScreen(),
+                      ).then((_) async {
+                        await ref.read(officeProvider.notifier).load();
+                        if (mounted) _refreshAttendance();
+                      }),
                 )
               : _Dashboard(
                   key: ValueKey(officeState.selectedOffice?.id),
