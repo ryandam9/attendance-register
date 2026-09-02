@@ -119,7 +119,10 @@ void main() {
 
     // Visual hierarchy and practical widths survive workbook encoding.
     expect(sheet.cell(CellIndex.indexByString('A1')).cellStyle?.isBold, isTrue);
-    expect(sheet.cell(CellIndex.indexByString('A10')).cellStyle?.isBold, isTrue);
+    expect(
+      sheet.cell(CellIndex.indexByString('A10')).cellStyle?.isBold,
+      isTrue,
+    );
     expect(sheet.getColumnWidth(0), 18);
     expect(sheet.getColumnWidth(6), 42);
 

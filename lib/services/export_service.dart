@@ -118,13 +118,7 @@ class ExportService {
       sheet.setColumnWidth(column, widths[column]);
     }
 
-    _put(
-      sheet,
-      0,
-      0,
-      TextCellValue('Attendance Register'),
-      _titleStyle,
-    );
+    _put(sheet, 0, 0, TextCellValue('Attendance Register'), _titleStyle);
     sheet.setRowHeight(0, 34);
     _put(
       sheet,
