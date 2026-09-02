@@ -307,6 +307,7 @@ class LocationService {
       final userName = await db.getSetting('user_name');
       await NotificationService.instance.showAttendanceRecorded(
         userName != null && userName.isNotEmpty ? userName : 'there',
+        office.name,
         DateTime.now(),
         id: officeId,
       );
@@ -523,6 +524,7 @@ class LocationService {
             final userName = await db.getSetting('user_name');
             await NotificationService.instance.showAttendanceRecorded(
               userName != null && userName.isNotEmpty ? userName : 'there',
+              office.name,
               DateTime.now(),
               id: office.id!,
             );

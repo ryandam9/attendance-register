@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' show Color;
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -7,6 +8,51 @@ import 'package:path_provider/path_provider.dart';
 
 import '../themes/bird_art.dart';
 import 'database_service.dart';
+
+class AttendanceNotificationContent {
+  const AttendanceNotificationContent({
+    required this.title,
+    required this.body,
+    required this.expandedBody,
+    required this.date,
+    required this.office,
+  });
+
+  final String title;
+  final String body;
+  final String expandedBody;
+  final String date;
+  final String office;
+}
+
+/// Builds the short, glanceable copy used by the platform notification.
+///
+/// Kept outside [NotificationService] so the wording can be tested without
+/// initialising a native notifications plugin.
+AttendanceNotificationContent buildAttendanceNotificationContent({
+  required String name,
+  required String officeName,
+  required DateTime timestamp,
+}) {
+  final displayName = name.trim();
+  final displayOffice = officeName.trim().isEmpty
+      ? 'Office'
+      : officeName.trim();
+  final date = DateFormat('EEE, d MMM yyyy').format(timestamp);
+  final time = DateFormat('h:mm a').format(timestamp);
+  final title = displayName.isEmpty || displayName.toLowerCase() == 'there'
+      ? 'You’re checked in'
+      : 'Checked in, $displayName';
+
+  return AttendanceNotificationContent(
+    title: title,
+    body: '$displayOffice · $time',
+    expandedBody:
+        'Your attendance at $displayOffice was recorded.\n$date · $time',
+    date: date,
+    office: displayOffice,
+  );
+}
 
 class NotificationService {
   NotificationService._();
@@ -42,10 +88,11 @@ class NotificationService {
     );
   }
 
-  /// Writes the selected theme's bird illustration to a temp file so it can be
-  /// used as the notification's image, and returns its path (or null if there's
-  /// no artwork or it can't be loaded — e.g. from a background isolate without
-  /// asset access). Always best-effort: the notification still shows without it.
+  /// Writes the selected theme's bird illustration to a temp file so Android
+  /// can use it as a small notification accent. It is deliberately not used as
+  /// a big picture: square bird artwork creates an oversized, mostly empty
+  /// expanded notification. Always best-effort; the notification still shows
+  /// if assets are unavailable in a background isolate.
   Future<String?> _birdImagePath() async {
     try {
       final themeId =
@@ -66,40 +113,37 @@ class NotificationService {
   /// check-ins at different offices don't overwrite each other's notification.
   ///
   /// [name] is the user's name from settings; it falls back to "there" at the
-  /// call site when no name has been saved.
+  /// call site when no name has been saved. [officeName] keeps the notification
+  /// useful when the user has configured more than one workplace.
   Future<void> showAttendanceRecorded(
     String name,
+    String officeName,
     DateTime timestamp, {
     int id = 0,
   }) async {
-    final date = DateFormat('d MMM yyyy').format(timestamp);
-    final time = DateFormat('h:mm a').format(timestamp);
+    final content = buildAttendanceNotificationContent(
+      name: name,
+      officeName: officeName,
+      timestamp: timestamp,
+    );
 
-    // Original wording, kept as-is — emoji add the festive touch OS
-    // notifications can't animate.
-    const title = 'Attendance Recorded 🎉';
-    final body =
-        'Hey $name, your attendance at office has been recorded '
-        'for $date at $time. 🎈🚀';
-
-    // The selected theme's bird, shown as the notification's icon/image.
+    // The selected theme's bird is a small accent, not expanded artwork.
     final birdPath = await _birdImagePath();
     final birdBitmap = birdPath == null
         ? null
         : FilePathAndroidBitmap(birdPath);
 
-    // iOS and macOS share the same Darwin details (with the bird as an
-    // attachment when available).
-    final darwinDetails = birdPath != null
-        ? DarwinNotificationDetails(
-            attachments: [DarwinNotificationAttachment(birdPath)],
-          )
-        : const DarwinNotificationDetails();
+    // Apple platforms use the same concise hierarchy. Avoiding an image
+    // attachment keeps their expanded notifications compact as well.
+    final darwinDetails = DarwinNotificationDetails(
+      subtitle: '${content.date} · ${content.office}',
+      threadIdentifier: 'attendance-recorded',
+    );
 
     await _plugin.show(
       id: id,
-      title: title,
-      body: body,
+      title: content.title,
+      body: content.body,
       notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           'attendance_channel',
@@ -108,17 +152,15 @@ class NotificationService {
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
           largeIcon: birdBitmap,
-          // Expandable body so the full message + emoji show; when a bird image
-          // is available, expand to show it large (with the text underneath).
-          styleInformation: birdBitmap != null
-              ? BigPictureStyleInformation(
-                  birdBitmap,
-                  largeIcon: birdBitmap,
-                  contentTitle: title,
-                  summaryText: body,
-                  hideExpandedLargeIcon: true,
-                )
-              : BigTextStyleInformation(body, contentTitle: title),
+          styleInformation: BigTextStyleInformation(
+            content.expandedBody,
+            contentTitle: content.title,
+          ),
+          category: AndroidNotificationCategory.status,
+          color: const Color(0xFF16835A),
+          onlyAlertOnce: true,
+          ticker: 'Checked in at ${content.office}',
+          when: timestamp.millisecondsSinceEpoch,
         ),
         iOS: darwinDetails,
         macOS: darwinDetails,
