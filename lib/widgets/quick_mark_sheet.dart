@@ -201,6 +201,7 @@ class _QuickMarkSheetState extends ConsumerState<_QuickMarkSheet> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final isToday = isSameDay(widget.date, DateTime.now());
+    final isPlanned = isPlannedDay(widget.date);
 
     return Padding(
       // Keep the sheet above the keyboard when the comment field is focused.
@@ -217,13 +218,16 @@ class _QuickMarkSheetState extends ConsumerState<_QuickMarkSheet> {
             children: [
               Expanded(
                 child: Text(
-                  DateFormat('EEEE, MMMM d').format(widget.date),
+                  (widget.date.year == DateTime.now().year
+                          ? DateFormat('EEEE, MMMM d')
+                          : DateFormat('EEEE, MMMM d, yyyy'))
+                      .format(widget.date),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
-              if (isToday)
+              if (isToday || isPlanned)
                 Chip(
-                  label: const Text('Today'),
+                  label: Text(isToday ? 'Today' : 'Planned'),
                   visualDensity: VisualDensity.compact,
                   labelStyle: TextStyle(color: cs.primary),
                 ),

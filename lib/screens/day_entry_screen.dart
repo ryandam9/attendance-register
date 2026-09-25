@@ -15,10 +15,11 @@ import '../models/special_day.dart';
 import '../services/database_service.dart';
 import '../widgets/responsive_body.dart';
 
-/// Unified screen for marking a day. For any past date or today the user picks
-/// one of Attended / Holiday / Sick Leave, optionally adds a comment, and saves
-/// — all on one page. Switching between types is seamless because saving one
-/// removes any conflicting entry of the other kind.
+/// Unified screen for marking a day. For any date — past, today, or a future
+/// one being planned — the user picks one of Attended / Holiday / Sick Leave /
+/// … , optionally adds a comment, and saves, all on one page. Switching
+/// between types is seamless because saving one removes any conflicting entry
+/// of the other kind.
 class DayEntryScreen extends ConsumerStatefulWidget {
   final OfficeLocation office;
   final DateTime? initialDate;
@@ -104,7 +105,9 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      // Future dates are allowed so leave that is already booked can be
+      // entered ahead of time. Matches the home calendar's own range.
+      lastDate: DateTime(DateTime.now().year + 5, 12, 31),
       helpText: 'Select a date',
     );
     if (picked != null && !isSameDay(picked, _selectedDate)) {
@@ -189,6 +192,7 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final isToday = isSameDay(_selectedDate, DateTime.now());
+    final isPlanned = isPlannedDay(_selectedDate);
 
     return PopScope(
       canPop: !_dirty,
@@ -289,9 +293,9 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
                                         context,
                                       ).textTheme.bodyLarge,
                                     ),
-                                    if (isToday)
+                                    if (isToday || isPlanned)
                                       Text(
-                                        'Today',
+                                        isToday ? 'Today' : 'Planned ahead',
                                         style: Theme.of(context)
                                             .textTheme
                                             .bodySmall

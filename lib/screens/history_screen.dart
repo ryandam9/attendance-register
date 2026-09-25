@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../helpers/day_marking.dart';
 import '../helpers/day_type_helper.dart';
 import '../helpers/layout.dart';
 import '../models/special_day.dart';
@@ -25,9 +26,11 @@ class _HistoryItem {
 
 enum _HistoryFilter { all, office, workFromHome, leaveAndHoliday }
 
-/// The History tab: full chronological history of every recorded day
-/// (attendance, leave, holidays, WFH), newest first. Tapping a row opens the
-/// quick-mark sheet so the entry can be edited or removed.
+/// The History tab: every recorded day (attendance, leave, holidays, WFH) in
+/// one chronological list, newest first — which puts days entered ahead of time
+/// (booked leave, imported public holidays) above today, marked "Planned".
+/// Tapping a row opens the quick-mark sheet so the entry can be edited or
+/// removed.
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
@@ -322,6 +325,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         final color = item.status.colorIn(context);
         final isToday =
             _keyFmt.format(item.date) == _keyFmt.format(DateTime.now());
+        // Days entered ahead of time sort above today (newest first), so they
+        // are labelled to keep them apart from days that actually happened.
+        final isPlanned = isPlannedDay(item.date);
         final selected =
             selectedDate != null &&
             _keyFmt.format(item.date) == _keyFmt.format(selectedDate);
@@ -347,7 +353,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 child: Icon(item.status.icon, color: color),
               ),
               title: Text(
-                _dateFmt.format(item.date),
+                isPlanned
+                    ? '${_dateFmt.format(item.date)} · Planned'
+                    : _dateFmt.format(item.date),
                 style: TextStyle(
                   fontWeight: isToday ? FontWeight.bold : FontWeight.w500,
                 ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:attendance_register/models/attendance_record.dart';
@@ -69,7 +70,7 @@ void main() {
     DatabaseService.overridePath = null;
   });
 
-  Future<void> openSheet(WidgetTester tester) async {
+  Future<void> openSheet(WidgetTester tester, {DateTime? on}) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -77,7 +78,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
-          home: _Host(office: office, date: date),
+          home: _Host(office: office, date: on ?? date),
         ),
       ),
     );
@@ -181,5 +182,28 @@ void main() {
     // The geofence/foreground checks consult this flag, so the deleted
     // check-in cannot be silently re-recorded later the same day.
     expect(await service.isAutoCheckInDismissed(dateKey), isTrue);
+  });
+
+  testWidgets('a future day can be booked as Annual Leave ahead of time', (
+    tester,
+  ) async {
+    // Leave is usually known weeks out, so the sheet has to open on a day that
+    // has not happened yet and save against that date.
+    final future = DateTime.now().add(const Duration(days: 30));
+    final futureKey = DateFormat('yyyy-MM-dd').format(future);
+    await openSheet(tester, on: future);
+
+    // Labelled as planned so it is not mistaken for a day already recorded.
+    expect(find.text('Planned'), findsOneWidget);
+    expect(find.text('Today'), findsNothing);
+
+    await tester.tap(find.text('Annual Leave'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final special = await service.getSpecialDayForDate(futureKey);
+    expect(special, isNotNull);
+    expect(special!.type, DayType.annualLeave);
   });
 }

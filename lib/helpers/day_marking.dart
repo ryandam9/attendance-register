@@ -10,6 +10,18 @@ import 'day_type_helper.dart';
 /// the quick-mark bottom sheet so the replace-conflicting-entry rules live in
 /// exactly one place.
 
+/// True when [day] falls after today, i.e. it is being planned ahead rather
+/// than recorded after the fact. Both sides are reduced to a date so that
+/// today — whatever the time of day — is never treated as planned.
+bool isPlannedDay(DateTime day) {
+  final now = DateTime.now();
+  return DateTime(
+    day.year,
+    day.month,
+    day.day,
+  ).isAfter(DateTime(now.year, now.month, now.day));
+}
+
 /// Saves [status] for [dateKey] (YYYY-MM-DD), replacing any conflicting entry:
 /// marking attendance removes a special day and vice versa.
 ///

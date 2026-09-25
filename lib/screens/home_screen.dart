@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../app_colors.dart';
+import '../helpers/day_marking.dart';
 import '../helpers/day_type_helper.dart';
 import '../helpers/layout.dart';
 import '../helpers/route_helper.dart';
@@ -453,10 +454,9 @@ class _Dashboard extends ConsumerWidget {
                   ref.read(calendarFormatProvider.notifier).set(f),
               onPageChanged: onPageChanged,
               selectedDayPredicate: (_) => false,
-              onDaySelected: (selectedDay, _) {
-                if (selectedDay.isAfter(DateTime.now())) return;
-                onDayTapped(selectedDay);
-              },
+              // Future days are tappable too: leave that is already booked
+              // (and planned office days) can be recorded before the fact.
+              onDaySelected: (selectedDay, _) => onDayTapped(selectedDay),
               calendarBuilders: CalendarBuilders(
                 defaultBuilder: (context, day, _) =>
                     dayCell(day, isToday: false),
@@ -825,10 +825,8 @@ class _CalendarCard extends ConsumerWidget {
             ref.read(calendarFormatProvider.notifier).set(f),
         onPageChanged: onPageChanged,
         selectedDayPredicate: (_) => false,
-        onDaySelected: (selectedDay, _) {
-          if (selectedDay.isAfter(DateTime.now())) return;
-          onDayTapped(selectedDay);
-        },
+        // Future days are tappable too — see the phone calendar above.
+        onDaySelected: (selectedDay, _) => onDayTapped(selectedDay),
         calendarBuilders: CalendarBuilders(
           defaultBuilder: (context, day, _) => dayCell(day, isToday: false),
           todayBuilder: (context, day, _) => dayCell(day, isToday: true),
@@ -1147,7 +1145,7 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
     final DayStatus? status = ap.attendanceDateKeys.contains(key)
         ? DayStatus.attended
         : sp.typeByDate[key]?.dayStatus;
-    final isFuture = _selectedDay.isAfter(DateTime.now());
+    final isPlanned = isPlannedDay(_selectedDay);
 
     return _AttentionBorder(
       trigger: _selectedDay,
@@ -1184,18 +1182,24 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
                 )
               else
                 Text(
-                  'No attendance recorded for this day.',
+                  isPlanned
+                      ? 'Nothing planned for this day yet.'
+                      : 'No attendance recorded for this day.',
                   style: Theme.of(
                     context,
                   ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
                 ),
               const SizedBox(height: 16),
               FilledButton.tonalIcon(
-                onPressed: isFuture
-                    ? null
-                    : () => widget.onDayTapped(_selectedDay),
+                onPressed: () => widget.onDayTapped(_selectedDay),
                 icon: const Icon(Icons.edit_calendar_outlined),
-                label: Text(status == null ? 'Mark this day' : 'Edit this day'),
+                label: Text(
+                  status != null
+                      ? 'Edit this day'
+                      : isPlanned
+                      ? 'Plan this day'
+                      : 'Mark this day',
+                ),
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(46),
                 ),

@@ -247,13 +247,25 @@ Tap any day on the Home calendar to open the quick editor. From another tab,
 tap the **Mark** action to edit today; **All options** opens the full day-entry
 screen:
 
-1. **Pick a date** — any past date back to 2020.
+1. **Pick a date** — anything from 2020 up to five years ahead.
 2. **Pick a status** — Attended, Public Holiday, Sick Leave, Annual Leave,
    Carer's Leave, Work from Home or Misc Leave. Saving one status replaces any
    conflicting entry of another kind.
 3. **Comment** — optional note shown in History.
 4. **Save / Update / Remove Entry** — the home calendar and stats refresh
    automatically when you return.
+
+### Planning ahead
+
+Days that have not happened yet can be marked too — book annual leave as soon
+as it is approved rather than waiting for the day to arrive. Such entries are
+labelled **Planned** in the quick editor and in History so they are never
+mistaken for days already recorded.
+
+Booked leave is subtracted from the working days left in the period, so the
+Explain page's "days still needed to hit your target" reflects the time you will
+actually be available. Marking a future day as **Attended** counts it towards
+the percentage straight away, so use it for office days you are committed to.
 
 ## Public Holidays
 
