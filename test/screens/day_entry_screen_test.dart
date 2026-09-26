@@ -35,6 +35,16 @@ class _Host extends StatelessWidget {
   }
 }
 
+/// [day], or the Monday after it when it falls on a weekend — weekends cannot
+/// be marked, so date-relative tests must not land on one.
+DateTime _weekdayFrom(DateTime day) {
+  var d = day;
+  while (d.weekday == DateTime.saturday || d.weekday == DateTime.sunday) {
+    d = d.add(const Duration(days: 1));
+  }
+  return d;
+}
+
 void main() {
   const dateKey = '2026-06-10';
   final date = DateTime(2026, 6, 10);
@@ -164,7 +174,7 @@ void main() {
   testWidgets('a future date is labelled planned and saves its leave', (
     tester,
   ) async {
-    final future = DateTime.now().add(const Duration(days: 45));
+    final future = _weekdayFrom(DateTime.now().add(const Duration(days: 45)));
     final futureKey = DateFormat('yyyy-MM-dd').format(future);
     await pumpEntryScreen(tester, on: future);
 
@@ -188,7 +198,7 @@ void main() {
 
     // A day well past today must be selectable, otherwise leave can only ever
     // be recorded after it has been taken.
-    final future = DateTime.now().add(const Duration(days: 365));
+    final future = _weekdayFrom(DateTime.now().add(const Duration(days: 365)));
     final lastDate = DateTime(DateTime.now().year + 5, 12, 31);
     expect(future.isBefore(lastDate), isTrue);
 
@@ -213,5 +223,35 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Planned ahead'), findsOneWidget);
+  });
+
+  testWidgets('a weekend date cannot be saved', (tester) async {
+    // June 13 2026 is a Saturday.
+    await pumpEntryScreen(tester, on: DateTime(2026, 6, 13));
+
+    expect(find.text("Weekends can't be marked."), findsOneWidget);
+    final save = tester.widget<ButtonStyleButton>(
+      find.ancestor(
+        of: find.text('Save'),
+        matching: find.bySubtype<ButtonStyleButton>(),
+      ),
+    );
+    expect(save.onPressed, isNull);
+  });
+
+  testWidgets('the date picker refuses weekends', (tester) async {
+    await pumpEntryScreen(tester);
+
+    await tester.tap(find.text('June 10, 2026'));
+    await tester.pumpAndSettle();
+
+    // June 13 2026 is a Saturday; the calendar grid shows it disabled.
+    await tester.tap(find.text('13'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('June 10, 2026'), findsOneWidget);
+    expect(find.text('June 13, 2026'), findsNothing);
   });
 }

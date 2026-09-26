@@ -23,6 +23,11 @@ enum _SheetResult { saved, removed, openFull }
 /// without the full editor. "All options" escalates to [DayEntryScreen] as a
 /// desktop dialog or a full-screen mobile page.
 ///
+/// Weekends cannot be marked: an empty weekend day is turned away with a
+/// snackbar, and one that already holds an entry (recorded before the rule, or
+/// an imported public holiday) opens read-only so the entry can only be
+/// removed.
+///
 /// Returns true when something changed (saved, removed, or edited via the
 /// full editor) so the caller knows to refresh.
 Future<bool> showQuickMarkSheet(
@@ -39,6 +44,16 @@ Future<bool> showQuickMarkSheet(
     dateKey,
   );
   if (!context.mounted) return false;
+
+  if (isWeekendDay(date) && existingRecord == null && existingSpecial == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(weekendNotMarkableMessage),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    return false;
+  }
 
   final sheet = _QuickMarkSheet(
     office: office,
@@ -202,6 +217,9 @@ class _QuickMarkSheetState extends ConsumerState<_QuickMarkSheet> {
     final cs = Theme.of(context).colorScheme;
     final isToday = isSameDay(widget.date, DateTime.now());
     final isPlanned = isPlannedDay(widget.date);
+    // Only reachable with an existing entry (see showQuickMarkSheet), which
+    // may be removed but not changed.
+    final isWeekend = isWeekendDay(widget.date);
 
     return Padding(
       // Keep the sheet above the keyboard when the comment field is focused.
@@ -247,16 +265,28 @@ class _QuickMarkSheetState extends ConsumerState<_QuickMarkSheet> {
                   label: Text(s.label),
                   selected: _status == s,
                   selectedColor: s.colorIn(context).withValues(alpha: 0.18),
-                  onSelected: (_) {
-                    unawaited(HapticFeedback.selectionClick());
-                    setState(() => _status = s);
-                  },
+                  onSelected: isWeekend
+                      ? null
+                      : (_) {
+                          unawaited(HapticFeedback.selectionClick());
+                          setState(() => _status = s);
+                        },
                 ),
             ],
           ),
+          if (isWeekend) ...[
+            const SizedBox(height: 12),
+            Text(
+              '$weekendNotMarkableMessage This entry can only be removed.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+            ),
+          ],
           const SizedBox(height: 12),
           TextField(
             controller: _comment,
+            enabled: !isWeekend,
             decoration: const InputDecoration(
               hintText: 'Comment (optional)',
               border: OutlineInputBorder(),
@@ -274,18 +304,20 @@ class _QuickMarkSheetState extends ConsumerState<_QuickMarkSheet> {
                   icon: Icon(Icons.delete_outline, color: cs.error),
                   onPressed: _saving ? null : _remove,
                 ),
-              TextButton(
-                onPressed: _saving
-                    ? null
-                    : () => Navigator.pop(context, _SheetResult.openFull),
-                child: const Text('All options…'),
-              ),
+              if (!isWeekend)
+                TextButton(
+                  onPressed: _saving
+                      ? null
+                      : () => Navigator.pop(context, _SheetResult.openFull),
+                  child: const Text('All options…'),
+                ),
               const Spacer(),
-              FilledButton.icon(
-                onPressed: _saving ? null : _save,
-                icon: const Icon(Icons.check),
-                label: Text(_hasExisting ? 'Update' : 'Save'),
-              ),
+              if (!isWeekend)
+                FilledButton.icon(
+                  onPressed: _saving ? null : _save,
+                  icon: const Icon(Icons.check),
+                  label: Text(_hasExisting ? 'Update' : 'Save'),
+                ),
             ],
           ),
         ],

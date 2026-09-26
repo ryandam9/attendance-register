@@ -23,7 +23,9 @@ bool isPlannedDay(DateTime day) {
 }
 
 /// Saves [status] for [dateKey] (YYYY-MM-DD), replacing any conflicting entry:
-/// marking attendance removes a special day and vice versa.
+/// marking attendance removes a special day and vice versa. Throws a
+/// [StateError] for a weekend day — the UI never offers one, so reaching here
+/// with one is a bug.
 ///
 /// The conflicting entry is removed unconditionally rather than only when the
 /// caller's snapshot says one exists: snapshots are taken when the sheet
@@ -39,6 +41,9 @@ Future<void> saveDayStatus(
   String? note,
   SpecialDay? existingSpecial,
 }) async {
+  if (isWeekendDay(DateTime.parse(dateKey))) {
+    throw StateError(weekendNotMarkableMessage);
+  }
   final attendance = ref.read(attendanceProvider.notifier);
   final special = ref.read(specialDayProvider.notifier);
 

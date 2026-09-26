@@ -14,6 +14,7 @@ enum CheckInResult {
   alreadyRecorded,
   alreadyRecordedByAuto,
   specialDayConflict,
+  weekend,
 }
 
 class AttendanceState {
@@ -193,7 +194,9 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
     int officeId, {
     required DateTime focusedMonth,
   }) async {
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final now = DateTime.now();
+    if (isWeekendDay(now)) return CheckInResult.weekend;
+    final today = DateFormat('yyyy-MM-dd').format(now);
 
     // Prevent creating attendance on a holiday or sick-leave day.
     final specialDay = await DatabaseService.instance.getSpecialDayForDate(

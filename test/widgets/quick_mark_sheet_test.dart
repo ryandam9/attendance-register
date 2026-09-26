@@ -32,6 +32,16 @@ class _Host extends StatelessWidget {
   }
 }
 
+/// [day], or the Monday after it when it falls on a weekend — weekends cannot
+/// be marked, so date-relative tests must not land on one.
+DateTime _weekdayFrom(DateTime day) {
+  var d = day;
+  while (d.weekday == DateTime.saturday || d.weekday == DateTime.sunday) {
+    d = d.add(const Duration(days: 1));
+  }
+  return d;
+}
+
 void main() {
   const dateKey = '2026-06-10';
   final date = DateTime(2026, 6, 10);
@@ -189,7 +199,7 @@ void main() {
   ) async {
     // Leave is usually known weeks out, so the sheet has to open on a day that
     // has not happened yet and save against that date.
-    final future = DateTime.now().add(const Duration(days: 30));
+    final future = _weekdayFrom(DateTime.now().add(const Duration(days: 30)));
     final futureKey = DateFormat('yyyy-MM-dd').format(future);
     await openSheet(tester, on: future);
 
@@ -205,5 +215,37 @@ void main() {
     final special = await service.getSpecialDayForDate(futureKey);
     expect(special, isNotNull);
     expect(special!.type, DayType.annualLeave);
+  });
+
+  testWidgets('an empty weekend day cannot be marked', (tester) async {
+    // June 13 2026 is a Saturday.
+    await openSheet(tester, on: DateTime(2026, 6, 13));
+
+    expect(find.text('Save'), findsNothing);
+    expect(find.text("Weekends can't be marked."), findsOneWidget);
+  });
+
+  testWidgets('a weekend entry recorded earlier can only be removed', (
+    tester,
+  ) async {
+    const weekendKey = '2026-06-14'; // a Sunday
+    await service.insertAttendanceRecord(
+      AttendanceRecord(
+        date: weekendKey,
+        officeLocationId: office.id!,
+        timestamp: DateTime(2026, 6, 14, 9),
+      ),
+    );
+    await openSheet(tester, on: DateTime(2026, 6, 14));
+
+    expect(find.text('Update'), findsNothing);
+    expect(find.text('All options…'), findsNothing);
+
+    await tester.tap(find.byTooltip('Remove entry'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
+
+    expect(await service.getAttendanceForDate(weekendKey, office.id!), isNull);
   });
 }

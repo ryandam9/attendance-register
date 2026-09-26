@@ -3,6 +3,15 @@ import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import '../models/special_day.dart';
 
+/// True when [day] is a Saturday or Sunday. Weekends cannot be marked — past,
+/// today or planned ahead — because the percentage is built from weekdays
+/// only.
+bool isWeekendDay(DateTime day) =>
+    day.weekday == DateTime.saturday || day.weekday == DateTime.sunday;
+
+/// Shown wherever an attempt to mark a weekend day is turned away.
+const weekendNotMarkableMessage = 'Weekends can\'t be marked.';
+
 extension DayTypeX on DayType {
   String get label => switch (this) {
     DayType.holiday => 'Public Holiday',

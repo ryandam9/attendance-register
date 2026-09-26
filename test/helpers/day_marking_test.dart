@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:attendance_register/helpers/day_marking.dart';
+import 'package:attendance_register/helpers/day_type_helper.dart';
 
 void main() {
   group('isPlannedDay', () {
@@ -27,6 +28,19 @@ void main() {
       final now = DateTime.now();
       expect(isPlannedDay(DateTime(now.year, now.month, now.day + 1)), isTrue);
       expect(isPlannedDay(DateTime(now.year + 1, now.month, now.day)), isTrue);
+    });
+  });
+
+  group('isWeekendDay', () {
+    test('Saturday and Sunday are weekends', () {
+      expect(isWeekendDay(DateTime(2026, 9, 26)), isTrue); // Saturday
+      expect(isWeekendDay(DateTime(2026, 9, 27)), isTrue); // Sunday
+    });
+
+    test('Monday to Friday are not', () {
+      for (var d = 21; d <= 25; d++) {
+        expect(isWeekendDay(DateTime(2026, 9, d)), isFalse);
+      }
     });
   });
 }

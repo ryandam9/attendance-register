@@ -15,8 +15,8 @@ import '../models/special_day.dart';
 import '../services/database_service.dart';
 import '../widgets/responsive_body.dart';
 
-/// Unified screen for marking a day. For any date — past, today, or a future
-/// one being planned — the user picks one of Attended / Holiday / Sick Leave /
+/// Unified screen for marking a day. For any weekday — past, today, or a
+/// future one being planned — the user picks one of Attended / Holiday / Sick Leave /
 /// … , optionally adds a comment, and saves, all on one page. Switching
 /// between types is seamless because saving one removes any conflicting entry
 /// of the other kind.
@@ -108,6 +108,10 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
       // Future dates are allowed so leave that is already booked can be
       // entered ahead of time. Matches the home calendar's own range.
       lastDate: DateTime(DateTime.now().year + 5, 12, 31),
+      // Weekends cannot be marked. The current date stays selectable because
+      // the picker asserts that its initialDate passes this predicate.
+      selectableDayPredicate: (d) =>
+          !isWeekendDay(d) || isSameDay(d, _selectedDate),
       helpText: 'Select a date',
     );
     if (picked != null && !isSameDay(picked, _selectedDate)) {
@@ -193,6 +197,7 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
     final cs = Theme.of(context).colorScheme;
     final isToday = isSameDay(_selectedDate, DateTime.now());
     final isPlanned = isPlannedDay(_selectedDate);
+    final isWeekend = isWeekendDay(_selectedDate);
 
     return PopScope(
       canPop: !_dirty,
@@ -293,7 +298,18 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
                                         context,
                                       ).textTheme.bodyLarge,
                                     ),
-                                    if (isToday || isPlanned)
+                                    if (isWeekend)
+                                      Text(
+                                        weekendNotMarkableMessage,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: cs.error,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      )
+                                    else if (isToday || isPlanned)
                                       Text(
                                         isToday ? 'Today' : 'Planned ahead',
                                         style: Theme.of(context)
@@ -362,7 +378,7 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
                         ),
                         const SizedBox(height: 24),
                         FilledButton.icon(
-                          onPressed: _loading ? null : _save,
+                          onPressed: _loading || isWeekend ? null : _save,
                           icon: const Icon(Icons.save_outlined),
                           label: Text(_hasExisting ? 'Update' : 'Save'),
                           style: FilledButton.styleFrom(

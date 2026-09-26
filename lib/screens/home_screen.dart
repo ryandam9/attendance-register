@@ -132,6 +132,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         'Today is already recorded for ${office.name}.',
       CheckInResult.specialDayConflict =>
         'Today already has a status. Edit it before checking in.',
+      CheckInResult.weekend => weekendNotMarkableMessage,
       CheckInResult.recorded => '',
     };
     ScaffoldMessenger.of(context).showSnackBar(
@@ -885,6 +886,7 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
         'Attendance already recorded by auto check-in.',
       CheckInResult.specialDayConflict =>
         'Today is already marked (holiday or leave) — change it first.',
+      CheckInResult.weekend => weekendNotMarkableMessage,
     };
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
@@ -1146,6 +1148,9 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
         ? DayStatus.attended
         : sp.typeByDate[key]?.dayStatus;
     final isPlanned = isPlannedDay(_selectedDay);
+    // An empty weekend cannot be marked; one with an entry can still be opened
+    // so that entry can be removed.
+    final blocked = status == null && isWeekendDay(_selectedDay);
 
     return _AttentionBorder(
       trigger: _selectedDay,
@@ -1182,7 +1187,9 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
                 )
               else
                 Text(
-                  isPlanned
+                  blocked
+                      ? weekendNotMarkableMessage
+                      : isPlanned
                       ? 'Nothing planned for this day yet.'
                       : 'No attendance recorded for this day.',
                   style: Theme.of(
@@ -1191,7 +1198,9 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
                 ),
               const SizedBox(height: 16),
               FilledButton.tonalIcon(
-                onPressed: () => widget.onDayTapped(_selectedDay),
+                onPressed: blocked
+                    ? null
+                    : () => widget.onDayTapped(_selectedDay),
                 icon: const Icon(Icons.edit_calendar_outlined),
                 label: Text(
                   status != null

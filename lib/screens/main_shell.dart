@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../helpers/day_type_helper.dart';
 import '../helpers/layout.dart';
 import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
@@ -305,6 +306,8 @@ class _MainShellState extends ConsumerState<MainShell>
           date: DateTime.now(),
         ),
       );
+    } else if (result == CheckInResult.weekend) {
+      _checkInSnack(weekendNotMarkableMessage);
     } else if (result == CheckInResult.specialDayConflict) {
       _checkInSnack('Today is already marked as a holiday or leave.');
     } else {

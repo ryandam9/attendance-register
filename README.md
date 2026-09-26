@@ -247,7 +247,9 @@ Tap any day on the Home calendar to open the quick editor. From another tab,
 tap the **Mark** action to edit today; **All options** opens the full day-entry
 screen:
 
-1. **Pick a date** — anything from 2020 up to five years ahead.
+1. **Pick a date** — any weekday from 2020 up to five years ahead. Saturdays
+   and Sundays cannot be marked, past or future; an entry already sitting on a
+   weekend can still be opened and removed.
 2. **Pick a status** — Attended, Public Holiday, Sick Leave, Annual Leave,
    Carer's Leave, Work from Home or Misc Leave. Saving one status replaces any
    conflicting entry of another kind.
