@@ -823,8 +823,18 @@ class _DayCell extends StatelessWidget {
         final bg = st.colorIn(context);
         return filled(bg, _numberColorOn(bg));
       }
-      // Sick / leave / WFH / holiday / misc — show the status icon.
-      return Center(child: Icon(st.icon, color: st.colorIn(context), size: 22));
+      // Sick / leave / WFH / holiday / misc: the status icon on a soft disc
+      // of its colour, the same size as an office day's filled circle.
+      final color = st.colorIn(context);
+      return Container(
+        margin: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.16),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Icon(st.icon, color: color, size: 20),
+      );
     }
 
     if (isToday) {
@@ -908,7 +918,15 @@ class _StatusSwatch extends StatelessWidget {
     } else if (s == DayStatus.attended) {
       mark = circle(s.colorIn(context));
     } else {
-      mark = Icon(s.icon, color: s.colorIn(context), size: 20);
+      final color = s.colorIn(context);
+      mark = Container(
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.16),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Icon(s.icon, color: color, size: 15),
+      );
     }
     return SizedBox.square(
       dimension: size,
