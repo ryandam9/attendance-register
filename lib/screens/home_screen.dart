@@ -623,7 +623,7 @@ class _MobileTodayCard extends StatelessWidget {
                   final other = OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(padding: pad),
                     onPressed: onEdit,
-                    icon: const Icon(Icons.home_work_outlined, size: 18),
+                    icon: const Icon(Icons.cottage_outlined, size: 18),
                     label: const Text('Home or leave'),
                   );
                   return Column(
