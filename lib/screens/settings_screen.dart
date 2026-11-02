@@ -812,10 +812,6 @@ class _MobileSettings extends ConsumerWidget {
       ThemeMode.system => 'Match system',
     };
 
-    void open(Widget page) => Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => page));
-
     final rows = <Widget>[
       _NavRow(
         icon: Icons.business_outlined,
@@ -823,15 +819,13 @@ class _MobileSettings extends ConsumerWidget {
         subtitle: offices.isEmpty
             ? 'Add your office'
             : '${offices.map((o) => o.name).join(', ')} · Add or edit',
-        onTap: () => open(
-          _SettingsPage(
-            eyebrow: 'Where you work',
-            title: 'Your offices.',
-            intro:
-                'Each office has a location and radius used for automatic '
-                'check-in.',
-            children: (s) => s.offices,
-          ),
+        page: _SettingsPage(
+          eyebrow: 'Where you work',
+          title: 'Your offices.',
+          intro:
+              'Each office has a location and radius used for automatic '
+              'check-in.',
+          children: (s) => s.offices,
         ),
       ),
       _NavRow(
@@ -840,16 +834,14 @@ class _MobileSettings extends ConsumerWidget {
         subtitle:
             '${settings.rtoTarget}% target · '
             '${settings.financialYearStart.label}',
-        onTap: () => open(
-          _SettingsPage(
-            eyebrow: 'Your own pace',
-            title: 'Set your target.',
-            intro: 'Choose the office attendance percentage you want to track.',
-            children: (s) => [
-              ...s.reporting,
-              const _Paragraph('Changes save automatically.'),
-            ],
-          ),
+        page: _SettingsPage(
+          eyebrow: 'Your own pace',
+          title: 'Set your target.',
+          intro: 'Choose the office attendance percentage you want to track.',
+          children: (s) => [
+            ...s.reporting,
+            const _Paragraph('Changes save automatically.'),
+          ],
         ),
       ),
       _NavRow(
@@ -858,60 +850,54 @@ class _MobileSettings extends ConsumerWidget {
         subtitle: _isMobile
             ? 'Location, notifications and battery'
             : 'How check-in works here',
-        onTap: () => open(
-          _SettingsPage(
-            eyebrow: 'Less to remember',
-            title: 'Arrive and settle in.',
-            children: (s) => [
-              ...s.permissions,
-              if (s.autoCheckIn != null) ...[
-                const _Subheading('After you remove a day'),
-                ...s.autoCheckIn!,
-              ],
-              _NoteCard(
-                title: 'How automatic check-in works',
-                body: _autoCheckInBody,
-              ),
-              if (_isMobile)
-                const _NoteCard(
-                  title: 'For reliable background tracking',
-                  body:
-                      'Allow location access "all the time", and turn off '
-                      'battery optimisation for this app.',
-                ),
+        page: _SettingsPage(
+          eyebrow: 'Less to remember',
+          title: 'Arrive and settle in.',
+          children: (s) => [
+            ...s.permissions,
+            if (s.autoCheckIn != null) ...[
+              const _Subheading('After you remove a day'),
+              ...s.autoCheckIn!,
             ],
-          ),
+            _NoteCard(
+              title: 'How automatic check-in works',
+              body: _autoCheckInBody,
+            ),
+            if (_isMobile)
+              const _NoteCard(
+                title: 'For reliable background tracking',
+                body:
+                    'Allow location access "all the time", and turn off '
+                    'battery optimisation for this app.',
+              ),
+          ],
         ),
       ),
       _NavRow(
         icon: Icons.palette_outlined,
         title: 'Appearance',
         subtitle: '$mode · ${settings.font.label}',
-        onTap: () => open(const ThemeScreen()),
+        page: const ThemeScreen(),
       ),
       _NavRow(
         icon: Icons.beach_access_outlined,
         title: 'Public holidays',
         subtitle: 'Sync for your office’s region',
-        onTap: () => open(
-          _SettingsPage(
-            eyebrow: 'Space for life',
-            title: 'Days to step away.',
-            children: (s) => s.holidays,
-          ),
+        page: _SettingsPage(
+          eyebrow: 'Space for life',
+          title: 'Days to step away.',
+          children: (s) => s.holidays,
         ),
       ),
       _NavRow(
         icon: Icons.ios_share_outlined,
         title: 'Data & privacy',
         subtitle: 'Export Excel, copy CSV, delete records',
-        onTap: () => open(
-          _SettingsPage(
-            eyebrow: 'Yours to keep',
-            title: 'Take your days with you.',
-            intro: 'Everything stays on this device until you export it.',
-            children: (s) => s.data,
-          ),
+        page: _SettingsPage(
+          eyebrow: 'Yours to keep',
+          title: 'Take your days with you.',
+          intro: 'Everything stays on this device until you export it.',
+          children: (s) => s.data,
         ),
       ),
       _NavRow(
@@ -920,7 +906,7 @@ class _MobileSettings extends ConsumerWidget {
         subtitle:
             'Version ${BuildInfo.version} · '
             '${BuildInfo.isStamped ? BuildInfo.commit : 'local build'}',
-        onTap: () => open(const AboutScreen()),
+        page: const AboutScreen(),
         last: true,
       ),
     ];
@@ -1009,18 +995,20 @@ class _SettingsPage extends ConsumerWidget {
   }
 }
 
+/// A Settings menu row that grows into its page with Material's container
+/// transform, and shrinks back into the row on return.
 class _NavRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
+  final Widget page;
   final bool last;
 
   const _NavRow({
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.onTap,
+    required this.page,
     this.last = false,
   });
 
@@ -1028,8 +1016,8 @@ class _NavRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
-    return InkWell(
-      onTap: onTap,
+    Widget row(VoidCallback open) => InkWell(
+      onTap: open,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1060,6 +1048,23 @@ class _NavRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+    // With reduced motion, a plain push. (OpenContainer cannot run with a
+    // zero duration.)
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return row(() => Navigator.of(context).push(appRoute<void>(page)));
+    }
+    return OpenContainer<void>(
+      transitionType: ContainerTransitionType.fadeThrough,
+      transitionDuration: const Duration(milliseconds: 420),
+      closedElevation: 0,
+      openElevation: 0,
+      closedShape: const RoundedRectangleBorder(),
+      closedColor: cs.surfaceContainerLow,
+      openColor: Theme.of(context).scaffoldBackgroundColor,
+      middleColor: Theme.of(context).scaffoldBackgroundColor,
+      openBuilder: (context, _) => page,
+      closedBuilder: (context, open) => row(open),
     );
   }
 }

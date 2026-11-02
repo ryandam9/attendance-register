@@ -551,6 +551,62 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('Settings rows and Insights periods animate between pages', (
+    tester,
+  ) async {
+    Future<void> pumpAnimated(Widget screen) async {
+      await db.insertOfficeLocation(
+        const OfficeLocation(
+          name: 'Melbourne Studio',
+          address: '',
+          latitude: 0,
+          longitude: 0,
+        ),
+      );
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await container.read(officeProvider.notifier).load();
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: gardenTheme(Brightness.light),
+            home: screen,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    // Container transform: the row opens its page and closes back into it.
+    await pumpAnimated(const SettingsScreen());
+    await tester.tap(find.text('Reporting'));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(tester.takeException(), isNull);
+    await tester.pumpAndSettle();
+    expect(find.text('Set your target.'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Make yourself at home.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // Shared axis: stepping to the previous month swaps the period content.
+    await tester.pumpWidget(const SizedBox());
+    await db.reset();
+    await pumpAnimated(const ExplainScreen());
+    final now = DateTime.now();
+    final previous = DateFormat(
+      'MMMM yyyy',
+    ).format(DateTime(now.year, now.month - 1));
+    await tester.tap(find.byTooltip('Previous'));
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(tester.takeException(), isNull);
+    await tester.pumpAndSettle();
+    expect(find.text(previous), findsWidgets);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Appearance preserves theme mode and hides legacy palettes', (
     tester,
   ) async {

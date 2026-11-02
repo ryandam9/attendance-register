@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -33,6 +34,12 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
   PeriodKind _kind = PeriodKind.month;
   // Any day inside the selected window; the ReportPeriod normalises it.
   DateTime _anchor = DateTime.now();
+
+  // How the last change moved: stepping between periods slides along the
+  // shared horizontal axis (backwards when going earlier); switching between
+  // Month and Year fades through, since neither comes "after" the other.
+  bool _steppedBack = false;
+  bool _switchedKind = false;
 
   @override
   Widget build(BuildContext context) {
@@ -126,32 +133,67 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
             const SizedBox(height: 8),
             _periodNavigator(period),
             const SizedBox(height: 8),
-            breakdown.when(
-              loading: () => const Card(
-                margin: EdgeInsets.zero,
-                child: SizedBox(
-                  height: 140,
-                  child: Center(child: CircularProgressIndicator()),
-                ),
+            _periodTransition(
+              key: ValueKey('${_kind.name}-${period.label}'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  breakdown.when(
+                    loading: () => const Card(
+                      margin: EdgeInsets.zero,
+                      child: SizedBox(
+                        height: 140,
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    ),
+                    error: (e, _) => Card(
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text('Could not load ${period.label}: $e'),
+                      ),
+                    ),
+                    data: (b) => _RateCard(breakdown: b, target: target),
+                  ),
+                  const SizedBox(height: 16),
+                  breakdown.when(
+                    loading: () => const SizedBox.shrink(),
+                    error: (e, _) => const SizedBox.shrink(),
+                    data: (b) => _details(b, target, office.id!),
+                  ),
+                ],
               ),
-              error: (e, _) => Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text('Could not load ${period.label}: $e'),
-                ),
-              ),
-              data: (b) => _RateCard(breakdown: b, target: target),
-            ),
-            const SizedBox(height: 16),
-            breakdown.when(
-              loading: () => const SizedBox.shrink(),
-              error: (e, _) => const SizedBox.shrink(),
-              data: (b) => _details(b, target, office.id!),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  /// Animates between reporting periods (see [_steppedBack]).
+  Widget _periodTransition({required Key key, required Widget child}) {
+    final keyed = KeyedSubtree(key: key, child: child);
+    if (MediaQuery.disableAnimationsOf(context)) return keyed;
+    return PageTransitionSwitcher(
+      duration: const Duration(milliseconds: 360),
+      reverse: _steppedBack,
+      layoutBuilder: (entries) =>
+          Stack(alignment: Alignment.topCenter, children: entries),
+      transitionBuilder: (child, animation, secondaryAnimation) => _switchedKind
+          ? FadeThroughTransition(
+              animation: animation,
+              secondaryAnimation: secondaryAnimation,
+              fillColor: Colors.transparent,
+              child: child,
+            )
+          : SharedAxisTransition(
+              animation: animation,
+              secondaryAnimation: secondaryAnimation,
+              transitionType: SharedAxisTransitionType.horizontal,
+              fillColor: Colors.transparent,
+              child: child,
+            ),
+      child: keyed,
     );
   }
 
@@ -196,7 +238,10 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
       ],
       selected: {_kind},
       showSelectedIcon: false,
-      onSelectionChanged: (s) => setState(() => _kind = s.first),
+      onSelectionChanged: (s) => setState(() {
+        _kind = s.first;
+        _switchedKind = true;
+      }),
     );
   }
 
@@ -207,7 +252,11 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
         IconButton(
           icon: const Icon(Icons.chevron_left),
           tooltip: 'Previous',
-          onPressed: () => setState(() => _anchor = period.previous.anchor),
+          onPressed: () => setState(() {
+            _anchor = period.previous.anchor;
+            _steppedBack = true;
+            _switchedKind = false;
+          }),
         ),
         Expanded(
           child: Text(
@@ -224,7 +273,11 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
           // Don't let the user page into the future.
           onPressed: period.isCurrent
               ? null
-              : () => setState(() => _anchor = period.next.anchor),
+              : () => setState(() {
+                  _anchor = period.next.anchor;
+                  _steppedBack = false;
+                  _switchedKind = false;
+                }),
         ),
       ],
     );
