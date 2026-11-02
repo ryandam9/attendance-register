@@ -10,7 +10,6 @@ import '../helpers/layout.dart';
 import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
 import '../providers/attendance_provider.dart';
-import '../providers/explain_provider.dart';
 import '../providers/office_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/special_day_provider.dart';
@@ -20,7 +19,7 @@ import '../services/location_service.dart';
 import '../themes/bird_art.dart';
 import '../widgets/app_sidebar.dart';
 import '../widgets/check_in_celebration.dart';
-import '../widgets/quick_mark_sheet.dart';
+import '../widgets/quick_mark_action.dart';
 import 'explain_screen.dart';
 import 'history_screen.dart';
 import 'home_screen.dart';
@@ -330,22 +329,8 @@ class _MainShellState extends ConsumerState<MainShell>
     if (mounted) _refreshFocusedMonth();
   }
 
-  /// Opens the fast day editor for today from the adaptive app shell. This
-  /// keeps the primary action available from every tab without dedicating a
-  /// permanent navigation destination to a two-action screen.
-  Future<void> _quickMarkToday() async {
-    final office = ref.read(officeProvider).selectedOffice;
-    if (office == null) return;
-    final changed = await showQuickMarkSheet(
-      context,
-      office: office,
-      date: DateTime.now(),
-    );
-    if (!changed || !mounted) return;
-    _refreshFocusedMonth();
-    ref.invalidate(breakdownProvider);
-    ref.invalidate(weeklyTrendProvider);
-  }
+  /// Opens the fast day editor for today from the tablet rail.
+  Future<void> _quickMarkToday() => quickMarkToday(context, ref);
 
   @override
   Widget build(BuildContext context) {
@@ -454,25 +439,11 @@ class _MainShellState extends ConsumerState<MainShell>
     }
 
     // Phones: keep every top-level destination in the bottom navigation so
-    // Settings is discoverable and consistent with the wider layouts.
-    final showQuickMark =
-        ref.watch(officeProvider).selectedOffice != null && index != 0;
+    // Settings is discoverable and consistent with the wider layouts. Marking
+    // today lives on Home's Today card, and as a title-bar button on
+    // Insights and History, so no floating button takes up the screen.
     return Scaffold(
-      // The extended action used to float directly over each tab's content.
-      // Reserve a dedicated lane for it so list rows and explanatory text can
-      // never be hidden underneath the button.
-      body: Padding(
-        padding: EdgeInsets.only(bottom: showQuickMark ? 80 : 0),
-        child: content,
-      ),
-      floatingActionButton: showQuickMark
-          ? FloatingActionButton.extended(
-              heroTag: 'phone-quick-mark',
-              onPressed: _quickMarkToday,
-              icon: const Icon(Icons.edit_calendar_outlined),
-              label: const Text('Mark'),
-            )
-          : null,
+      body: content,
       bottomNavigationBar: NavigationBar(
         selectedIndex: index.clamp(0, 3),
         onDestinationSelected: (i) {

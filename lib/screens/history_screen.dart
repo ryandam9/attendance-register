@@ -15,6 +15,7 @@ import '../widgets/desktop_page.dart';
 import '../widgets/garden_art.dart';
 import '../widgets/garden_header.dart';
 import '../widgets/no_office_placeholder.dart';
+import '../widgets/quick_mark_action.dart';
 import '../widgets/quick_mark_sheet.dart';
 import '../widgets/responsive_body.dart';
 
@@ -253,20 +254,20 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('History'),
-        actions: isDesktopPlatform
-            ? [
-                IconButton(
-                  tooltip: 'Export complete history',
-                  onPressed: _exporting ? null : _exportHistory,
-                  icon: _exporting
-                      ? const SizedBox.square(
-                          dimension: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2.5),
-                        )
-                      : const Icon(Icons.file_download_outlined),
-                ),
-              ]
-            : null,
+        actions: [
+          QuickMarkAction(onChanged: _load),
+          if (isDesktopPlatform)
+            IconButton(
+              tooltip: 'Export complete history',
+              onPressed: _exporting ? null : _exportHistory,
+              icon: _exporting
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    )
+                  : const Icon(Icons.file_download_outlined),
+            ),
+        ],
       ),
       body: ResponsiveBody(
         child: RefreshIndicator(
