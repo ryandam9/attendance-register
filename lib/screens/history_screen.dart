@@ -26,7 +26,17 @@ class _HistoryItem {
   final DayStatus status;
   final String? comment;
 
-  const _HistoryItem({required this.date, required this.status, this.comment});
+  /// When an office day was recorded, if that happened on the day itself.
+  /// Days marked afterwards only know when they were entered, so they have
+  /// no time.
+  final DateTime? time;
+
+  const _HistoryItem({
+    required this.date,
+    required this.status,
+    this.comment,
+    this.time,
+  });
 }
 
 enum _HistoryFilter { all, office, workFromHome, leaveAndHoliday }
@@ -46,6 +56,7 @@ class HistoryScreen extends ConsumerStatefulWidget {
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   static final _dateFmt = DateFormat('EEEE, d MMMM yyyy');
   static final _keyFmt = DateFormat('yyyy-MM-dd');
+  static final _timeFmt = DateFormat('h:mm a');
 
   List<_HistoryItem> _items = const [];
   bool _loading = true;
@@ -109,6 +120,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           date: DateTime.parse(r.date),
           status: DayStatus.attended,
           comment: r.reason,
+          time: _keyFmt.format(r.timestamp) == r.date ? r.timestamp : null,
         ),
       for (final s in specialDays)
         _HistoryItem(
@@ -449,9 +461,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final hasNote = item.comment != null && item.comment!.isNotEmpty;
     final title = [
       DateFormat('EEEE').format(item.date),
-      item.status.label,
       if (isToday) 'Today' else if (isPlanned) 'Planned',
     ].join(' · ');
+    final color = item.status.colorIn(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -483,7 +495,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               child: Row(
                 children: [
                   GardenIconTile(
-                    color: item.status.colorIn(context),
+                    color: color,
                     label: DateFormat('dd').format(item.date),
                   ),
                   const SizedBox(width: 12),
@@ -499,7 +511,40 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                 : FontWeight.w500,
                           ),
                         ),
-                        if (hasNote)
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            _StatusChip(
+                              label: item.status.label,
+                              color: color,
+                              icon: item.status.icon,
+                            ),
+                            if (item.time case final time?)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.schedule,
+                                    size: 14,
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _timeFmt.format(time),
+                                    style: text.bodySmall?.copyWith(
+                                      color: cs.onSurfaceVariant,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                        if (hasNote) ...[
+                          const SizedBox(height: 4),
                           Text(
                             item.comment!,
                             maxLines: 1,
@@ -508,6 +553,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                               color: cs.onSurfaceVariant,
                             ),
                           ),
+                        ],
                       ],
                     ),
                   ),
@@ -554,6 +600,17 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             Center(
               child: _StatusChip(label: item.status.label, color: color),
             ),
+            if (item.time case final time?) ...[
+              const SizedBox(height: 8),
+              Center(
+                child: Text(
+                  'Checked in at ${_timeFmt.format(time)}',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             Text(
               'Note',
@@ -584,29 +641,43 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 }
 
+/// A day's status as a small tinted tag, e.g. "Attended" or "Work from
+/// home", in the same colour as the calendar.
 class _StatusChip extends StatelessWidget {
   final String label;
   final Color color;
+  final IconData? icon;
 
-  const _StatusChip({required this.label, required this.color});
+  const _StatusChip({required this.label, required this.color, this.icon});
 
   @override
   Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.labelMedium?.copyWith(
+      color: color,
+      fontWeight: FontWeight.w600,
+    );
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: EdgeInsets.fromLTRB(icon == null ? 10 : 8, 4, 10, 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w600,
-          fontSize: 12,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 4),
+          ],
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: style,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -385,12 +385,20 @@ void main() {
     testWidgets('History fits 320px at 2x text: $brightness', (tester) async {
       await pumpSmall(tester, const HistoryScreen(), brightness);
       expect(find.text('Days, remembered.'), findsOneWidget);
+      // Each day shows its status as a tag; office days add the time they
+      // were recorded on the day.
       await tester.scrollUntilVisible(
-        find.textContaining('· Annual Leave'),
+        find.text('Annual Leave'),
         150,
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('A long weekend'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('9:00 AM'),
+        150,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(tester.takeException(), isNull);
       expect(tester.takeException(), isNull);
 
       // A search with no hits shows the no-match message, not the welcome.
