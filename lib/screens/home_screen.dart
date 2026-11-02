@@ -721,7 +721,13 @@ class _DayCell extends StatelessWidget {
     // The marker for a given status (no "today" treatment).
     Widget markerFor(DayStatus st) {
       if (st == DayStatus.attended) {
-        return filled(st.colorIn(context), Colors.white);
+        // The attended green is dark in light mode but a light lime in dark
+        // mode, so pick the number colour that stays readable on it.
+        final bg = st.colorIn(context);
+        final fg = ThemeData.estimateBrightnessForColor(bg) == Brightness.dark
+            ? Colors.white
+            : const Color(0xFF1B2A12);
+        return filled(bg, fg);
       }
       // Sick / leave / WFH / holiday / misc — show the status icon.
       return Center(child: Icon(st.icon, color: st.colorIn(context), size: 22));

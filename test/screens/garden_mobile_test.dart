@@ -424,6 +424,33 @@ void main() {
     });
   }
 
+  testWidgets('Attended day numbers stay readable in dark mode', (
+    tester,
+  ) async {
+    await pumpSmall(
+      tester,
+      const HomeScreen(),
+      Brightness.dark,
+      withData: false,
+      checkedInToday: true,
+    );
+    await tester.scrollUntilVisible(
+      find.text('Calendar legend'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    // Today is attended, so its number sits on the light dark-mode green.
+    final numbers = tester
+        .widgetList<Text>(find.text('${DateTime.now().day}'))
+        .where((t) => t.style?.fontWeight == FontWeight.bold)
+        .toList();
+    expect(numbers, isNotEmpty);
+    for (final t in numbers) {
+      expect(t.style!.color, isNot(Colors.white));
+    }
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Appearance preserves theme mode and hides legacy palettes', (
     tester,
   ) async {
