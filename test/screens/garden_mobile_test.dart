@@ -431,7 +431,8 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Recorded'), findsOneWidget);
-      expect(find.text('Melbourne Studio · 9:04 AM'), findsOneWidget);
+      expect(find.text('Checked in at 9:04 AM'), findsOneWidget);
+      expect(find.textContaining('Melbourne Studio'), findsNothing);
       // The whole card opens today's editor.
       await tester.ensureVisible(find.text('At the office'));
       await tester.pumpAndSettle();
