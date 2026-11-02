@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
-import '../app_colors.dart';
 import '../helpers/day_marking.dart';
 import '../helpers/day_type_helper.dart';
 import '../helpers/layout.dart';
@@ -22,6 +21,8 @@ import '../providers/special_day_provider.dart';
 import '../providers/ui_state_provider.dart';
 import '../services/holiday_service.dart';
 import '../themes/bird_art.dart';
+import '../widgets/garden_art.dart';
+import '../widgets/garden_header.dart';
 import '../widgets/check_in_celebration.dart';
 import '../widgets/quick_mark_sheet.dart';
 import '../widgets/responsive_body.dart';
@@ -160,11 +161,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (previous != next) _refreshAttendance();
     });
 
-    final appBarTheme = Theme.of(context).appBarTheme;
-    final birdAsset = birdAssetForTheme(
-      ref.watch(settingsProvider.select((s) => s.themeId)),
-    );
-
     // Desktop: a two-pane dashboard that fills the window. The navigation shell
     // supplies the sidebar, so this screen has no app bar of its own. The
     // loading and "no office" states fall through to the single-column layout.
@@ -186,37 +182,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: birdAsset == null
-            ? null
-            : Padding(
-                padding: const EdgeInsets.all(6),
-                child: CircleAvatar(
-                  backgroundColor: Colors.white,
-                  child: Padding(
-                    padding: const EdgeInsets.all(5),
-                    child: Image.asset(birdAsset, fit: BoxFit.contain),
-                  ),
-                ),
-              ),
-        title: officeState.hasOffice
-            ? Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Attendance Register'),
-                  Text(
-                    officeState.selectedOffice!.name,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      // App bar foreground is onPrimary in light mode (navy bar);
-                      // tint it down a touch for the secondary line.
-                      color: appBarTheme.foregroundColor?.withValues(
-                        alpha: 0.75,
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : const Text('Attendance Register'),
+        title: Text(officeState.selectedOffice?.name ?? 'Attendance Register'),
       ),
       body: ResponsiveBody(
         child: AnimatedSwitcher(
@@ -227,11 +193,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: CircularProgressIndicator(),
                 )
               : !officeState.hasOffice
-              ? _EmptyState(
-                  key: const ValueKey('empty'),
-                  birdAsset: birdAsset,
-                  onAdd: _addOffice,
-                )
+              ? _EmptyState(key: const ValueKey('empty'), onAdd: _addOffice)
               : _Dashboard(
                   key: ValueKey(officeState.selectedOffice?.id),
                   offices: officeState.offices,
@@ -253,48 +215,61 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 class _EmptyState extends StatelessWidget {
   final VoidCallback onAdd;
-  final String? birdAsset;
-  const _EmptyState({super.key, required this.onAdd, this.birdAsset});
+  const _EmptyState({super.key, required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (birdAsset != null)
-              Image.asset(birdAsset!, width: 180, fit: BoxFit.contain)
-            else
-              Icon(
-                Icons.business_outlined,
-                size: 80,
-                color: cs.primary.withValues(alpha: 0.4),
-              ),
-            const SizedBox(height: 24),
-            Text(
-              'No Office Registered',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Add your office address to start tracking your return-to-office days automatically.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: cs.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-            const SizedBox(height: 32),
-            FilledButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add_location_alt_outlined),
-              label: const Text('Add Office'),
-            ),
-          ],
-        ),
+    final text = Theme.of(context).textTheme;
+    Widget feature(IconData icon, String label) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          GardenIconTile(color: cs.primary, icon: icon),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label, style: text.bodyLarge)),
+        ],
       ),
+    );
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+      children: [
+        const GardenHeader(
+          eyebrow: 'Attendance Register',
+          title: 'A little presence. A little growth.',
+        ),
+        const SizedBox(height: 20),
+        const GardenArt(),
+        const SizedBox(height: 20),
+        Text('Make room for your workday.', style: text.headlineSmall),
+        const SizedBox(height: 8),
+        Text(
+          'Keep your office days, time at home and leave in one peaceful '
+          'place.',
+          style: text.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+        ),
+        const SizedBox(height: 12),
+        feature(Icons.check_circle_outline, 'A clear view of your attendance'),
+        feature(
+          Icons.my_location_outlined,
+          'Automatic check-in, if you choose',
+        ),
+        feature(
+          Icons.track_changes_outlined,
+          'Progress towards your own target',
+        ),
+        const SizedBox(height: 20),
+        FilledButton(
+          onPressed: onAdd,
+          child: const Text('Add your first office'),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Start with an office name. Set up location later.',
+          textAlign: TextAlign.center,
+          style: text.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+        ),
+      ],
     );
   }
 }
@@ -368,6 +343,27 @@ class _Dashboard extends ConsumerWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(top: 8, bottom: 32),
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  DateFormat(
+                    'EEEE, d MMMM',
+                  ).format(DateTime.now()).toUpperCase(),
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Your month, gently growing.',
+                  style: Theme.of(context).textTheme.headlineLarge,
+                ),
+                const SizedBox(height: 20),
+                const GardenArt(),
+              ],
+            ),
+          ),
           // Office picker — only shown when more than one office exists.
           if (offices.length > 1)
             Padding(
@@ -405,10 +401,8 @@ class _Dashboard extends ConsumerWidget {
 
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: SizedBox(
-              // Keep the dashboard below this tile anchored while a newly
-              // selected month loads or renders longer labels.
-              height: 112,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 112),
               child: monthBreakdown.when(
                 loading: () => const Card(
                   margin: EdgeInsets.zero,
@@ -499,43 +493,52 @@ class _MobileTodayCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final color = status?.colorIn(context) ?? cs.primary;
-    final attended = status == DayStatus.attended;
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            CircleAvatar(
-              backgroundColor: color.withValues(alpha: 0.14),
-              child: Icon(status?.icon ?? Icons.today_outlined, color: color),
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: color.withValues(alpha: 0.14),
+                  child: Icon(
+                    status?.icon ?? Icons.today_outlined,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Today',
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                      Text(
+                        status?.label ?? 'Not recorded yet',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Today',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                  Text(
-                    status?.label ?? 'Not recorded yet',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 12),
+            if (status == null) ...[
+              FilledButton(
+                onPressed: onCheckIn,
+                child: const Text('Check in at the office'),
               ),
-            ),
-            if (status == null)
-              FilledButton(onPressed: onCheckIn, child: const Text('Check in'))
-            else if (attended)
-              const Icon(Icons.check_circle, color: AppColors.attendance)
-            else
-              TextButton(onPressed: onEdit, child: const Text('Edit')),
+              TextButton(
+                onPressed: onEdit,
+                child: const Text('Work from home or mark leave'),
+              ),
+            ] else
+              TextButton(onPressed: onEdit, child: const Text('Edit today')),
           ],
         ),
       ),
@@ -594,14 +597,10 @@ class _MobileProgressCard extends StatelessWidget {
                       children: [
                         Text(
                           'Return to office · $periodLabel',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
                         Text(
                           _subtitle(pct),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: cs.onSurfaceVariant),
                         ),
@@ -611,14 +610,16 @@ class _MobileProgressCard extends StatelessWidget {
                   SizedBox(
                     // Reserve room for values from “—” through “100%” so the
                     // text column does not resize as months change.
-                    width: 58,
+                    width: MediaQuery.textScalerOf(context).scale(64),
                     child: Text(
                       pct == null ? '—' : '${pct.round()}%',
                       textAlign: TextAlign.end,
                       maxLines: 1,
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
-                            fontWeight: FontWeight.w800,
+                            fontFamily: 'DM Sans',
+                            fontWeight: FontWeight.w600,
+                            fontFeatures: const [FontFeature.tabularFigures()],
                             color: cs.primary,
                           ),
                     ),

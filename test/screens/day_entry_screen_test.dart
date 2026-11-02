@@ -161,7 +161,7 @@ void main() {
 
     await pumpEntryScreen(tester);
 
-    await tester.tap(find.text('Remove Entry'));
+    await tester.tap(find.text('Remove this entry'));
     await tester.pumpAndSettle();
     // Confirm in the dialog.
     await tester.tap(find.text('Remove'));
@@ -193,7 +193,7 @@ void main() {
   testWidgets('the date picker offers future dates', (tester) async {
     await pumpEntryScreen(tester);
 
-    await tester.tap(find.text('June 10, 2026'));
+    await tester.tap(find.text('Wednesday, 10 June 2026'));
     await tester.pumpAndSettle();
 
     // A day well past today must be selectable, otherwise leave can only ever
@@ -219,7 +219,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text(DateFormat('MMMM d, yyyy').format(future)),
+      find.text(DateFormat('EEEE, d MMMM yyyy').format(future)),
       findsOneWidget,
     );
     expect(find.text('Planned ahead'), findsOneWidget);
@@ -242,7 +242,7 @@ void main() {
   testWidgets('the date picker refuses weekends', (tester) async {
     await pumpEntryScreen(tester);
 
-    await tester.tap(find.text('June 10, 2026'));
+    await tester.tap(find.text('Wednesday, 10 June 2026'));
     await tester.pumpAndSettle();
 
     // June 13 2026 is a Saturday; the calendar grid shows it disabled.
@@ -251,7 +251,7 @@ void main() {
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
 
-    expect(find.text('June 10, 2026'), findsOneWidget);
-    expect(find.text('June 13, 2026'), findsNothing);
+    expect(find.text('Wednesday, 10 June 2026'), findsOneWidget);
+    expect(find.text('Saturday, 13 June 2026'), findsNothing);
   });
 }

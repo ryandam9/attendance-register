@@ -13,6 +13,8 @@ import '../models/attendance_record.dart';
 import '../models/office_location.dart';
 import '../models/special_day.dart';
 import '../services/database_service.dart';
+import '../widgets/day_status_grid.dart';
+import '../widgets/garden_tag.dart';
 import '../widgets/responsive_body.dart';
 
 /// Unified screen for marking a day. For any weekday — past, today, or a
@@ -45,7 +47,7 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
   bool _loading = false;
   bool _dirty = false;
 
-  static final _displayFmt = DateFormat('MMMM d, yyyy');
+  static final _displayFmt = DateFormat('EEEE, d MMMM yyyy');
   static final _keyFmt = DateFormat('yyyy-MM-dd');
 
   bool get _hasExisting =>
@@ -195,6 +197,7 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     final isToday = isSameDay(_selectedDate, DateTime.now());
     final isPlanned = isPlannedDay(_selectedDate);
     final isWeekend = isWeekendDay(_selectedDate);
@@ -226,7 +229,6 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: !isDesktopPlatform,
-          title: const Text('Mark a Day'),
           actions: [
             if (isDesktopPlatform)
               IconButton(
@@ -246,158 +248,72 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
                   )
                 : SingleChildScrollView(
                     key: const ValueKey('content'),
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Card(
-                          child: ListTile(
-                            leading: Icon(
-                              Icons.business_outlined,
-                              color: cs.primary,
-                            ),
-                            title: Text(widget.office.name),
-                            subtitle: Text(
-                              widget.office.address,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                        Text(
+                          'MAKE IT YOURS',
+                          style: text.labelSmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                            letterSpacing: 1.4,
                           ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text('Mark a day.', style: text.headlineLarge),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: GardenTag(widget.office.name),
                         ),
                         const SizedBox(height: 20),
-                        Text(
-                          'Date',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 8),
-                        InkWell(
+                        _DateField(
+                          date: _displayFmt.format(_selectedDate),
+                          caption: isWeekend
+                              ? weekendNotMarkableMessage
+                              : isToday
+                              ? 'Today'
+                              : isPlanned
+                              ? 'Planned ahead'
+                              : null,
+                          captionIsError: isWeekend,
                           onTap: _pickDate,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: cs.outline),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.calendar_today_outlined,
-                                  color: cs.primary,
-                                ),
-                                const SizedBox(width: 12),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _displayFmt.format(_selectedDate),
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodyLarge,
-                                    ),
-                                    if (isWeekend)
-                                      Text(
-                                        weekendNotMarkableMessage,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color: cs.error,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                      )
-                                    else if (isToday || isPlanned)
-                                      Text(
-                                        isToday ? 'Today' : 'Planned ahead',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color: cs.primary,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                      ),
-                                  ],
-                                ),
-                                const Spacer(),
-                                Icon(
-                                  Icons.chevron_right,
-                                  color: cs.onSurfaceVariant,
-                                ),
-                              ],
-                            ),
-                          ),
                         ),
                         const SizedBox(height: 24),
-                        Text(
-                          'Status',
-                          style: Theme.of(context).textTheme.titleMedium,
+                        Text('Day type', style: text.titleMedium),
+                        const SizedBox(height: 10),
+                        DayStatusGrid(
+                          selected: _status,
+                          onChanged: (s) => setState(() {
+                            _status = s;
+                            _dirty = true;
+                          }),
                         ),
-                        const SizedBox(height: 8),
-                        for (final s in DayStatus.values) ...[
-                          if (s != DayStatus.values.first)
-                            const SizedBox(height: 8),
-                          _StatusOption(
-                            label: s.label,
-                            description: s.description,
-                            icon: s.icon,
-                            color: s.colorIn(context),
-                            selected: _status == s,
-                            onTap: () => setState(() {
-                              _status = s;
-                              _dirty = true;
-                            }),
-                          ),
-                        ],
-                        const SizedBox(height: 24),
-                        Text(
-                          'Comment',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Optional — add a note for this day.',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: cs.onSurfaceVariant),
-                        ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 20),
                         TextField(
                           controller: _commentController,
                           decoration: const InputDecoration(
-                            hintText:
-                                'e.g. Team meeting, doctor appointment, bank holiday…',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.notes_outlined),
+                            labelText: 'Note (optional)',
+                            hintText: 'Team planning, a doctor’s visit…',
                             alignLabelWithHint: true,
                           ),
                           maxLines: 3,
                           textCapitalization: TextCapitalization.sentences,
                         ),
-                        const SizedBox(height: 24),
-                        FilledButton.icon(
+                        const SizedBox(height: 20),
+                        FilledButton(
                           onPressed: _loading || isWeekend ? null : _save,
-                          icon: const Icon(Icons.save_outlined),
-                          label: Text(_hasExisting ? 'Update' : 'Save'),
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(48),
-                          ),
+                          child: Text(_hasExisting ? 'Update' : 'Save'),
                         ),
                         if (_hasExisting) ...[
-                          const SizedBox(height: 8),
-                          OutlinedButton.icon(
-                            onPressed: _remove,
-                            icon: Icon(Icons.delete_outline, color: cs.error),
-                            label: Text(
-                              'Remove Entry',
-                              style: TextStyle(color: cs.error),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: cs.error),
+                          const SizedBox(height: 4),
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              foregroundColor: cs.error,
                               minimumSize: const Size.fromHeight(48),
                             ),
+                            onPressed: _remove,
+                            child: const Text('Remove this entry'),
                           ),
                         ],
                       ],
@@ -410,72 +326,64 @@ class _DayEntryScreenState extends ConsumerState<DayEntryScreen> {
   }
 }
 
-/// A tappable, radio-style card for picking a [DayStatus]. The accent [color]
-/// matches the calendar dot used for that status.
-class _StatusOption extends StatelessWidget {
-  final String label;
-  final String description;
-  final IconData icon;
-  final Color color;
-  final bool selected;
+/// The tappable date row: the full date, an optional caption beneath it
+/// (Today, Planned ahead, or the weekend warning) and a calendar icon.
+class _DateField extends StatelessWidget {
+  final String date;
+  final String? caption;
+  final bool captionIsError;
   final VoidCallback onTap;
 
-  const _StatusOption({
-    required this.label,
-    required this.description,
-    required this.icon,
-    required this.color,
-    required this.selected,
+  const _DateField({
+    required this.date,
+    required this.caption,
+    required this.captionIsError,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final radius = BorderRadius.circular(16);
     return Material(
-      color: selected ? color.withValues(alpha: 0.12) : cs.surface,
-      borderRadius: BorderRadius.circular(12),
+      color: cs.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: radius,
+        side: BorderSide(color: cs.outlineVariant),
+      ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: selected ? color : cs.outline,
-              width: selected ? 2 : 1,
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
+        borderRadius: radius,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
           child: Row(
             children: [
-              Icon(icon, color: color),
-              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      label,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      description,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      'DATE',
+                      style: text.labelSmall?.copyWith(
                         color: cs.onSurfaceVariant,
+                        letterSpacing: 1.4,
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    Text(date, style: text.bodyLarge),
+                    if (caption != null)
+                      Text(
+                        caption!,
+                        style: text.bodySmall?.copyWith(
+                          color: captionIsError ? cs.error : cs.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                   ],
                 ),
               ),
-              Icon(
-                selected
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_unchecked,
-                color: selected ? color : cs.onSurfaceVariant,
-              ),
+              Icon(Icons.calendar_month_outlined, color: cs.primary),
             ],
           ),
         ),
