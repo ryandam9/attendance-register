@@ -57,6 +57,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   static final _dateFmt = DateFormat('EEEE, d MMMM yyyy');
   static final _keyFmt = DateFormat('yyyy-MM-dd');
   static final _timeFmt = DateFormat('h:mm a');
+  static const _autoCheckIn = 'Auto check-in';
 
   List<_HistoryItem> _items = const [];
   bool _loading = true;
@@ -458,7 +459,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final selected =
         selectedDate != null &&
         _keyFmt.format(item.date) == _keyFmt.format(selectedDate);
-    final hasNote = item.comment != null && item.comment!.isNotEmpty;
+    // "Auto check-in" is how the app labels days it recorded itself; it
+    // reads best beside the time rather than as a note of its own.
+    final isAuto = item.comment == _autoCheckIn;
+    final hasNote = !isAuto && item.comment != null && item.comment!.isNotEmpty;
+    final detail = [
+      if (item.time case final time?) _timeFmt.format(time),
+      if (isAuto) _autoCheckIn,
+    ].join(' · ');
     final title = [
       DateFormat('EEEE').format(item.date),
       if (isToday) 'Today' else if (isPlanned) 'Planned',
@@ -522,7 +530,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                               color: color,
                               icon: item.status.icon,
                             ),
-                            if (item.time case final time?)
+                            if (detail.isNotEmpty)
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -532,11 +540,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                     color: cs.onSurfaceVariant,
                                   ),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    _timeFmt.format(time),
-                                    style: text.bodySmall?.copyWith(
-                                      color: cs.onSurfaceVariant,
-                                      fontWeight: FontWeight.w600,
+                                  Flexible(
+                                    child: Text(
+                                      detail,
+                                      style: text.bodySmall?.copyWith(
+                                        color: cs.onSurfaceVariant,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],
