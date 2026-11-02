@@ -12,6 +12,7 @@ import 'package:attendance_register/screens/setup_screen.dart';
 import 'package:attendance_register/screens/settings_screen.dart';
 import 'package:attendance_register/screens/theme_screen.dart';
 import 'package:attendance_register/services/database_service.dart';
+import 'package:attendance_register/themes/app_font.dart';
 import 'package:attendance_register/themes/garden_theme.dart';
 import 'package:attendance_register/widgets/quick_mark_sheet.dart';
 import 'package:flutter/material.dart';
@@ -451,6 +452,48 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  for (final font in AppFont.values) {
+    testWidgets('Home fits 320px at 2x text in ${font.label}', (tester) async {
+      tester.view.physicalSize = const Size(320, 720);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await db.insertOfficeLocation(
+        const OfficeLocation(
+          name: 'Melbourne Studio',
+          address: '',
+          latitude: 0,
+          longitude: 0,
+        ),
+      );
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await container.read(officeProvider.notifier).load();
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: gardenTheme(Brightness.light, font),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(2)),
+              child: child!,
+            ),
+            home: const HomeScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Calendar legend'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
   testWidgets('Appearance preserves theme mode and hides legacy palettes', (
     tester,
   ) async {
@@ -470,6 +513,13 @@ void main() {
     await tester.tap(find.text('Dark'));
     await tester.pumpAndSettle();
     expect(container.read(settingsProvider).themeMode, ThemeMode.dark);
+
+    // Every bundled font is offered, and choosing one is saved.
+    await tester.ensureVisible(find.text('Nunito'));
+    await tester.tap(find.text('Nunito'));
+    await tester.pumpAndSettle();
+    expect(container.read(settingsProvider).font, AppFont.nunito);
+    expect(find.text('Figtree (default)'), findsOneWidget);
     expect(find.text('Match my wallpaper'), findsNothing);
     expect(find.text('Rainbow Bee-eater'), findsNothing);
     await tester.pumpWidget(const SizedBox());

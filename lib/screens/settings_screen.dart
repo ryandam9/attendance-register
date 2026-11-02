@@ -886,7 +886,7 @@ class _MobileSettings extends ConsumerWidget {
       _NavRow(
         icon: Icons.palette_outlined,
         title: 'Appearance',
-        subtitle: 'Garden theme · $mode',
+        subtitle: '$mode · ${settings.font.label}',
         onTap: () => open(const ThemeScreen()),
       ),
       _NavRow(

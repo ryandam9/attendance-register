@@ -653,7 +653,11 @@ class _MobileProgressCard extends StatelessWidget {
                       maxLines: 1,
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
-                            fontFamily: 'DM Sans',
+                            // Numbers use the body font, even when
+                            // headings are serif.
+                            fontFamily: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.fontFamily,
                             fontWeight: FontWeight.w600,
                             fontFeatures: const [FontFeature.tabularFigures()],
                             color: cs.primary,

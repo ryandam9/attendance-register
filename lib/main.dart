@@ -13,6 +13,7 @@ import 'screens/main_shell.dart';
 import 'services/database_service.dart';
 import 'services/location_service.dart';
 import 'services/notification_service.dart';
+import 'themes/app_font.dart';
 import 'themes/garden_theme.dart';
 
 void main() async {
@@ -40,8 +41,10 @@ void main() async {
   }
 
   LicenseRegistry.addLicense(() async* {
-    final licence = await rootBundle.loadString('assets/fonts/DMSans-OFL.txt');
-    yield LicenseEntryWithLineBreaks(['DM Sans'], licence);
+    for (final MapEntry(key: family, value: file) in bundledFontFiles.entries) {
+      final licence = await rootBundle.loadString('assets/fonts/$file-OFL.txt');
+      yield LicenseEntryWithLineBreaks([family], licence);
+    }
   });
 
   runApp(const ProviderScope(child: AttendanceApp()));
@@ -57,8 +60,8 @@ class AttendanceApp extends ConsumerWidget {
     return MaterialApp(
       title: 'Office Attendance',
       debugShowCheckedModeBanner: false,
-      theme: gardenTheme(Brightness.light),
-      darkTheme: gardenTheme(Brightness.dark),
+      theme: gardenTheme(Brightness.light, settings.font),
+      darkTheme: gardenTheme(Brightness.dark, settings.font),
       themeMode: settings.themeMode,
       home: const MainShell(),
     );

@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
+import 'app_font.dart';
 
 /// A single botanical identity, independent of previously saved bird palettes.
-ThemeData gardenTheme(Brightness brightness) {
+ThemeData gardenTheme(
+  Brightness brightness, [
+  AppFont font = AppFont.fallback,
+]) {
   final dark = brightness == Brightness.dark;
   final seeded = ColorScheme.fromSeed(
     seedColor: const Color(0xFF315741),
@@ -57,10 +61,10 @@ ThemeData gardenTheme(Brightness brightness) {
   final base = ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    fontFamily: 'DM Sans',
+    fontFamily: font.body,
   );
   TextStyle? heading(TextStyle? style) => style?.copyWith(
-    fontFamily: 'DM Sans',
+    fontFamily: font.headingFamily,
     fontWeight: FontWeight.w500,
     letterSpacing: -0.4,
   );
