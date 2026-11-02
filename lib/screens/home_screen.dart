@@ -305,7 +305,6 @@ class _Dashboard extends ConsumerWidget {
     final sp = ref.watch(specialDayProvider);
     final settings = ref.watch(settingsProvider);
     final focusedDay = ref.watch(calendarFocusProvider);
-    final calendarFormat = ref.watch(calendarFormatProvider);
 
     // O(1) status lookup per calendar cell. Attendance wins over a special day
     // (matching the precedence used everywhere else).
@@ -443,13 +442,14 @@ class _Dashboard extends ConsumerWidget {
               firstDay: DateTime(2020),
               lastDay: DateTime(DateTime.now().year + 5, 12, 31),
               focusedDay: focusedDay,
-              calendarFormat: calendarFormat,
+              // Always the full month: vertical swipes would otherwise
+              // shrink it to two weeks or one week.
+              calendarFormat: CalendarFormat.month,
+              availableGestures: AvailableGestures.horizontalSwipe,
               startingDayOfWeek: StartingDayOfWeek.monday,
               // A fixed six-row grid prevents the content below the calendar
               // jumping when moving between four-, five- and six-week months.
               sixWeekMonthsEnforced: true,
-              onFormatChanged: (f) =>
-                  ref.read(calendarFormatProvider.notifier).set(f),
               onPageChanged: onPageChanged,
               selectedDayPredicate: (_) => false,
               // Future days are tappable too: leave that is already booked
@@ -460,6 +460,8 @@ class _Dashboard extends ConsumerWidget {
                     dayCell(day, isToday: false),
                 todayBuilder: (context, day, _) => dayCell(day, isToday: true),
               ),
+              // Only this month's dates; neighbouring months' days are blank.
+              calendarStyle: const CalendarStyle(outsideDaysVisible: false),
               headerStyle: const HeaderStyle(
                 formatButtonVisible: false,
                 titleCentered: true,
@@ -843,7 +845,6 @@ class _CalendarCard extends ConsumerWidget {
     final ap = ref.watch(attendanceProvider);
     final sp = ref.watch(specialDayProvider);
     final focusedDay = ref.watch(calendarFocusProvider);
-    final calendarFormat = ref.watch(calendarFormatProvider);
 
     final attendedKeys = ap.attendanceDateKeys;
     final specialTypes = sp.typeByDate;
@@ -866,11 +867,10 @@ class _CalendarCard extends ConsumerWidget {
         firstDay: DateTime(2020),
         lastDay: DateTime(DateTime.now().year + 5, 12, 31),
         focusedDay: focusedDay,
-        calendarFormat: calendarFormat,
+        calendarFormat: CalendarFormat.month,
+        availableGestures: AvailableGestures.horizontalSwipe,
         startingDayOfWeek: StartingDayOfWeek.monday,
         sixWeekMonthsEnforced: true,
-        onFormatChanged: (f) =>
-            ref.read(calendarFormatProvider.notifier).set(f),
         onPageChanged: onPageChanged,
         selectedDayPredicate: (_) => false,
         // Future days are tappable too — see the phone calendar above.
@@ -879,6 +879,7 @@ class _CalendarCard extends ConsumerWidget {
           defaultBuilder: (context, day, _) => dayCell(day, isToday: false),
           todayBuilder: (context, day, _) => dayCell(day, isToday: true),
         ),
+        calendarStyle: const CalendarStyle(outsideDaysVisible: false),
         headerStyle: const HeaderStyle(
           formatButtonVisible: false,
           titleCentered: true,

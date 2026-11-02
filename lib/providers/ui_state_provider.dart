@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:table_calendar/table_calendar.dart';
 
 /// Ephemeral UI state that must survive tab switches. The tab shell rebuilds
 /// each tab from scratch when it's selected (so data is always fresh), which
@@ -26,14 +25,3 @@ class CalendarFocusNotifier extends Notifier<DateTime> {
 final calendarFocusProvider = NotifierProvider<CalendarFocusNotifier, DateTime>(
   CalendarFocusNotifier.new,
 );
-
-class CalendarFormatNotifier extends Notifier<CalendarFormat> {
-  @override
-  CalendarFormat build() => CalendarFormat.month;
-  void set(CalendarFormat format) => state = format;
-}
-
-final calendarFormatProvider =
-    NotifierProvider<CalendarFormatNotifier, CalendarFormat>(
-      CalendarFormatNotifier.new,
-    );
