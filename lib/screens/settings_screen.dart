@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../build_info.dart';
+import '../helpers/export_history.dart';
 import '../helpers/layout.dart';
 import '../helpers/route_helper.dart';
 import '../models/office_location.dart';
@@ -15,7 +16,6 @@ import '../providers/office_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/special_day_provider.dart';
 import '../services/database_service.dart';
-import '../services/export_saver.dart';
 import '../services/export_service.dart';
 import '../services/holiday_service.dart';
 import '../widgets/desktop_page.dart';
@@ -234,7 +234,9 @@ _Sections _buildSections(BuildContext context, WidgetRef ref) {
       : null;
 
   final data = <Widget>[
-    _ExcelExportTile(onExport: () => _exportExcel(context)),
+    // Desktop exports from History's Export button instead.
+    if (!isDesktopPlatform)
+      _ExcelExportTile(onExport: () => exportHistoryAsExcel(context)),
     ListTile(
       leading: const Icon(Icons.file_download_outlined),
       title: const Text('Copy All Data (CSV)'),
@@ -297,55 +299,6 @@ _Sections _buildSections(BuildContext context, WidgetRef ref) {
     data: data,
     about: about,
   );
-}
-
-Future<void> _exportExcel(BuildContext context) async {
-  final messenger = ScaffoldMessenger.of(context);
-  final result = await ExportService.buildXlsx();
-  if (result.rows == 0) {
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Nothing to export yet.'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    return;
-  }
-  final now = DateTime.now();
-  final stamp =
-      '${now.year}-${now.month.toString().padLeft(2, '0')}-'
-      '${now.day.toString().padLeft(2, '0')}';
-  final saved = await ExportSaver.saveXlsx(
-    result.bytes,
-    suggestedName: 'attendance-register-complete-history-$stamp.xlsx',
-  );
-  final entries =
-      '${result.rows} history ${result.rows == 1 ? 'entry' : 'entries'}';
-  switch (saved.outcome) {
-    case SaveOutcome.saved:
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Saved $entries to ${saved.path}'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    case SaveOutcome.shared:
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Exported $entries.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    case SaveOutcome.cancelled:
-      break;
-    case SaveOutcome.error:
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Could not save the file.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-  }
 }
 
 Future<void> _exportData(BuildContext context) async {
