@@ -2,24 +2,19 @@ import 'package:flutter/material.dart';
 
 /// Semantic colour tokens shared across the whole app.
 ///
-/// These are the exact Feathers "Rainbow Bee-eater" status colours — kept in
-/// one place so calendar dots, chips, the day-entry selector and the Insights
-/// legend all stay in sync. Each status also carries an icon + label elsewhere
-/// (see day_type_helper.dart) so meaning never relies on colour alone.
+/// Botanical status colours shared by calendars, chips and charts. Each status
+/// also has an icon and label, so meaning never depends on colour alone.
 abstract final class AppColors {
-  static const Color attendance = Color(0xFF6D8600); // olive green
-  static const Color holiday = Color(0xFF007CBF); // bright blue
-  static const Color sickLeave = Color(0xFFF5A200); // orange
-  static const Color annualLeave = Color(0xFF7090C9); // soft blue-purple
-  static const Color carersLeave = Color(0xFF3EBCB6); // teal
-  static const Color workFromHome = Color(0xFFBD338F); // magenta
-  static const Color miscLeave = Color(0xFF727B98); // grey-slate
+  static const Color attendance = Color(0xFF486338); // olive green
+  static const Color holiday = Color(0xFF37627B); // dusty blue
+  static const Color sickLeave = Color(0xFF815625); // warm ochre
+  static const Color annualLeave = Color(0xFF5E5781); // soft blue-purple
+  static const Color carersLeave = Color(0xFF2B655D); // teal
+  static const Color workFromHome = Color(0xFF7C5363); // muted rose
+  static const Color miscLeave = Color(0xFF58616E); // grey-slate
 }
 
-/// Day-type colours as a theme extension, so dark mode can use brighter
-/// shades (the light palette above is tuned for white surfaces and loses
-/// pop on dark ones). Look up via `Theme.of(context).extension<DayTypeColors>()`
-/// or the `colorIn(context)` helpers in day_type_helper.dart.
+/// Status colours adapted to light paper and dark charcoal surfaces.
 @immutable
 class DayTypeColors extends ThemeExtension<DayTypeColors> {
   final Color attendance;
@@ -50,16 +45,15 @@ class DayTypeColors extends ThemeExtension<DayTypeColors> {
     miscLeave: AppColors.miscLeave,
   );
 
-  // Brighter shades of the Feathers status colours, lifted for legibility on
-  // the dark navy surfaces (#061522 / #0B2236) without becoming neon.
+  // Soft, distinct accents with sufficient contrast on charcoal surfaces.
   static const dark = DayTypeColors(
-    attendance: Color(0xFFAFD135), // lifted olive
-    holiday: Color(0xFF45B6E8), // lifted bright blue
-    sickLeave: Color(0xFFFFC04D), // lifted orange
-    annualLeave: Color(0xFF9DB4E0), // lifted blue-purple
-    carersLeave: Color(0xFF5FD6CF), // lifted teal
-    workFromHome: Color(0xFFE673BD), // lifted magenta
-    miscLeave: Color(0xFF9AA3BC), // lifted grey-slate
+    attendance: Color(0xFFACC69B), // soft sage
+    holiday: Color(0xFF9EBFD2), // dusty sky
+    sickLeave: Color(0xFFDCB783), // lifted orange
+    annualLeave: Color(0xFFBAB2D6), // lifted blue-purple
+    carersLeave: Color(0xFF9BC9BD), // lifted teal
+    workFromHome: Color(0xFFD2A6B6), // soft rose
+    miscLeave: Color(0xFFB5BDC9), // lifted grey-slate
   );
 
   @override
