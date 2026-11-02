@@ -10,16 +10,8 @@ import '../models/attendance_breakdown.dart';
 import '../models/special_day.dart';
 import '../providers/explain_provider.dart';
 
-Widget _sectionTitle(BuildContext context, IconData icon, String text) {
-  final cs = Theme.of(context).colorScheme;
-  return Row(
-    children: [
-      Icon(icon, size: 18, color: cs.primary),
-      const SizedBox(width: 8),
-      Text(text, style: Theme.of(context).textTheme.titleMedium),
-    ],
-  );
-}
+Widget _sectionTitle(BuildContext context, String text) =>
+    Text(text, style: Theme.of(context).textTheme.titleMedium);
 
 // ── Work-style donut ──────────────────────────────────────────────────────────
 
@@ -64,11 +56,7 @@ class BreakdownDonut extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _sectionTitle(
-              context,
-              Icons.donut_large_outlined,
-              'Work style breakdown',
-            ),
+            _sectionTitle(context, 'How your days were spent'),
             if (total > 0) ...[
               const SizedBox(height: 4),
               Text(
@@ -93,9 +81,9 @@ class BreakdownDonut extends StatelessWidget {
                 ),
               )
             else
-              Row(
-                children: [
-                  Semantics(
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final donut = Semantics(
                     image: true,
                     label:
                         'Work style chart. ${segments.map((s) => '${s.label}: ${s.value} days').join(', ')}.',
@@ -131,43 +119,62 @@ class BreakdownDonut extends StatelessWidget {
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (final seg in segments)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: seg.color,
-                                    shape: BoxShape.circle,
-                                  ),
+                  );
+                  final legend = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final seg in segments)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: seg.color,
+                                  shape: BoxShape.circle,
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(child: Text(seg.label)),
-                                Text(
-                                  '${seg.value} · ${(seg.value / total * 100).toStringAsFixed(1)}%',
-                                  style: Theme.of(context).textTheme.labelMedium
-                                      ?.copyWith(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                      ),
-                                ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(seg.label)),
+                              Text(
+                                '${seg.value} · ${(seg.value / total * 100).toStringAsFixed(1)}%',
+                                style: Theme.of(context).textTheme.labelMedium
+                                    ?.copyWith(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                    ),
+                              ),
+                            ],
                           ),
+                        ),
+                    ],
+                  );
+                  // Side by side when the legend has room; stacked on narrow
+                  // screens or with large text.
+                  final legendWidth = MediaQuery.textScalerOf(
+                    context,
+                  ).scale(180);
+                  if (constraints.maxWidth >= 140 + legendWidth) {
+                    return Row(
+                      children: [
+                        donut,
+                        const SizedBox(width: 20),
+                        Expanded(child: legend),
                       ],
-                    ),
-                  ),
-                ],
+                    );
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(child: donut),
+                      const SizedBox(height: 16),
+                      legend,
+                    ],
+                  );
+                },
               ),
           ],
         ),
@@ -239,7 +246,7 @@ class TrendCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _sectionTitle(context, Icons.show_chart, 'Trend (last 8 weeks)'),
+            _sectionTitle(context, 'Your weekly rhythm · last 8 weeks'),
             const SizedBox(height: 16),
             trend.when(
               loading: () => const SizedBox(

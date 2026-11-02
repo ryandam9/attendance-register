@@ -8,8 +8,11 @@ import '../helpers/day_type_helper.dart';
 import '../helpers/layout.dart';
 import '../models/special_day.dart';
 import '../providers/office_provider.dart';
+import '../providers/ui_state_provider.dart';
 import '../services/database_service.dart';
 import '../widgets/desktop_page.dart';
+import '../widgets/garden_art.dart';
+import '../widgets/garden_header.dart';
 import '../widgets/no_office_placeholder.dart';
 import '../widgets/quick_mark_sheet.dart';
 import '../widgets/responsive_body.dart';
@@ -39,7 +42,7 @@ class HistoryScreen extends ConsumerStatefulWidget {
 }
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
-  static final _dateFmt = DateFormat('EEE, MMM d, yyyy');
+  static final _dateFmt = DateFormat('EEEE, d MMMM yyyy');
   static final _keyFmt = DateFormat('yyyy-MM-dd');
 
   List<_HistoryItem> _items = const [];
@@ -144,19 +147,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
     Widget results({required bool desktop}) {
       if (_loading) return const Center(child: CircularProgressIndicator());
-      if (_items.isEmpty) return const _EmptyHistory();
-      if (visibleItems.isEmpty) {
-        return const _EmptyHistory(
-          title: 'No matching days',
-          message: 'Try another filter or search term.',
+      if (_items.isEmpty) {
+        return SingleChildScrollView(
+          child: _EmptyHistory(
+            onMarkToday: _markToday,
+            onOpenCalendar: _openCalendar,
+          ),
         );
       }
-      if (!desktop) {
-        return RefreshIndicator(
-          onRefresh: _load,
-          child: _list(items: visibleItems, onTap: _openEntry),
-        );
-      }
+      if (visibleItems.isEmpty) return const _NoMatches();
 
       final selected = visibleItems.contains(_selected)
           ? _selected!
@@ -241,68 +240,127 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('History')),
       body: ResponsiveBody(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (!_loading && _items.isNotEmpty) _controls(),
-            Expanded(child: animatedResults(desktop: false)),
-          ],
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: _mobileList(visibleItems),
         ),
       ),
     );
   }
 
+  Widget _mobileList(List<_HistoryItem> items) {
+    final empty = !_loading && _items.isEmpty;
+    final header = Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GardenHeader(
+            eyebrow: 'Your work journal',
+            title: empty ? 'A fresh beginning.' : 'Days, remembered.',
+          ),
+          if (!_loading && _items.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _controls(),
+          ],
+        ],
+      ),
+    );
+    final Widget? placeholder = _loading
+        ? const Padding(
+            padding: EdgeInsets.all(48),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        : empty
+        ? _EmptyHistory(onMarkToday: _markToday, onOpenCalendar: _openCalendar)
+        : items.isEmpty
+        ? const _NoMatches()
+        : null;
+    // Rows plus a closing hint beneath them.
+    final count = placeholder != null ? 2 : items.length + 2;
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 32),
+      itemCount: count,
+      itemBuilder: (context, i) {
+        if (i == 0) return header;
+        if (placeholder != null) return placeholder;
+        if (i == count - 1) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            child: Text(
+              'Tap an entry to view its note or make a correction.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          );
+        }
+        return _row(items, i - 1, onTap: _openEntry);
+      },
+    );
+  }
+
+  Future<void> _markToday() async {
+    final office = ref.read(officeProvider).selectedOffice;
+    if (office == null) return;
+    final changed = await showQuickMarkSheet(
+      context,
+      office: office,
+      date: DateTime.now(),
+    );
+    if (changed && mounted) await _load();
+  }
+
+  void _openCalendar() => ref.read(tabIndexProvider.notifier).set(0);
+
   Widget _controls() {
     final labels = {
       _HistoryFilter.all: 'All',
       _HistoryFilter.office: 'Office',
-      _HistoryFilter.workFromHome: 'WFH',
+      _HistoryFilter.workFromHome: 'Home',
       _HistoryFilter.leaveAndHoliday: 'Leave & holidays',
     };
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(
-            controller: _searchController,
-            onChanged: (value) => setState(() => _query = value),
-            decoration: InputDecoration(
-              hintText: 'Search dates, statuses or notes',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _query.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: 'Clear search',
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _query = '');
-                      },
-                      icon: const Icon(Icons.clear),
-                    ),
-              border: const OutlineInputBorder(),
-              isDense: true,
-            ),
-          ),
-          const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final filter in _HistoryFilter.values) ...[
-                  FilterChip(
-                    label: Text(labels[filter]!),
-                    selected: _filter == filter,
-                    onSelected: (_) => setState(() => _filter = filter),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _searchController,
+          onChanged: (value) => setState(() => _query = value),
+          decoration: InputDecoration(
+            hintText: 'Search dates, statuses or notes',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _query.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: 'Clear search',
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() => _query = '');
+                    },
+                    icon: const Icon(Icons.clear),
                   ),
-                  if (filter != _HistoryFilter.values.last)
-                    const SizedBox(width: 8),
-                ],
-              ],
-            ),
+            isDense: true,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 10),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final filter in _HistoryFilter.values) ...[
+                FilterChip(
+                  label: Text(labels[filter]!),
+                  selected: _filter == filter,
+                  onSelected: (_) => setState(() => _filter = filter),
+                ),
+                if (filter != _HistoryFilter.values.last)
+                  const SizedBox(width: 8),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -311,72 +369,112 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     required ValueChanged<_HistoryItem> onTap,
     DateTime? selectedDate,
   }) {
-    final cs = Theme.of(context).colorScheme;
-    final monthFmt = DateFormat('MMMM yyyy');
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: items.length,
-      itemBuilder: (context, i) {
-        final item = items[i];
-        final showMonth =
-            i == 0 ||
-            item.date.year != items[i - 1].date.year ||
-            item.date.month != items[i - 1].date.month;
-        final color = item.status.colorIn(context);
-        final isToday =
-            _keyFmt.format(item.date) == _keyFmt.format(DateTime.now());
-        // Days entered ahead of time sort above today (newest first), so they
-        // are labelled to keep them apart from days that actually happened.
-        final isPlanned = isPlannedDay(item.date);
-        final selected =
-            selectedDate != null &&
-            _keyFmt.format(item.date) == _keyFmt.format(selectedDate);
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (showMonth)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-                child: Text(
-                  monthFmt.format(item.date),
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: cs.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+      itemBuilder: (context, i) =>
+          _row(items, i, onTap: onTap, selectedDate: selectedDate),
+    );
+  }
+
+  /// One journal row — day number tile, "Friday · Office", the note — with
+  /// a month eyebrow above the first row of each month.
+  Widget _row(
+    List<_HistoryItem> items,
+    int i, {
+    required ValueChanged<_HistoryItem> onTap,
+    DateTime? selectedDate,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final item = items[i];
+    final showMonth =
+        i == 0 ||
+        item.date.year != items[i - 1].date.year ||
+        item.date.month != items[i - 1].date.month;
+    final lastInMonth =
+        i == items.length - 1 ||
+        item.date.year != items[i + 1].date.year ||
+        item.date.month != items[i + 1].date.month;
+    final isToday = _keyFmt.format(item.date) == _keyFmt.format(DateTime.now());
+    // Days entered ahead of time sort above today (newest first), so they
+    // are labelled to keep them apart from days that actually happened.
+    final isPlanned = isPlannedDay(item.date);
+    final selected =
+        selectedDate != null &&
+        _keyFmt.format(item.date) == _keyFmt.format(selectedDate);
+    final hasNote = item.comment != null && item.comment!.isNotEmpty;
+    final title = [
+      DateFormat('EEEE').format(item.date),
+      item.status.label,
+      if (isToday) 'Today' else if (isPlanned) 'Planned',
+    ].join(' · ');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (showMonth)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
+            child: Text(
+              DateFormat('MMMM yyyy').format(item.date).toUpperCase(),
+              style: text.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant,
+                letterSpacing: 1.4,
               ),
-            ListTile(
-              selected: selected,
-              selectedTileColor: cs.primaryContainer.withValues(alpha: 0.35),
-              leading: CircleAvatar(
-                backgroundColor: color.withValues(alpha: 0.15),
-                child: Icon(item.status.icon, color: color),
-              ),
-              title: Text(
-                isPlanned
-                    ? '${_dateFmt.format(item.date)} · Planned'
-                    : _dateFmt.format(item.date),
-                style: TextStyle(
-                  fontWeight: isToday ? FontWeight.bold : FontWeight.w500,
-                ),
-              ),
-              subtitle: (item.comment != null && item.comment!.isNotEmpty)
-                  ? Text(
-                      item.comment!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    )
-                  : null,
-              trailing: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 112),
-                child: _StatusChip(label: item.status.label, color: color),
-              ),
-              onTap: () => onTap(item),
             ),
-            if (i != items.length - 1) const Divider(height: 1, indent: 72),
-          ],
-        );
-      },
+          ),
+        Material(
+          color: selected
+              ? cs.primaryContainer.withValues(alpha: 0.5)
+              : Colors.transparent,
+          child: InkWell(
+            onTap: () => onTap(item),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                border: lastInMonth
+                    ? null
+                    : Border(bottom: BorderSide(color: cs.outlineVariant)),
+              ),
+              child: Row(
+                children: [
+                  GardenIconTile(
+                    color: item.status.colorIn(context),
+                    label: DateFormat('dd').format(item.date),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: text.bodyLarge?.copyWith(
+                            fontWeight: isToday
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                        if (hasNote)
+                          Text(
+                            item.comment!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: text.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -472,40 +570,69 @@ class _StatusChip extends StatelessWidget {
 }
 
 class _EmptyHistory extends StatelessWidget {
-  final String title;
-  final String message;
+  final VoidCallback onMarkToday;
+  final VoidCallback onOpenCalendar;
   const _EmptyHistory({
-    this.title = 'No History Yet',
-    this.message =
-        'Days you mark as attended, holiday, leave or work from home will appear here.',
+    required this.onMarkToday,
+    required this.onOpenCalendar,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.history,
-              size: 72,
-              color: cs.primary.withValues(alpha: 0.4),
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const GardenArt(),
+          const SizedBox(height: 20),
+          Text('Your story starts with a day.', style: text.headlineSmall),
+          const SizedBox(height: 8),
+          Text(
+            'No entries yet for this office. Record today or choose an '
+            'earlier day from your calendar.',
+            style: text.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 20),
+          FilledButton(onPressed: onMarkToday, child: const Text('Mark today')),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: onOpenCalendar,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              shape: const StadiumBorder(),
             ),
-            const SizedBox(height: 16),
-            Text(title, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: cs.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-          ],
-        ),
+            child: const Text('Open calendar'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoMatches extends StatelessWidget {
+  const _NoMatches();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 40, 20, 0),
+      child: Column(
+        children: [
+          Icon(Icons.search_off, size: 40, color: cs.onSurfaceVariant),
+          const SizedBox(height: 12),
+          Text('No matching days', style: text.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            'Try another filter or search term.',
+            textAlign: TextAlign.center,
+            style: text.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+          ),
+        ],
       ),
     );
   }
