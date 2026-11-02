@@ -108,7 +108,7 @@ class SettingsScreen extends ConsumerWidget {
       ListTile(
         leading: const Icon(Icons.palette_outlined),
         title: const Text('Theme & Dark Mode'),
-        subtitle: const Text('Bird palettes, Material You, light/dark'),
+        subtitle: const Text('Garden theme · Light, dark, or system'),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => openAdaptivePage(
           context,
@@ -120,8 +120,8 @@ class SettingsScreen extends ConsumerWidget {
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
         child: Text(
-          'Bird colour palettes inspired by shandiya/feathers '
-          '(github.com/shandiya/feathers), reinterpreted with a different style.',
+          'A calm garden theme, with light and dark appearances. '
+          '',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
