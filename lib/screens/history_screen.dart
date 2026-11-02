@@ -57,7 +57,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   static final _dateFmt = DateFormat('EEEE, d MMMM yyyy');
   static final _keyFmt = DateFormat('yyyy-MM-dd');
   static final _timeFmt = DateFormat('h:mm a');
-  static const _autoCheckIn = 'Auto check-in';
 
   List<_HistoryItem> _items = const [];
   bool _loading = true;
@@ -463,10 +462,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     // reads best beside the time rather than as a note of its own.
     final isAuto = item.comment == _autoCheckIn;
     final hasNote = !isAuto && item.comment != null && item.comment!.isNotEmpty;
-    final detail = [
-      if (item.time case final time?) _timeFmt.format(time),
-      if (isAuto) _autoCheckIn,
-    ].join(' · ');
     final title = [
       DateFormat('EEEE').format(item.date),
       if (isToday) 'Today' else if (isPlanned) 'Planned',
@@ -520,38 +515,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            _StatusChip(
-                              label: item.status.label,
-                              color: color,
-                              icon: item.status.icon,
-                            ),
-                            if (detail.isNotEmpty)
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.schedule,
-                                    size: 14,
-                                    color: cs.onSurfaceVariant,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Flexible(
-                                    child: Text(
-                                      detail,
-                                      style: text.bodySmall?.copyWith(
-                                        color: cs.onSurfaceVariant,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                          ],
+                        _StatusLine(
+                          status: item.status,
+                          color: color,
+                          isAuto: isAuto,
+                          time: item.time == null
+                              ? null
+                              : _timeFmt.format(item.time!),
                         ),
                         if (hasNote) ...[
                           const SizedBox(height: 4),
@@ -650,6 +620,80 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 }
+
+/// The status tag, "Auto check-in" when the app recorded the day itself,
+/// and the check-in time at the right end. With little room (narrow screens
+/// or large text) the pieces wrap instead.
+class _StatusLine extends StatelessWidget {
+  final DayStatus status;
+  final Color color;
+  final bool isAuto;
+  final String? time;
+
+  const _StatusLine({
+    required this.status,
+    required this.color,
+    required this.isAuto,
+    required this.time,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: cs.onSurfaceVariant,
+      fontWeight: FontWeight.w600,
+    );
+    final tag = _StatusChip(
+      label: status.label,
+      color: color,
+      icon: status.icon,
+    );
+    final auto = isAuto ? Text(_autoCheckIn, style: style) : null;
+    final clock = time == null
+        ? null
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.schedule, size: 14, color: cs.onSurfaceVariant),
+              const SizedBox(width: 4),
+              Text(time!, style: style),
+            ],
+          );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scale = MediaQuery.textScalerOf(context).scale(1);
+        if (constraints.maxWidth / scale < 230) {
+          return Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [tag, ?auto, ?clock],
+          );
+        }
+        return Row(
+          children: [
+            Flexible(child: tag),
+            const SizedBox(width: 8),
+            Expanded(
+              child: auto == null
+                  ? const SizedBox.shrink()
+                  : Text(
+                      _autoCheckIn,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: style,
+                    ),
+            ),
+            if (clock != null) ...[const SizedBox(width: 8), clock],
+          ],
+        );
+      },
+    );
+  }
+}
+
+const _autoCheckIn = 'Auto check-in';
 
 /// A day's status as a small tinted tag, e.g. "Attended" or "Work from
 /// home", in the same colour as the calendar.
