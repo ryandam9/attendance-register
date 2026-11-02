@@ -162,12 +162,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (previous != next) _refreshAttendance();
     });
 
+    // Hold the dashboard back until today's status, the month's days and its
+    // progress have all loaded, then show everything at once. Otherwise each
+    // card pops in or changes size as its data arrives.
+    final office = officeState.selectedOffice;
+    var ready = false;
+    if (!officeState.loading && office != null) {
+      final args = _homeMonthArgs(ref, office.id!);
+      ref.listen(breakdownProvider(args), (_, next) {
+        if (next.hasValue) {
+          ref.read(_lastMonthBreakdownProvider.notifier).set(next.value);
+        }
+      });
+      final loadedOffice = ref.watch(
+        attendanceProvider.select((s) => s.loadedOfficeId),
+      );
+      final daysLoaded = ref.watch(
+        specialDayProvider.select((s) => s.hasLoaded),
+      );
+      final breakdown = ref.watch(breakdownProvider(args));
+      final hadBreakdown = ref.watch(_lastMonthBreakdownProvider) != null;
+      ready =
+          loadedOffice == office.id &&
+          daysLoaded &&
+          (breakdown.hasValue || breakdown.hasError || hadBreakdown);
+    }
+
     // Desktop: a two-pane dashboard that fills the window. The navigation shell
     // supplies the sidebar, so this screen has no app bar of its own. The
     // loading and "no office" states fall through to the single-column layout.
-    if (isDesktopWidth(context) &&
-        officeState.hasOffice &&
-        !officeState.loading) {
+    if (isDesktopWidth(context) && ready) {
       return Scaffold(
         backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
         body: _DesktopDashboard(
@@ -196,12 +220,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
           child: officeState.loading
-              ? const Center(
-                  key: ValueKey('loading'),
-                  child: CircularProgressIndicator(),
-                )
+              ? const _DelayedSpinner(key: ValueKey('loading'))
               : !officeState.hasOffice
               ? _EmptyState(key: const ValueKey('empty'), onAdd: _addOffice)
+              : !ready
+              ? const _DelayedSpinner(key: ValueKey('loading'))
               : _Dashboard(
                   key: ValueKey(officeState.selectedOffice?.id),
                   offices: officeState.offices,
@@ -217,6 +240,66 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
   }
+}
+
+/// The focused month's breakdown request for [officeId], shared by the
+/// loading check and the dashboards so they always ask for the same thing.
+BreakdownArgs _homeMonthArgs(WidgetRef ref, int officeId) {
+  final period = ReportPeriod(
+    kind: PeriodKind.month,
+    anchor: ref.watch(calendarFocusProvider),
+    financialYearStart: ref.watch(
+      settingsProvider.select((s) => s.financialYearStart),
+    ),
+  );
+  return (officeId: officeId, start: period.start, end: period.end);
+}
+
+/// The last month progress the home page showed, kept so returning to Home
+/// or swiping months shows the previous numbers instead of a spinner.
+class _LastMonthBreakdown extends Notifier<AttendanceBreakdown?> {
+  @override
+  AttendanceBreakdown? build() => null;
+  void set(AttendanceBreakdown? value) => state = value;
+}
+
+final _lastMonthBreakdownProvider =
+    NotifierProvider<_LastMonthBreakdown, AttendanceBreakdown?>(
+      _LastMonthBreakdown.new,
+    );
+
+/// A spinner that only appears if loading takes a noticeable time, so quick
+/// loads don't flash it on and off.
+class _DelayedSpinner extends StatefulWidget {
+  const _DelayedSpinner({super.key});
+
+  @override
+  State<_DelayedSpinner> createState() => _DelayedSpinnerState();
+}
+
+class _DelayedSpinnerState extends State<_DelayedSpinner> {
+  bool _show = false;
+  late final Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(
+      const Duration(milliseconds: 400),
+      () => setState(() => _show = true),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: _show ? const CircularProgressIndicator() : const SizedBox.shrink(),
+  );
 }
 
 // ── Empty state ───────────────────────────────────────────────────────────────
@@ -317,12 +400,12 @@ class _Dashboard extends ConsumerWidget {
       financialYearStart: settings.financialYearStart,
     );
     final monthBreakdown = ref.watch(
-      breakdownProvider((
-        officeId: selected.id!,
-        start: monthPeriod.start,
-        end: monthPeriod.end,
-      )),
+      breakdownProvider(_homeMonthArgs(ref, selected.id!)),
     );
+    // While a newly swiped-to month loads, keep the last numbers on screen
+    // rather than flashing a spinner.
+    final shownBreakdown =
+        monthBreakdown.value ?? ref.watch(_lastMonthBreakdownProvider);
 
     return RefreshIndicator(
       onRefresh: onRefresh,
@@ -384,31 +467,29 @@ class _Dashboard extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: 112),
-              child: monthBreakdown.when(
-                loading: () => const Card(
-                  margin: EdgeInsets.zero,
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (e, _) => Card(
-                  margin: EdgeInsets.zero,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Center(
-                      child: Text(
-                        'Could not load month progress: $e',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+              child: shownBreakdown == null && monthBreakdown.hasError
+                  ? Card(
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Center(
+                          child: Text(
+                            'Could not load month progress: '
+                            '${monthBreakdown.error}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ),
+                    )
+                  : shownBreakdown == null
+                  ? const Card(margin: EdgeInsets.zero)
+                  : _MobileProgressCard(
+                      breakdown: shownBreakdown,
+                      target: settings.rtoTarget,
+                      periodLabel: monthPeriod.label,
+                      onTap: () => ref.read(tabIndexProvider.notifier).set(1),
                     ),
-                  ),
-                ),
-                data: (b) => _MobileProgressCard(
-                  breakdown: b,
-                  target: settings.rtoTarget,
-                  periodLabel: monthPeriod.label,
-                  onTap: () => ref.read(tabIndexProvider.notifier).set(1),
-                ),
-              ),
             ),
           ),
 
@@ -466,99 +547,110 @@ class _MobileTodayCard extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        // Once recorded, the whole card is the way to change today.
-        onTap: recorded ? onEdit : null,
-        child: Semantics(
-          button: recorded,
-          hint: recorded ? 'Edit today' : null,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                // With large text on a narrow phone the tag drops under the
-                // title, and the two buttons stack.
-                final scale = MediaQuery.textScalerOf(context).scale(1);
-                final roomy = constraints.maxWidth / scale >= 260;
-                final heading = Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      // The page header above already gives the date.
-                      'TODAY',
-                      style: text.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                        letterSpacing: 1.2,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      title,
-                      style: text.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (subtitle != null)
+      // Checking in shrinks the card; ease that rather than jump.
+      child: AnimatedSize(
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        alignment: Alignment.topCenter,
+        child: InkWell(
+          // Once recorded, the whole card is the way to change today.
+          onTap: recorded ? onEdit : null,
+          child: Semantics(
+            button: recorded,
+            hint: recorded ? 'Edit today' : null,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // With large text on a narrow phone the tag drops under the
+                  // title, and the two buttons stack.
+                  final scale = MediaQuery.textScalerOf(context).scale(1);
+                  final roomy = constraints.maxWidth / scale >= 260;
+                  final heading = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        subtitle,
-                        style: text.bodySmall?.copyWith(
+                        // The page header above already gives the date.
+                        'TODAY',
+                        style: text.labelSmall?.copyWith(
                           color: cs.onSurfaceVariant,
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    if (!roomy) ...[const SizedBox(height: 6), tag],
-                  ],
-                );
-                // Tighter sides so both labels fit on one line side by side.
-                const pad = EdgeInsets.symmetric(horizontal: 12, vertical: 14);
-                final checkIn = FilledButton.icon(
-                  style: FilledButton.styleFrom(padding: pad),
-                  onPressed: onCheckIn,
-                  icon: const Icon(Icons.apartment, size: 18),
-                  label: const Text('Check in'),
-                );
-                final other = OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(padding: pad),
-                  onPressed: onEdit,
-                  icon: const Icon(Icons.home_work_outlined, size: 18),
-                  label: const Text('Home or leave'),
-                );
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        GardenIconTile(
-                          color: color,
-                          icon: status == DayStatus.attended
-                              ? Icons.check
-                              : status?.icon ?? Icons.today_outlined,
+                      const SizedBox(height: 2),
+                      Text(
+                        title,
+                        style: text.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(child: heading),
-                        if (roomy) ...[const SizedBox(width: 8), tag],
-                      ],
-                    ),
-                    if (!recorded) ...[
-                      const SizedBox(height: 14),
-                      if (roomy)
-                        Row(
-                          children: [
-                            Expanded(child: checkIn),
-                            const SizedBox(width: 8),
-                            Expanded(child: other),
-                          ],
-                        )
-                      else ...[
-                        checkIn,
-                        const SizedBox(height: 8),
-                        other,
+                      ),
+                      if (subtitle != null)
+                        Text(
+                          subtitle,
+                          style: text.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      if (!roomy) ...[const SizedBox(height: 6), tag],
+                    ],
+                  );
+                  // Tighter sides so both labels fit on one line side by side.
+                  const pad = EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 14,
+                  );
+                  final checkIn = FilledButton.icon(
+                    style: FilledButton.styleFrom(padding: pad),
+                    onPressed: onCheckIn,
+                    icon: const Icon(Icons.apartment, size: 18),
+                    label: const Text('Check in'),
+                  );
+                  final other = OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(padding: pad),
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.home_work_outlined, size: 18),
+                    label: const Text('Home or leave'),
+                  );
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GardenIconTile(
+                            color: color,
+                            icon: status == DayStatus.attended
+                                ? Icons.check
+                                : status?.icon ?? Icons.today_outlined,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(child: heading),
+                          if (roomy) ...[const SizedBox(width: 8), tag],
+                        ],
+                      ),
+                      if (!recorded) ...[
+                        const SizedBox(height: 14),
+                        if (roomy)
+                          Row(
+                            children: [
+                              Expanded(child: checkIn),
+                              const SizedBox(width: 8),
+                              Expanded(child: other),
+                            ],
+                          )
+                        else ...[
+                          checkIn,
+                          const SizedBox(height: 8),
+                          other,
+                        ],
                       ],
                     ],
-                  ],
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ),
