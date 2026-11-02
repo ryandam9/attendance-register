@@ -514,6 +514,56 @@ void main() {
     });
   }
 
+  testWidgets('Home appears once, with today already filled in', (
+    tester,
+  ) async {
+    final id = await db.insertOfficeLocation(
+      const OfficeLocation(
+        name: 'Melbourne Studio',
+        address: '',
+        latitude: 0,
+        longitude: 0,
+      ),
+    );
+    final now = DateTime.now();
+    await db.insertAttendanceRecord(
+      AttendanceRecord(
+        date: DateFormat('yyyy-MM-dd').format(now),
+        officeLocationId: id,
+        timestamp: DateTime(now.year, now.month, now.day, 9, 4),
+      ),
+    );
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: gardenTheme(Brightness.light),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: child!,
+          ),
+          home: const HomeScreen(),
+        ),
+      ),
+    );
+    container.read(officeProvider.notifier).load();
+    // Step through loading: the page must never show today as unrecorded,
+    // or show the progress card before its numbers.
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(find.text('Not recorded'), findsNothing, reason: 'frame $i');
+      if (find.text('At the office').evaluate().isNotEmpty) {
+        expect(find.textContaining('Return to office'), findsOneWidget);
+      }
+    }
+    await tester.pumpAndSettle();
+    expect(find.text('At the office'), findsOneWidget);
+    expect(find.text('Recorded'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Calendar stays a full month and shows only its own dates', (
     tester,
   ) async {

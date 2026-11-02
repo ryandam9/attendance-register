@@ -46,6 +46,10 @@ class AttendanceState {
 
   final bool loading;
 
+  /// The office whose data has finished loading at least once; null before
+  /// the first load. Lets the home page wait for real data before showing.
+  final int? loadedOfficeId;
+
   const AttendanceState({
     this.records = const [],
     this.monthlyCount = 0,
@@ -59,6 +63,7 @@ class AttendanceState {
     this.todayStatus,
     this.todayCheckInTime,
     this.loading = false,
+    this.loadedOfficeId,
   });
 
   AttendanceState copyWith({
@@ -89,6 +94,7 @@ class AttendanceState {
       todayStatus: todayStatus ?? this.todayStatus,
       todayCheckInTime: todayCheckInTime ?? this.todayCheckInTime,
       loading: loading ?? this.loading,
+      loadedOfficeId: loadedOfficeId,
     );
   }
 
@@ -191,6 +197,7 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
       yearlyExcludedCount: yearlyExcludedCount,
       todayStatus: todayStatus,
       todayCheckInTime: todayRecord?.timestamp,
+      loadedOfficeId: officeId,
     );
   }
 

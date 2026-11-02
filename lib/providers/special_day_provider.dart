@@ -7,7 +7,14 @@ class SpecialDayState {
   final List<SpecialDay> days;
   final bool loading;
 
-  const SpecialDayState({this.days = const [], this.loading = false});
+  /// True once any month has finished loading.
+  final bool hasLoaded;
+
+  const SpecialDayState({
+    this.days = const [],
+    this.loading = false,
+    this.hasLoaded = false,
+  });
 
   /// Day type per YYYY-MM-DD key — one O(1) lookup per calendar cell instead
   /// of a linear scan over six per-type sets.
@@ -19,12 +26,16 @@ class SpecialDayNotifier extends Notifier<SpecialDayState> {
   SpecialDayState build() => const SpecialDayState();
 
   Future<void> loadForMonth(int year, int month) async {
-    state = SpecialDayState(days: state.days, loading: true);
+    state = SpecialDayState(
+      days: state.days,
+      loading: true,
+      hasLoaded: state.hasLoaded,
+    );
     final days = await DatabaseService.instance.getSpecialDaysForMonth(
       year,
       month,
     );
-    state = SpecialDayState(days: days);
+    state = SpecialDayState(days: days, hasLoaded: true);
   }
 
   Future<void> saveDay(SpecialDay day) async {
@@ -43,6 +54,7 @@ class SpecialDayNotifier extends Notifier<SpecialDayState> {
     }
     state = SpecialDayState(
       days: state.days.where((d) => d.date != date).toList(),
+      hasLoaded: state.hasLoaded,
     );
   }
 }
