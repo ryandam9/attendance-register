@@ -51,18 +51,18 @@ String get _autoCheckInBody {
         'app in the background to record your attendance automatically '
         'once per day. Opening the app while at the office records it '
         'too.\n\n'
-        'You can also tap "Check in at the office" on the home screen to '
+        'You can also tap "Check in" on the home screen to '
         'record today\'s attendance manually.';
   }
   if (_isMacOS) {
     return 'Background geofencing isn\'t available on macOS, so attendance '
         'isn\'t recorded automatically while the app is closed.\n\n'
-        'Tap "Check in at the office" on the home screen when you\'re at the '
+        'Tap "Check in" on the home screen when you\'re at the '
         'office, or mark any day from the calendar.';
   }
   return 'Automatic, location-based check-in is only available on Android '
       'and iOS.\n\n'
-      'On this platform, tap "Check in at the office" on the home screen, or '
+      'On this platform, tap "Check in" on the home screen, or '
       'mark any day from the calendar.';
 }
 

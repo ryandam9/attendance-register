@@ -110,6 +110,14 @@ ThemeData gardenTheme(
         shape: const StadiumBorder(),
       ),
     ),
+    // Same size as filled buttons, so the two line up side by side.
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(48, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        shape: const StadiumBorder(),
+      ),
+    ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: scheme.surfaceContainerLow,
