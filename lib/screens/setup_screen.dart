@@ -376,7 +376,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         // mobile-only route.
         Navigator.pushReplacement(
           context,
-          appRoute(const PermissionSetupScreen()),
+          stepRoute(const PermissionSetupScreen()),
         );
       } else {
         Navigator.pop(context);

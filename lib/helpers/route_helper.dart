@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 
 import 'layout.dart';
@@ -6,6 +7,25 @@ import 'layout.dart';
 /// PageTransitionsTheme applies — including Android's predictive-back preview,
 /// which a custom PageRouteBuilder would silently opt out of.
 Route<T> appRoute<T>(Widget page) => MaterialPageRoute<T>(builder: (_) => page);
+
+/// The next step of a multi-step flow (e.g. office setup → permissions):
+/// Material's shared-axis transition, sliding forward along the x-axis.
+/// Reserved for steps, since a custom route forgoes Android's predictive-back
+/// preview that [appRoute] keeps for ordinary screens.
+Route<T> stepRoute<T>(Widget page) => PageRouteBuilder<T>(
+  transitionDuration: const Duration(milliseconds: 400),
+  reverseTransitionDuration: const Duration(milliseconds: 400),
+  pageBuilder: (_, _, _) => page,
+  transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+      MediaQuery.disableAnimationsOf(context)
+      ? child
+      : SharedAxisTransition(
+          animation: animation,
+          secondaryAnimation: secondaryAnimation,
+          transitionType: SharedAxisTransitionType.horizontal,
+          child: child,
+        ),
+);
 
 /// Opens a secondary task using platform-appropriate navigation.
 ///
