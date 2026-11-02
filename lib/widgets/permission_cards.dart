@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
+import 'garden_header.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../services/location_service.dart';
@@ -126,34 +128,39 @@ class _PermissionsSectionState extends State<PermissionsSection>
         children: [
           _PermCard(
             step: widget.showStepNumbers ? 1 : null,
-            icon: Icons.location_on,
-            label: 'Location — Always Allow',
+            icon: Icons.my_location_outlined,
+            label: 'Background location',
+            grantedLabel: 'Always allowed',
+            actionLabel: 'Allow location access',
             status: _location!,
             reason:
-                'The OS monitors virtual geofence boundaries around your offices '
-                'and alerts the app when you enter. Without "Always Allow" automatic check-in will not work.',
+                'Needed to notice when you arrive. Choose "Allow all the time" '
+                'or automatic check-in will not work.',
             onGrant: () => _grant(PermissionService.requestLocationAlways),
           ),
           const SizedBox(height: 8),
           _PermCard(
             step: widget.showStepNumbers ? 2 : null,
-            icon: Icons.notifications,
-            label: 'Notifications',
+            icon: Icons.notifications_outlined,
+            label: 'Check-in notifications',
+            grantedLabel: 'Enabled',
+            actionLabel: 'Enable notifications',
             status: _notifications!,
-            reason:
-                'Needed to alert you when attendance is automatically recorded.',
+            reason: 'Know when your visit has been recorded.',
             onGrant: () => _grant(PermissionService.requestNotifications),
           ),
           if (Platform.isAndroid && _battery != null) ...[
             const SizedBox(height: 8),
             _PermCard(
               step: widget.showStepNumbers ? 3 : null,
-              icon: Icons.battery_charging_full,
-              label: 'Battery Optimisation — Disabled',
+              icon: Icons.battery_charging_full_outlined,
+              label: 'Battery settings',
+              grantedLabel: 'Not restricted',
+              actionLabel: 'Allow background check-in',
               status: _battery!,
               reason:
-                  'Prevents Android from aggressively terminating background event-driven '
-                  'geofence services, ensuring automatic check-in triggers reliably.',
+                  'Stops Android from pausing background check-in to save '
+                  'battery.',
               onGrant: () =>
                   _grant(PermissionService.requestIgnoreBatteryOptimizations),
             ),
@@ -168,6 +175,8 @@ class _PermCard extends StatelessWidget {
   final int? step;
   final IconData icon;
   final String label;
+  final String grantedLabel;
+  final String actionLabel;
   final _PermStatus status;
   final String reason;
   final VoidCallback onGrant;
@@ -176,6 +185,8 @@ class _PermCard extends StatelessWidget {
     this.step,
     required this.icon,
     required this.label,
+    required this.grantedLabel,
+    required this.actionLabel,
     required this.status,
     required this.reason,
     required this.onGrant,
@@ -185,88 +196,48 @@ class _PermCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final granted = status == _PermStatus.granted;
     final cs = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
 
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                if (step == null)
-                  Icon(icon, size: 28, color: cs.primary)
-                else
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: cs.primaryContainer,
-                    foregroundColor: cs.onPrimaryContainer,
-                    child: Text(
-                      '$step',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
+                step == null
+                    ? GardenIconTile(color: cs.primary, icon: icon)
+                    : GardenIconTile(color: cs.primary, label: '$step'),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    label,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: granted
-                        ? Colors.green.withValues(alpha: 0.12)
-                        : cs.error.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        granted
-                            ? Icons.check_circle
-                            : Icons.warning_amber_rounded,
-                        size: 14,
-                        color: granted ? Colors.green : cs.error,
-                      ),
-                      const SizedBox(width: 4),
+                      Text(label, style: text.bodyLarge),
                       Text(
-                        granted ? 'Granted' : 'Denied',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: granted ? Colors.green : cs.error,
-                          fontWeight: FontWeight.w600,
+                        granted ? grantedLabel : reason,
+                        style: text.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
                     ],
                   ),
                 ),
+                if (granted) ...[
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.check_circle,
+                    color: cs.primary,
+                    semanticLabel: 'Granted',
+                  ),
+                ],
               ],
             ),
             if (!granted) ...[
               const SizedBox(height: 12),
-              Text(
-                reason,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton.tonalIcon(
-                  onPressed: onGrant,
-                  icon: const Icon(Icons.check, size: 16),
-                  label: const Text('Grant Permission'),
-                ),
-              ),
+              FilledButton.tonal(onPressed: onGrant, child: Text(actionLabel)),
             ],
           ],
         ),

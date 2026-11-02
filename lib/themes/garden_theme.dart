@@ -48,7 +48,12 @@ ThemeData gardenTheme(Brightness brightness) {
           onInverseSurface: const Color(0xFF252525),
           surfaceTint: Colors.transparent,
         )
-      : seeded;
+      // The seed's light container is a bright mint; the garden design uses a
+      // soft sage for tags, selected tiles, the nav indicator and the FAB.
+      : seeded.copyWith(
+          primaryContainer: const Color(0xFFE1E9D9),
+          onPrimaryContainer: const Color(0xFF294936),
+        );
   final base = ThemeData(
     useMaterial3: true,
     colorScheme: scheme,

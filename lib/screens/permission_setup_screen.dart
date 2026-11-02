@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/garden_header.dart';
 import '../widgets/permission_cards.dart';
 import '../widgets/responsive_body.dart';
 
@@ -15,40 +16,49 @@ class PermissionSetupScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Enable Auto Check-In')),
+      appBar: AppBar(),
       body: ResponsiveBody(
         child: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.only(bottom: 32),
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Text(
-                'Your office location is confirmed. Complete these steps to '
-                'record attendance when you arrive. Each permission can also '
-                'be changed later in Settings.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const GardenHeader(
+                    eyebrow: 'Let it happen naturally',
+                    title: 'Arrive. We’ll take it from here.',
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Allow location access to record office visits '
+                    'automatically, even when the app is closed. You can '
+                    'change each permission later in Settings.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const PermissionsSection(showStepNumbers: true),
+            const PermissionsSection(),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  FilledButton.icon(
+                  FilledButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_forward),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                    ),
-                    label: const Text('Continue to dashboard'),
+                    child: const Text('Continue to Home'),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Set up permissions later'),
+                    child: const Text(
+                      'Set up later · Manual marking always works',
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ],
               ),

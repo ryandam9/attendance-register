@@ -7,6 +7,8 @@ import 'package:attendance_register/screens/day_entry_screen.dart';
 import 'package:attendance_register/screens/explain_screen.dart';
 import 'package:attendance_register/screens/history_screen.dart';
 import 'package:attendance_register/screens/home_screen.dart';
+import 'package:attendance_register/screens/permission_setup_screen.dart';
+import 'package:attendance_register/screens/setup_screen.dart';
 import 'package:attendance_register/screens/settings_screen.dart';
 import 'package:attendance_register/screens/theme_screen.dart';
 import 'package:attendance_register/services/database_service.dart';
@@ -176,19 +178,22 @@ void main() {
     Widget screen,
     Brightness brightness, {
     bool withData = true,
+    bool withOffice = true,
   }) async {
     tester.view.physicalSize = const Size(320, 720);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final id = await db.insertOfficeLocation(
-      const OfficeLocation(
-        name: 'Melbourne Studio',
-        address: '',
-        latitude: 0,
-        longitude: 0,
-      ),
-    );
-    if (withData) {
+    final id = !withOffice
+        ? null
+        : await db.insertOfficeLocation(
+            const OfficeLocation(
+              name: 'Melbourne Studio',
+              address: '',
+              latitude: 0,
+              longitude: 0,
+            ),
+          );
+    if (withData && id != null) {
       final now = DateTime.now();
       final key = DateFormat('yyyy-MM-dd');
       await db.insertAttendanceRecord(
@@ -323,6 +328,62 @@ void main() {
         expect(tester.takeException(), isNull, reason: row);
         await tester.pageBack();
         await tester.pumpAndSettle();
+      }
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  for (final brightness in Brightness.values) {
+    testWidgets('First-run screens fit 320px at 2x text: $brightness', (
+      tester,
+    ) async {
+      // Welcome: Home before any office exists.
+      await pumpSmall(
+        tester,
+        const HomeScreen(),
+        brightness,
+        withData: false,
+        withOffice: false,
+      );
+      expect(find.text('A little presence. A little growth.'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Add your first office'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(tester.takeException(), isNull);
+
+      for (final (screen, heading, last) in const [
+        (SetupScreen(), 'Put down roots.', 'Save office'),
+        (
+          PermissionSetupScreen(),
+          'Arrive. We’ll take it from here.',
+          'Continue to Home',
+        ),
+      ]) {
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              theme: gardenTheme(brightness),
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: const TextScaler.linear(2)),
+                child: child!,
+              ),
+              home: screen,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text(heading), findsOneWidget);
+        await tester.scrollUntilVisible(
+          find.text(last),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(tester.takeException(), isNull, reason: heading);
       }
       await tester.pumpWidget(const SizedBox());
     });

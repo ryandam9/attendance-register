@@ -8,6 +8,7 @@ import '../models/office_location.dart';
 import '../providers/office_provider.dart';
 import '../services/holiday_service.dart';
 import '../services/location_service.dart';
+import '../widgets/garden_header.dart';
 import '../widgets/responsive_body.dart';
 import 'permission_setup_screen.dart';
 
@@ -255,11 +256,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       key: ValueKey(key),
       initialValue: key,
       isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Region',
-        prefixIcon: Icon(Icons.public_outlined),
-        border: OutlineInputBorder(),
-      ),
+      decoration: const InputDecoration(labelText: 'Public holiday region'),
       hint: const Text('Select the region'),
       items: items,
       onChanged: (value) {
@@ -393,7 +390,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: !isDesktopPlatform,
-        title: Text(_isEditing ? 'Edit Office' : 'Add Office'),
         actions: [
           if (isDesktopPlatform)
             IconButton(
@@ -407,17 +403,29 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
             children: [
+              GardenHeader(
+                eyebrow: 'Your places',
+                title: _isEditing ? 'Tend your office.' : 'Put down roots.',
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _isEditing
+                    ? 'Update where you work and how it is tracked.'
+                    : 'Add the place you work from.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+              ),
+              const SizedBox(height: 20),
               // Name
               TextFormField(
                 controller: _nameCtrl,
                 textCapitalization: TextCapitalization.words,
                 decoration: const InputDecoration(
-                  labelText: 'Office Name *',
-                  hintText: 'e.g. HQ, Downtown Office',
-                  prefixIcon: Icon(Icons.business_outlined),
-                  border: OutlineInputBorder(),
+                  labelText: 'Office name',
+                  hintText: 'e.g. Melbourne Studio',
                 ),
                 validator: (v) => (v == null || v.trim().isEmpty)
                     ? 'Enter an office name'
@@ -433,16 +441,15 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 segments: const [
                   ButtonSegment(
                     value: _TrackingMode.automatic,
-                    icon: Icon(Icons.my_location_outlined),
                     label: Text('Automatic'),
                   ),
                   ButtonSegment(
                     value: _TrackingMode.manual,
-                    icon: Icon(Icons.touch_app_outlined),
                     label: Text('Manual only'),
                   ),
                 ],
                 selected: {_trackingMode},
+                showSelectedIcon: false,
                 onSelectionChanged: (selection) =>
                     setState(() => _trackingMode = selection.first),
               ),
@@ -482,10 +489,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                     _locationError = null;
                   }),
                   decoration: const InputDecoration(
-                    labelText: 'Office Address *',
+                    labelText: 'Office address',
                     hintText: 'Enter the complete office address',
-                    prefixIcon: Icon(Icons.location_on_outlined),
-                    border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -580,17 +585,25 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 ],
                 const SizedBox(height: 24),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Detection radius',
-                      style: Theme.of(context).textTheme.titleMedium,
+                    Expanded(
+                      child: Text(
+                        'Detection radius',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                     ),
-                    Chip(label: Text('${_radius.toInt()} m')),
+                    Text(
+                      '${_radius.toInt()} m',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: cs.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ],
                 ),
                 Text(
-                  'Use a larger radius if GPS reception is unreliable inside the building.',
+                  'Check in when you enter this area. Use a larger radius if '
+                  'GPS reception is unreliable inside the building.',
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
@@ -668,7 +681,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                         width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Text(_isEditing ? 'Save Changes' : 'Add Office'),
+                    : Text(_isEditing ? 'Save changes' : 'Save office'),
               ),
             ],
           ),

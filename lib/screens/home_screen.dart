@@ -22,6 +22,7 @@ import '../providers/ui_state_provider.dart';
 import '../services/holiday_service.dart';
 import '../themes/bird_art.dart';
 import '../widgets/garden_art.dart';
+import '../widgets/garden_header.dart';
 import '../widgets/check_in_celebration.dart';
 import '../widgets/quick_mark_sheet.dart';
 import '../widgets/responsive_body.dart';
@@ -219,35 +220,56 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const GardenArt(),
-            const SizedBox(height: 24),
-            Text(
-              'A little presence. A little growth.',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Add your office address to start tracking your return-to-office days automatically.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: cs.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-            const SizedBox(height: 32),
-            FilledButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add_location_alt_outlined),
-              label: const Text('Add Office'),
-            ),
-          ],
-        ),
+    final text = Theme.of(context).textTheme;
+    Widget feature(IconData icon, String label) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          GardenIconTile(color: cs.primary, icon: icon),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label, style: text.bodyLarge)),
+        ],
       ),
+    );
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+      children: [
+        const GardenHeader(
+          eyebrow: 'Attendance Register',
+          title: 'A little presence. A little growth.',
+        ),
+        const SizedBox(height: 20),
+        const GardenArt(),
+        const SizedBox(height: 20),
+        Text('Make room for your workday.', style: text.headlineSmall),
+        const SizedBox(height: 8),
+        Text(
+          'Keep your office days, time at home and leave in one peaceful '
+          'place.',
+          style: text.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+        ),
+        const SizedBox(height: 12),
+        feature(Icons.check_circle_outline, 'A clear view of your attendance'),
+        feature(
+          Icons.my_location_outlined,
+          'Automatic check-in, if you choose',
+        ),
+        feature(
+          Icons.track_changes_outlined,
+          'Progress towards your own target',
+        ),
+        const SizedBox(height: 20),
+        FilledButton(
+          onPressed: onAdd,
+          child: const Text('Add your first office'),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Start with an office name. Set up location later.',
+          textAlign: TextAlign.center,
+          style: text.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+        ),
+      ],
     );
   }
 }
