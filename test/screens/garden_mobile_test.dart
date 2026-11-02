@@ -24,6 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 void main() {
   final db = DatabaseService.instance;
@@ -461,6 +462,37 @@ void main() {
     for (final t in numbers) {
       expect(t.style!.color, isNot(Colors.white));
     }
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Calendar stays a full month and shows only its own dates', (
+    tester,
+  ) async {
+    await pumpSmall(tester, const HomeScreen(), Brightness.light);
+    final page = find.byType(Scrollable).first;
+    Future<void> showCalendar() => tester.scrollUntilVisible(
+      find.text('Calendar legend'),
+      200,
+      scrollable: page,
+    );
+    final calendar = find.byWidgetPredicate((w) => w is TableCalendar);
+    Finder day(int n) =>
+        find.descendant(of: calendar, matching: find.text('$n'));
+    final now = DateTime.now();
+    final lastDay = DateTime(now.year, now.month + 1, 0).day;
+
+    await showCalendar();
+    // Six rows are always drawn, so the next month's "1" would show if
+    // neighbouring months' days were visible.
+    expect(day(1), findsOneWidget);
+    expect(day(lastDay), findsOneWidget);
+
+    // A vertical swipe used to shrink the calendar to two weeks or one week.
+    await tester.fling(calendar, const Offset(0, -300), 1000);
+    await tester.pumpAndSettle();
+    await showCalendar();
+    expect(day(1), findsOneWidget);
+    expect(day(lastDay), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 
