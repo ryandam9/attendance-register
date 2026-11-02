@@ -1,209 +1,36 @@
-import 'dart:async';
-import 'dart:math' as math;
-
-import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
-/// Shows a centered, animated "attendance recorded" celebration — a check badge
-/// that pops in, a confetti burst, and an auto-dismiss — instead of a snackbar.
-/// Used when a foreground auto check-in records the day.
+/// Confirms a successful check-in with a brief floating message: "Your
+/// attendance has been recorded." The Today card on Home carries the lasting
+/// recorded state, so this only needs to acknowledge the moment and fade.
 Future<void> showCheckInCelebration(
   BuildContext context, {
   required String officeName,
   required DateTime date,
-}) {
-  final reduceMotion = MediaQuery.disableAnimationsOf(context);
-  return showGeneralDialog(
-    context: context,
-    barrierDismissible: true,
-    barrierLabel: 'Attendance recorded',
-    barrierColor: Colors.black.withValues(alpha: 0.35),
-    transitionDuration: reduceMotion
-        ? Duration.zero
-        : const Duration(milliseconds: 220),
-    pageBuilder: (_, _, _) => _CheckInCelebration(
-      officeName: officeName,
-      date: date,
-      reduceMotion: reduceMotion,
-    ),
-    transitionBuilder: (_, anim, _, child) {
-      final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutBack);
-      return FadeTransition(
-        opacity: anim,
-        child: ScaleTransition(
-          scale: Tween(begin: 0.85, end: 1.0).animate(curved),
-          child: child,
-        ),
-      );
-    },
-  );
-}
-
-class _CheckInCelebration extends StatefulWidget {
-  final String officeName;
-  final DateTime date;
-  final bool reduceMotion;
-  const _CheckInCelebration({
-    required this.officeName,
-    required this.date,
-    required this.reduceMotion,
-  });
-
-  @override
-  State<_CheckInCelebration> createState() => _CheckInCelebrationState();
-}
-
-class _CheckInCelebrationState extends State<_CheckInCelebration> {
-  /// How long the confetti rains and the celebration stays up before it
-  /// auto-dismisses (the user can also tap or tap-outside to close sooner).
-  static const _celebration = Duration(seconds: 3);
-
-  late final ConfettiController _confetti = ConfettiController(
-    duration: _celebration,
-  );
-  Timer? _autoClose;
-
-  @override
-  void initState() {
-    super.initState();
-    if (!widget.reduceMotion) _confetti.play();
-    _autoClose = Timer(_celebration, () {
-      if (mounted) Navigator.of(context).maybePop();
-    });
-  }
-
-  @override
-  void dispose() {
-    _autoClose?.cancel();
-    _confetti.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final dateFmt = DateFormat('EEEE, d MMM');
-    final confettiColors = [
-      cs.primary,
-      cs.secondary,
-      cs.tertiary,
-      Colors.green.shade500,
-      Colors.amber.shade400,
-    ];
-    return Stack(
-      children: [
-        // Confetti showers in from both top corners, raining down across the
-        // card for a clearly celebratory effect.
-        if (!widget.reduceMotion)
-          Align(
-            alignment: const Alignment(-0.9, -1.0),
-            child: ConfettiWidget(
-              confettiController: _confetti,
-              blastDirection: math.pi / 4, // down-right
-              emissionFrequency: 0.12,
-              numberOfParticles: 14,
-              maxBlastForce: 30,
-              minBlastForce: 12,
-              gravity: 0.3,
-              shouldLoop: false,
-              minimumSize: const Size(8, 8),
-              maximumSize: const Size(15, 15),
-              colors: confettiColors,
-            ),
-          ),
-        if (!widget.reduceMotion)
-          Align(
-            alignment: const Alignment(0.9, -1.0),
-            child: ConfettiWidget(
-              confettiController: _confetti,
-              blastDirection: 3 * math.pi / 4, // down-left
-              emissionFrequency: 0.12,
-              numberOfParticles: 14,
-              maxBlastForce: 30,
-              minBlastForce: 12,
-              gravity: 0.3,
-              shouldLoop: false,
-              minimumSize: const Size(8, 8),
-              maximumSize: const Size(15, 15),
-              colors: confettiColors,
-            ),
-          ),
-        Center(
-          child: GestureDetector(
-            onTap: () => Navigator.of(context).maybePop(),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 40),
-              padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
-              constraints: const BoxConstraints(maxWidth: 360),
-              decoration: BoxDecoration(
-                color: cs.surface,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.18),
-                    blurRadius: 30,
-                    offset: const Offset(0, 12),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+}) async {
+  final cs = Theme.of(context).colorScheme;
+  final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
+  await messenger
+      .showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          content: Semantics(
+            liveRegion: true,
+            label: 'Attendance recorded at $officeName',
+            child: ExcludeSemantics(
+              child: Row(
                 children: [
-                  TweenAnimationBuilder<double>(
-                    tween: Tween(begin: widget.reduceMotion ? 1 : 0, end: 1),
-                    duration: widget.reduceMotion
-                        ? Duration.zero
-                        : const Duration(milliseconds: 500),
-                    curve: Curves.elasticOut,
-                    builder: (context, t, child) =>
-                        Transform.scale(scale: t, child: child),
-                    child: Semantics(
-                      liveRegion: true,
-                      label: 'Attendance recorded for ${widget.officeName}',
-                      child: Container(
-                        width: 84,
-                        height: 84,
-                        decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.check_circle,
-                          color: Colors.green.shade600,
-                          size: 56,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Attendance recorded!',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "You're at ${widget.officeName}",
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    dateFmt.format(widget.date),
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
+                  Icon(Icons.check_circle, color: cs.inversePrimary),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text('Your attendance has been recorded.'),
                   ),
                 ],
               ),
             ),
           ),
         ),
-      ],
-    );
-  }
+      )
+      .closed;
 }

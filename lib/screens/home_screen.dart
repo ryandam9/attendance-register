@@ -23,6 +23,7 @@ import '../services/holiday_service.dart';
 import '../themes/bird_art.dart';
 import '../widgets/garden_art.dart';
 import '../widgets/garden_header.dart';
+import '../widgets/garden_tag.dart';
 import '../widgets/check_in_celebration.dart';
 import '../widgets/quick_mark_sheet.dart';
 import '../widgets/responsive_body.dart';
@@ -394,6 +395,8 @@ class _Dashboard extends ConsumerWidget {
               // From today's own record, not the focused month's: paging the
               // calendar must not change what "Today" says.
               status: ap.todayStatus,
+              checkInTime: ap.todayCheckInTime,
+              officeName: selected.name,
               onCheckIn: onCheckIn,
               onEdit: () => onDayTapped(DateTime.now()),
             ),
@@ -480,11 +483,15 @@ class _Dashboard extends ConsumerWidget {
 
 class _MobileTodayCard extends StatelessWidget {
   final DayStatus? status;
+  final DateTime? checkInTime;
+  final String officeName;
   final Future<void> Function() onCheckIn;
   final VoidCallback onEdit;
 
   const _MobileTodayCard({
     required this.status,
+    required this.checkInTime,
+    required this.officeName,
     required this.onCheckIn,
     required this.onEdit,
   });
@@ -492,7 +499,23 @@ class _MobileTodayCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     final color = status?.colorIn(context) ?? cs.primary;
+    final recorded = status != null;
+    // Once today is recorded the card becomes a lasting confirmation:
+    // "At the office · Recorded", with where and when beneath.
+    final title = switch (status) {
+      null => 'Today is not recorded',
+      DayStatus.attended => 'At the office',
+      final s => s.label,
+    };
+    final subtitle = switch (status) {
+      null => 'Where are you working today?',
+      DayStatus.attended when checkInTime != null =>
+        '$officeName · ${DateFormat('h:mm a').format(checkInTime!)}',
+      DayStatus.attended => officeName,
+      _ => 'Today',
+    };
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -502,25 +525,38 @@ class _MobileTodayCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: color.withValues(alpha: 0.14),
-                  child: Icon(
-                    status?.icon ?? Icons.today_outlined,
-                    color: color,
-                  ),
+                GardenIconTile(
+                  color: color,
+                  icon: status == DayStatus.attended
+                      ? Icons.check
+                      : status?.icon ?? Icons.today_outlined,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Today',
-                        style: Theme.of(context).textTheme.labelMedium,
+                      // The tag sits beside the title, or wraps under it
+                      // when large text leaves no room.
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            title,
+                            style: text.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (recorded) const GardenTag('Recorded'),
+                        ],
                       ),
                       Text(
-                        status?.label ?? 'Not recorded yet',
-                        style: Theme.of(context).textTheme.titleMedium,
+                        subtitle,
+                        style: text.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -528,7 +564,7 @@ class _MobileTodayCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            if (status == null) ...[
+            if (!recorded) ...[
               FilledButton(
                 onPressed: onCheckIn,
                 child: const Text('Check in at the office'),
@@ -617,7 +653,11 @@ class _MobileProgressCard extends StatelessWidget {
                       maxLines: 1,
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
-                            fontFamily: 'DM Sans',
+                            // Numbers use the body font, even when
+                            // headings are serif.
+                            fontFamily: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.fontFamily,
                             fontWeight: FontWeight.w600,
                             fontFeatures: const [FontFeature.tabularFigures()],
                             color: cs.primary,
@@ -685,7 +725,13 @@ class _DayCell extends StatelessWidget {
     // The marker for a given status (no "today" treatment).
     Widget markerFor(DayStatus st) {
       if (st == DayStatus.attended) {
-        return filled(st.colorIn(context), Colors.white);
+        // The attended green is dark in light mode but a light lime in dark
+        // mode, so pick the number colour that stays readable on it.
+        final bg = st.colorIn(context);
+        final fg = ThemeData.estimateBrightnessForColor(bg) == Brightness.dark
+            ? Colors.white
+            : const Color(0xFF1B2A12);
+        return filled(bg, fg);
       }
       // Sick / leave / WFH / holiday / misc — show the status icon.
       return Center(child: Icon(st.icon, color: st.colorIn(context), size: 22));

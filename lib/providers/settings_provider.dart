@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/report_period.dart';
 import '../services/database_service.dart';
 import '../services/location_service.dart';
+import '../themes/app_font.dart';
 import '../themes/bird_themes.dart';
 
 /// Persisted app preferences.
@@ -15,6 +16,7 @@ class SettingsState {
   final FinancialYearStart financialYearStart;
   final String themeId;
   final ThemeMode themeMode;
+  final AppFont font;
   final String userName;
   final int rtoTarget;
 
@@ -27,6 +29,7 @@ class SettingsState {
     this.financialYearStart = FinancialYearStart.january,
     this.themeId = 'bee_eater',
     this.themeMode = ThemeMode.system,
+    this.font = AppFont.fallback,
     this.userName = '',
     this.rtoTarget = defaultRtoTarget,
     this.autoCheckInIgnoreDismissed = false,
@@ -37,6 +40,7 @@ class SettingsState {
     FinancialYearStart? financialYearStart,
     String? themeId,
     ThemeMode? themeMode,
+    AppFont? font,
     String? userName,
     int? rtoTarget,
     bool? autoCheckInIgnoreDismissed,
@@ -45,6 +49,7 @@ class SettingsState {
     financialYearStart: financialYearStart ?? this.financialYearStart,
     themeId: themeId ?? this.themeId,
     themeMode: themeMode ?? this.themeMode,
+    font: font ?? this.font,
     userName: userName ?? this.userName,
     rtoTarget: rtoTarget ?? this.rtoTarget,
     autoCheckInIgnoreDismissed:
@@ -59,6 +64,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
   static const _fyStartKey = 'financial_year_start';
   static const _themeKey = 'theme_id';
   static const _themeModeKey = 'theme_mode';
+  static const _fontKey = 'font';
   static const _userNameKey = 'user_name';
   static const _rtoTargetKey = 'rto_target_percent';
   // Shared with LocationService so the auto check-in path and this toggle agree
@@ -79,6 +85,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
     final fyStart = await DatabaseService.instance.getSetting(_fyStartKey);
     final themeId = await DatabaseService.instance.getSetting(_themeKey);
     final themeMode = await DatabaseService.instance.getSetting(_themeModeKey);
+    final font = await DatabaseService.instance.getSetting(_fontKey);
     final userName = await DatabaseService.instance.getSetting(_userNameKey);
     final rtoTarget = await DatabaseService.instance.getSetting(_rtoTargetKey);
     final ignoreDismissed = await DatabaseService.instance.getSetting(
@@ -88,6 +95,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
       financialYearStart: FinancialYearStart.fromName(fyStart),
       themeId: themeId ?? 'bee_eater',
       themeMode: _themeModeFromName(themeMode),
+      font: AppFont.fromName(font),
       userName: userName ?? '',
       rtoTarget:
           int.tryParse(rtoTarget ?? '') ?? SettingsState.defaultRtoTarget,
@@ -109,6 +117,11 @@ class SettingsNotifier extends Notifier<SettingsState> {
   Future<void> setThemeMode(ThemeMode mode) async {
     state = state.copyWith(themeMode: mode, loaded: true);
     await DatabaseService.instance.setSetting(_themeModeKey, mode.name);
+  }
+
+  Future<void> setFont(AppFont font) async {
+    state = state.copyWith(font: font, loaded: true);
+    await DatabaseService.instance.setSetting(_fontKey, font.name);
   }
 
   Future<void> setUserName(String name) async {

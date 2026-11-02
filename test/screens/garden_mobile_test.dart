@@ -12,9 +12,14 @@ import 'package:attendance_register/screens/setup_screen.dart';
 import 'package:attendance_register/screens/settings_screen.dart';
 import 'package:attendance_register/screens/theme_screen.dart';
 import 'package:attendance_register/services/database_service.dart';
+import 'package:attendance_register/themes/app_font.dart';
 import 'package:attendance_register/themes/garden_theme.dart';
 import 'package:attendance_register/widgets/quick_mark_sheet.dart';
+import 'dart:typed_data';
+
+import 'package:attendance_register/widgets/garden_art.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
@@ -59,9 +64,11 @@ void main() {
             child: MaterialApp(
               theme: gardenTheme(brightness),
               builder: (context, child) => MediaQuery(
-                data: MediaQuery.of(
-                  context,
-                ).copyWith(textScaler: const TextScaler.linear(2)),
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: const TextScaler.linear(2),
+                  // The garden sways forever; settle-based tests need it still.
+                  disableAnimations: true,
+                ),
                 child: child!,
               ),
               home: const HomeScreen(),
@@ -116,9 +123,11 @@ void main() {
           child: MaterialApp(
             theme: gardenTheme(brightness),
             builder: (context, child) => MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(textScaler: const TextScaler.linear(2)),
+              data: MediaQuery.of(context).copyWith(
+                textScaler: const TextScaler.linear(2),
+                // The garden sways forever; settle-based tests need it still.
+                disableAnimations: true,
+              ),
               child: child!,
             ),
             home: Builder(
@@ -179,6 +188,7 @@ void main() {
     Brightness brightness, {
     bool withData = true,
     bool withOffice = true,
+    bool checkedInToday = false,
   }) async {
     tester.view.physicalSize = const Size(320, 720);
     tester.view.devicePixelRatio = 1;
@@ -193,6 +203,16 @@ void main() {
               longitude: 0,
             ),
           );
+    if (checkedInToday && id != null) {
+      final now = DateTime.now();
+      await db.insertAttendanceRecord(
+        AttendanceRecord(
+          date: DateFormat('yyyy-MM-dd').format(now),
+          officeLocationId: id,
+          timestamp: DateTime(now.year, now.month, now.day, 9, 4),
+        ),
+      );
+    }
     if (withData && id != null) {
       final now = DateTime.now();
       final key = DateFormat('yyyy-MM-dd');
@@ -227,9 +247,11 @@ void main() {
         child: MaterialApp(
           theme: gardenTheme(brightness),
           builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: const TextScaler.linear(2)),
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(2),
+              // The garden sways forever; settle-based tests need it still.
+              disableAnimations: true,
+            ),
             child: child!,
           ),
           home: screen,
@@ -367,9 +389,11 @@ void main() {
             child: MaterialApp(
               theme: gardenTheme(brightness),
               builder: (context, child) => MediaQuery(
-                data: MediaQuery.of(
-                  context,
-                ).copyWith(textScaler: const TextScaler.linear(2)),
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: const TextScaler.linear(2),
+                  // The garden sways forever; settle-based tests need it still.
+                  disableAnimations: true,
+                ),
                 child: child!,
               ),
               home: screen,
@@ -389,6 +413,144 @@ void main() {
     });
   }
 
+  for (final brightness in Brightness.values) {
+    testWidgets('Recorded Today card fits 320px at 2x text: $brightness', (
+      tester,
+    ) async {
+      await pumpSmall(
+        tester,
+        const HomeScreen(),
+        brightness,
+        withData: false,
+        checkedInToday: true,
+      );
+      await tester.scrollUntilVisible(
+        find.text('At the office'),
+        150,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Recorded'), findsOneWidget);
+      expect(find.text('Melbourne Studio · 9:04 AM'), findsOneWidget);
+      expect(find.text('Edit today'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  testWidgets('Attended day numbers stay readable in dark mode', (
+    tester,
+  ) async {
+    await pumpSmall(
+      tester,
+      const HomeScreen(),
+      Brightness.dark,
+      withData: false,
+      checkedInToday: true,
+    );
+    await tester.scrollUntilVisible(
+      find.text('Calendar legend'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    // Today is attended, so its number sits on the light dark-mode green.
+    final numbers = tester
+        .widgetList<Text>(find.text('${DateTime.now().day}'))
+        .where((t) => t.style?.fontWeight == FontWeight.bold)
+        .toList();
+    expect(numbers, isNotEmpty);
+    for (final t in numbers) {
+      expect(t.style!.color, isNot(Colors.white));
+    }
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  for (final font in AppFont.values) {
+    testWidgets('Home fits 320px at 2x text in ${font.label}', (tester) async {
+      tester.view.physicalSize = const Size(320, 720);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await db.insertOfficeLocation(
+        const OfficeLocation(
+          name: 'Melbourne Studio',
+          address: '',
+          latitude: 0,
+          longitude: 0,
+        ),
+      );
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await container.read(officeProvider.notifier).load();
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: gardenTheme(Brightness.light, font),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: const TextScaler.linear(2),
+                // The garden sways forever; settle-based tests need it still.
+                disableAnimations: true,
+              ),
+              child: child!,
+            ),
+            home: const HomeScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Calendar legend'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  testWidgets('Garden flowers sway, and hold still for reduced motion', (
+    tester,
+  ) async {
+    Future<Uint8List> frame() async {
+      final boundary = tester.renderObject<RenderRepaintBoundary>(
+        find.descendant(
+          of: find.byType(GardenArt),
+          matching: find.byType(RepaintBoundary),
+        ),
+      );
+      final image = await tester.runAsync(() => boundary.toImage());
+      final bytes = await tester.runAsync(() => image!.toByteData());
+      return bytes!.buffer.asUint8List();
+    }
+
+    Future<void> pumpGarden({required bool reduceMotion}) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: gardenTheme(Brightness.light),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(disableAnimations: reduceMotion),
+            child: child!,
+          ),
+          home: const Scaffold(body: GardenArt()),
+        ),
+      );
+    }
+
+    await pumpGarden(reduceMotion: false);
+    final first = await frame();
+    await tester.pump(const Duration(milliseconds: 1500));
+    expect(await frame(), isNot(equals(first)));
+
+    await pumpGarden(reduceMotion: true);
+    await tester.pump();
+    final still = await frame();
+    await tester.pump(const Duration(milliseconds: 1500));
+    expect(await frame(), equals(still));
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Appearance preserves theme mode and hides legacy palettes', (
     tester,
   ) async {
@@ -399,6 +561,10 @@ void main() {
         container: container,
         child: MaterialApp(
           theme: gardenTheme(Brightness.light),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: child!,
+          ),
           home: const ThemeScreen(),
         ),
       ),
@@ -408,6 +574,13 @@ void main() {
     await tester.tap(find.text('Dark'));
     await tester.pumpAndSettle();
     expect(container.read(settingsProvider).themeMode, ThemeMode.dark);
+
+    // Every bundled font is offered, and choosing one is saved.
+    await tester.ensureVisible(find.text('Nunito'));
+    await tester.tap(find.text('Nunito'));
+    await tester.pumpAndSettle();
+    expect(container.read(settingsProvider).font, AppFont.nunito);
+    expect(find.text('Figtree (default)'), findsOneWidget);
     expect(find.text('Match my wallpaper'), findsNothing);
     expect(find.text('Rainbow Bee-eater'), findsNothing);
     await tester.pumpWidget(const SizedBox());
