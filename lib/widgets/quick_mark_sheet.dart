@@ -15,6 +15,8 @@ import '../models/office_location.dart';
 import '../models/special_day.dart';
 import '../screens/day_entry_screen.dart';
 import '../services/database_service.dart';
+import 'day_status_grid.dart';
+import 'garden_tag.dart';
 
 enum _SheetResult { saved, removed, openFull }
 
@@ -88,7 +90,8 @@ Future<bool> showQuickMarkSheet(
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      builder: (_) => sheet,
+      // Scrolls when large text makes the sheet taller than the screen.
+      builder: (_) => SingleChildScrollView(child: sheet),
     );
   }
 
@@ -215,6 +218,7 @@ class _QuickMarkSheetState extends ConsumerState<_QuickMarkSheet> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     final isToday = isSameDay(widget.date, DateTime.now());
     final isPlanned = isPlannedDay(widget.date);
     // Only reachable with an existing entry (see showQuickMarkSheet), which
@@ -222,88 +226,82 @@ class _QuickMarkSheetState extends ConsumerState<_QuickMarkSheet> {
     final isWeekend = isWeekendDay(widget.date);
 
     return Padding(
-      // Keep the sheet above the keyboard when the comment field is focused.
+      // Keep the sheet above the keyboard when the note field is focused.
       padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
+        left: 22,
+        right: 22,
         bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               Expanded(
                 child: Text(
-                  (widget.date.year == DateTime.now().year
-                          ? DateFormat('EEEE, MMMM d')
-                          : DateFormat('EEEE, MMMM d, yyyy'))
-                      .format(widget.date),
-                  style: Theme.of(context).textTheme.titleLarge,
+                  widget.office.name.toUpperCase(),
+                  style: text.labelSmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    letterSpacing: 1.4,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (isToday || isPlanned)
-                Chip(
-                  label: Text(isToday ? 'Today' : 'Planned'),
-                  visualDensity: VisualDensity.compact,
-                  labelStyle: TextStyle(color: cs.primary),
-                ),
+                GardenTag(isToday ? 'Today' : 'Planned'),
             ],
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final s in DayStatus.values)
-                ChoiceChip(
-                  avatar: CircleAvatar(
-                    radius: 5,
-                    backgroundColor: s.colorIn(context),
-                  ),
-                  label: Text(s.label),
-                  selected: _status == s,
-                  selectedColor: s.colorIn(context).withValues(alpha: 0.18),
-                  onSelected: isWeekend
-                      ? null
-                      : (_) {
-                          unawaited(HapticFeedback.selectionClick());
-                          setState(() => _status = s);
-                        },
-                ),
-            ],
+          const SizedBox(height: 8),
+          Text(
+            (widget.date.year == DateTime.now().year
+                    ? DateFormat('EEEE, d MMMM')
+                    : DateFormat('EEEE, d MMMM yyyy'))
+                .format(widget.date),
+            style: text.headlineSmall,
           ),
-          if (isWeekend) ...[
-            const SizedBox(height: 12),
-            Text(
-              '$weekendNotMarkableMessage This entry can only be removed.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
-            ),
-          ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 4),
+          Text(
+            isWeekend
+                ? '$weekendNotMarkableMessage This entry can only be removed.'
+                : isPlanned
+                ? 'What have you planned for this day?'
+                : 'Where did your day take you?',
+            style: text.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 16),
+          DayStatusGrid(
+            selected: _status,
+            onChanged: isWeekend
+                ? null
+                : (s) {
+                    unawaited(HapticFeedback.selectionClick());
+                    setState(() => _status = s);
+                  },
+          ),
+          const SizedBox(height: 14),
           TextField(
             controller: _comment,
             enabled: !isWeekend,
             decoration: const InputDecoration(
-              hintText: 'Comment (optional)',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.notes_outlined),
+              labelText: 'Note (optional)',
+              hintText: 'Add a little context…',
               isDense: true,
             ),
             textCapitalization: TextCapitalization.sentences,
           ),
-          const SizedBox(height: 12),
-          Row(
+          if (!isWeekend) ...[
+            const SizedBox(height: 14),
+            FilledButton(
+              onPressed: _saving ? null : _save,
+              child: Text(_hasExisting ? 'Update' : 'Save'),
+            ),
+          ],
+          const SizedBox(height: 4),
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
             children: [
-              if (_hasExisting)
-                IconButton(
-                  tooltip: 'Remove entry',
-                  icon: Icon(Icons.delete_outline, color: cs.error),
-                  onPressed: _saving ? null : _remove,
-                ),
               if (!isWeekend)
                 TextButton(
                   onPressed: _saving
@@ -311,12 +309,11 @@ class _QuickMarkSheetState extends ConsumerState<_QuickMarkSheet> {
                       : () => Navigator.pop(context, _SheetResult.openFull),
                   child: const Text('All options…'),
                 ),
-              const Spacer(),
-              if (!isWeekend)
-                FilledButton.icon(
-                  onPressed: _saving ? null : _save,
-                  icon: const Icon(Icons.check),
-                  label: Text(_hasExisting ? 'Update' : 'Save'),
+              if (_hasExisting)
+                TextButton(
+                  style: TextButton.styleFrom(foregroundColor: cs.error),
+                  onPressed: _saving ? null : _remove,
+                  child: const Text('Remove entry'),
                 ),
             ],
           ),

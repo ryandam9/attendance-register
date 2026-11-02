@@ -183,7 +183,7 @@ void main() {
     );
     await openSheet(tester);
 
-    await tester.tap(find.byTooltip('Remove entry'));
+    await tester.tap(find.text('Remove entry'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove'));
     await tester.pumpAndSettle();
@@ -241,7 +241,7 @@ void main() {
     expect(find.text('Update'), findsNothing);
     expect(find.text('All options…'), findsNothing);
 
-    await tester.tap(find.byTooltip('Remove entry'));
+    await tester.tap(find.text('Remove entry'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove'));
     await tester.pumpAndSettle();
