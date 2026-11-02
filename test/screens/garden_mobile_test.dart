@@ -86,7 +86,7 @@ void main() {
         );
         expect(tester.takeException(), isNull);
         await tester.scrollUntilVisible(
-          find.text('Calendar legend'),
+          find.text('All symbols'),
           200,
           scrollable: find.byType(Scrollable).first,
         );
@@ -449,7 +449,7 @@ void main() {
       checkedInToday: true,
     );
     await tester.scrollUntilVisible(
-      find.text('Calendar legend'),
+      find.text('All symbols'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
@@ -465,13 +465,52 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  for (final brightness in Brightness.values) {
+    testWidgets('Calendar key counts this month and lists every symbol: '
+        '$brightness', (tester) async {
+      await pumpSmall(tester, const HomeScreen(), brightness);
+      await tester.scrollUntilVisible(
+        find.text('All symbols'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      // Only the statuses used this month, each with its count.
+      Finder keyItem(String label) => find.byWidgetPredicate(
+        (w) => w is Semantics && w.properties.label == label,
+      );
+      expect(keyItem('Attended: 1 day'), findsOneWidget);
+      expect(keyItem('Work from Home: 1 day'), findsOneWidget);
+      expect(keyItem('Annual Leave: 1 day'), findsOneWidget);
+      expect(find.text('Sick Leave'), findsNothing);
+
+      await tester.ensureVisible(find.text('All symbols'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('All symbols'));
+      await tester.pumpAndSettle();
+      expect(find.text('Calendar symbols'), findsOneWidget);
+      final sheet = find.byType(BottomSheet);
+      for (final label in ['Sick Leave', 'Public Holiday', 'Today']) {
+        await tester.scrollUntilVisible(
+          find.descendant(of: sheet, matching: find.text(label)),
+          100,
+          scrollable: find.descendant(
+            of: sheet,
+            matching: find.byType(Scrollable),
+          ),
+        );
+      }
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
   testWidgets('Calendar stays a full month and shows only its own dates', (
     tester,
   ) async {
     await pumpSmall(tester, const HomeScreen(), Brightness.light);
     final page = find.byType(Scrollable).first;
     Future<void> showCalendar() => tester.scrollUntilVisible(
-      find.text('Calendar legend'),
+      find.text('All symbols'),
       200,
       scrollable: page,
     );
@@ -488,7 +527,9 @@ void main() {
     expect(day(lastDay), findsOneWidget);
 
     // A vertical swipe used to shrink the calendar to two weeks or one week.
-    await tester.fling(calendar, const Offset(0, -300), 1000);
+    await tester.ensureVisible(day(15));
+    await tester.pumpAndSettle();
+    await tester.fling(day(15), const Offset(0, -300), 1000);
     await tester.pumpAndSettle();
     await showCalendar();
     expect(day(1), findsOneWidget);
@@ -531,7 +572,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
-        find.text('Calendar legend'),
+        find.text('All symbols'),
         200,
         scrollable: find.byType(Scrollable).first,
       );

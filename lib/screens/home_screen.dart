@@ -297,31 +297,11 @@ class _Dashboard extends ConsumerWidget {
     required this.onCheckIn,
   });
 
-  static final _dayKeyFmt = DateFormat('yyyy-MM-dd');
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ap = ref.watch(attendanceProvider);
-    final sp = ref.watch(specialDayProvider);
     final settings = ref.watch(settingsProvider);
     final focusedDay = ref.watch(calendarFocusProvider);
-
-    // O(1) status lookup per calendar cell. Attendance wins over a special day
-    // (matching the precedence used everywhere else).
-    final attendedKeys = ap.attendanceDateKeys;
-    final specialTypes = sp.typeByDate;
-    DayStatus? statusFor(DateTime day) {
-      final key = _dayKeyFmt.format(day);
-      if (attendedKeys.contains(key)) return DayStatus.attended;
-      return specialTypes[key]?.dayStatus;
-    }
-
-    Widget? dayCell(DateTime day, {required bool isToday}) {
-      final status = statusFor(day);
-      // No marker and not today → let table_calendar draw its default number.
-      if (!isToday && status == null) return null;
-      return _DayCell(day: day, status: status, isToday: isToday);
-    }
 
     // Home shows the return-to-office gauge for the focused month.
     final monthPeriod = ReportPeriod(
@@ -434,48 +414,14 @@ class _Dashboard extends ConsumerWidget {
           ),
 
           // Calendar — the home page leads with the month, statuses shown as
-          // icons/markers inside each day cell (Monday-first week).
-          Card(
-            margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            clipBehavior: Clip.antiAlias,
-            child: TableCalendar(
-              firstDay: DateTime(2020),
-              lastDay: DateTime(DateTime.now().year + 5, 12, 31),
-              focusedDay: focusedDay,
-              // Always the full month: vertical swipes would otherwise
-              // shrink it to two weeks or one week.
-              calendarFormat: CalendarFormat.month,
-              availableGestures: AvailableGestures.horizontalSwipe,
-              startingDayOfWeek: StartingDayOfWeek.monday,
-              // A fixed six-row grid prevents the content below the calendar
-              // jumping when moving between four-, five- and six-week months.
-              sixWeekMonthsEnforced: true,
+          // icons/markers inside each day cell (Monday-first week), with this
+          // month's key underneath.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: _CalendarCard(
               onPageChanged: onPageChanged,
-              selectedDayPredicate: (_) => false,
-              // Future days are tappable too: leave that is already booked
-              // (and planned office days) can be recorded before the fact.
-              onDaySelected: (selectedDay, _) => onDayTapped(selectedDay),
-              calendarBuilders: CalendarBuilders(
-                defaultBuilder: (context, day, _) =>
-                    dayCell(day, isToday: false),
-                todayBuilder: (context, day, _) => dayCell(day, isToday: true),
-              ),
-              // Only this month's dates; neighbouring months' days are blank.
-              calendarStyle: const CalendarStyle(outsideDaysVisible: false),
-              headerStyle: const HeaderStyle(
-                formatButtonVisible: false,
-                titleCentered: true,
-              ),
+              onDayTapped: onDayTapped,
             ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Status legend in its own card so colours/icons never need to be
-          // memorised (accessibility: icon + label + colour).
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: _LegendCard(collapsible: true),
           ),
         ],
       ),
@@ -727,13 +673,8 @@ class _DayCell extends StatelessWidget {
     // The marker for a given status (no "today" treatment).
     Widget markerFor(DayStatus st) {
       if (st == DayStatus.attended) {
-        // The attended green is dark in light mode but a light lime in dark
-        // mode, so pick the number colour that stays readable on it.
         final bg = st.colorIn(context);
-        final fg = ThemeData.estimateBrightnessForColor(bg) == Brightness.dark
-            ? Colors.white
-            : const Color(0xFF1B2A12);
-        return filled(bg, fg);
+        return filled(bg, _numberColorOn(bg));
       }
       // Sick / leave / WFH / holiday / misc — show the status icon.
       return Center(child: Icon(st.icon, color: st.colorIn(context), size: 22));
@@ -769,63 +710,191 @@ class _DayCell extends StatelessWidget {
   }
 }
 
-// ── Calendar legend ───────────────────────────────────────────────────────────
+// ── Calendar key ──────────────────────────────────────────────────────────────
 
-class _LegendCard extends StatelessWidget {
-  final bool collapsible;
-  const _LegendCard({this.collapsible = false});
+/// The number colour that stays readable on a filled day circle: the attended
+/// green is dark in light mode but a light lime in dark mode.
+Color _numberColorOn(Color fill) =>
+    ThemeData.estimateBrightnessForColor(fill) == Brightness.dark
+    ? Colors.white
+    : const Color(0xFF1B2A12);
+
+/// A small copy of how [status] looks in the calendar, so the key matches the
+/// grid exactly. With no status it shows today's circle; with [ring] it shows
+/// the ring that marks today once it's recorded.
+class _StatusSwatch extends StatelessWidget {
+  final DayStatus? status;
+  final bool ring;
+  const _StatusSwatch(this.status, {this.ring = false});
+
+  static const size = 24.0;
 
   @override
   Widget build(BuildContext context) {
-    final legend = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 10,
-        children: [
-          for (final s in DayStatus.values)
-            _LegendItem(
-              icon: s.icon,
-              color: s.colorIn(context),
-              label: s.label,
-            ),
-        ],
+    final cs = Theme.of(context).colorScheme;
+    final s = status;
+    Widget circle(Color fill) => Container(
+      decoration: BoxDecoration(color: fill, shape: BoxShape.circle),
+      alignment: Alignment.center,
+      child: Text(
+        '8',
+        textScaler: TextScaler.noScaling,
+        style: TextStyle(
+          color: _numberColorOn(fill),
+          fontWeight: FontWeight.bold,
+          fontSize: 11,
+        ),
       ),
     );
-    return Card(
-      margin: EdgeInsets.zero,
-      child: collapsible
-          ? ExpansionTile(
-              leading: const Icon(Icons.info_outline),
-              title: const Text('Calendar legend'),
-              children: [legend],
-            )
-          : legend,
+    final Widget mark;
+    if (ring) {
+      mark = Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: cs.primary, width: 2),
+        ),
+      );
+    } else if (s == null) {
+      mark = Container(
+        decoration: BoxDecoration(color: cs.primary, shape: BoxShape.circle),
+      );
+    } else if (s == DayStatus.attended) {
+      mark = circle(s.colorIn(context));
+    } else {
+      mark = Icon(s.icon, color: s.colorIn(context), size: 20);
+    }
+    return SizedBox.square(
+      dimension: size,
+      child: Center(child: mark),
     );
   }
 }
 
-class _LegendItem extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String label;
-  const _LegendItem({
-    required this.icon,
-    required this.color,
-    required this.label,
-  });
+/// The key under the calendar: only the statuses used in the focused month,
+/// each with its count, plus a link to the full list of symbols.
+class _MonthKey extends ConsumerWidget {
+  const _MonthKey();
+
+  static final _dayKeyFmt = DateFormat('yyyy-MM-dd');
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 6),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
-      ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final focused = ref.watch(calendarFocusProvider);
+    final attended = ref.watch(attendanceProvider).attendanceDateKeys;
+    final special = ref.watch(specialDayProvider).typeByDate;
+    final text = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
+
+    // Attendance wins over a special day, as in the calendar itself.
+    final counts = <DayStatus, int>{};
+    final days = DateTime(focused.year, focused.month + 1, 0).day;
+    for (var d = 1; d <= days; d++) {
+      final key = _dayKeyFmt.format(DateTime(focused.year, focused.month, d));
+      final status = attended.contains(key)
+          ? DayStatus.attended
+          : special[key]?.dayStatus;
+      if (status != null) counts[status] = (counts[status] ?? 0) + 1;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+      child: LayoutBuilder(
+        builder: (context, constraints) => Wrap(
+          spacing: 14,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            if (counts.isEmpty)
+              Text(
+                'Nothing marked this month',
+                style: text.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+              ),
+            // Listed in the usual status order, not by count, so each status
+            // keeps its place from month to month.
+            for (final s in DayStatus.values)
+              if (counts[s] case final n?)
+                Semantics(
+                  label: '${s.label}: $n ${n == 1 ? 'day' : 'days'}',
+                  excludeSemantics: true,
+                  // Long labels wrap rather than overflow on narrow screens.
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _StatusSwatch(s),
+                        const SizedBox(width: 6),
+                        Flexible(child: Text(s.label, style: text.bodySmall)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$n',
+                          style: text.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            TextButton.icon(
+              onPressed: () => _showAllSymbols(context),
+              icon: const Icon(Icons.info_outline, size: 18),
+              label: const Text('All symbols'),
+            ),
+          ],
+        ),
+      ),
     );
   }
+}
+
+/// Every symbol the calendar can show, with what it means.
+void _showAllSymbols(BuildContext context) {
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (context) {
+      final text = Theme.of(context).textTheme;
+      final cs = Theme.of(context).colorScheme;
+      Widget row(Widget swatch, String title, String subtitle) => ListTile(
+        leading: swatch,
+        title: Text(title),
+        subtitle: Text(subtitle),
+        minLeadingWidth: _StatusSwatch.size,
+      );
+      return SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+          ),
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.only(bottom: 16),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text('Calendar symbols', style: text.titleLarge),
+              ),
+              for (final s in DayStatus.values)
+                row(_StatusSwatch(s), s.label, s.description),
+              Divider(indent: 16, endIndent: 16, color: cs.outlineVariant),
+              row(
+                const _StatusSwatch(null),
+                'Today',
+                'Today, before anything is recorded',
+              ),
+              row(
+                const _StatusSwatch(null, ring: true),
+                'Today, recorded',
+                'A ring around today\'s symbol',
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
 
 // ── Shared month calendar ─────────────────────────────────────────────────────
@@ -863,27 +932,37 @@ class _CalendarCard extends ConsumerWidget {
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
-      child: TableCalendar(
-        firstDay: DateTime(2020),
-        lastDay: DateTime(DateTime.now().year + 5, 12, 31),
-        focusedDay: focusedDay,
-        calendarFormat: CalendarFormat.month,
-        availableGestures: AvailableGestures.horizontalSwipe,
-        startingDayOfWeek: StartingDayOfWeek.monday,
-        sixWeekMonthsEnforced: true,
-        onPageChanged: onPageChanged,
-        selectedDayPredicate: (_) => false,
-        // Future days are tappable too — see the phone calendar above.
-        onDaySelected: (selectedDay, _) => onDayTapped(selectedDay),
-        calendarBuilders: CalendarBuilders(
-          defaultBuilder: (context, day, _) => dayCell(day, isToday: false),
-          todayBuilder: (context, day, _) => dayCell(day, isToday: true),
-        ),
-        calendarStyle: const CalendarStyle(outsideDaysVisible: false),
-        headerStyle: const HeaderStyle(
-          formatButtonVisible: false,
-          titleCentered: true,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TableCalendar(
+            firstDay: DateTime(2020),
+            lastDay: DateTime(DateTime.now().year + 5, 12, 31),
+            focusedDay: focusedDay,
+            calendarFormat: CalendarFormat.month,
+            availableGestures: AvailableGestures.horizontalSwipe,
+            startingDayOfWeek: StartingDayOfWeek.monday,
+            sixWeekMonthsEnforced: true,
+            onPageChanged: onPageChanged,
+            selectedDayPredicate: (_) => false,
+            // Future days are tappable too — see the phone calendar above.
+            onDaySelected: (selectedDay, _) => onDayTapped(selectedDay),
+            calendarBuilders: CalendarBuilders(
+              defaultBuilder: (context, day, _) => dayCell(day, isToday: false),
+              todayBuilder: (context, day, _) => dayCell(day, isToday: true),
+            ),
+            calendarStyle: const CalendarStyle(outsideDaysVisible: false),
+            headerStyle: const HeaderStyle(
+              formatButtonVisible: false,
+              titleCentered: true,
+            ),
+          ),
+          Divider(
+            height: 1,
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+          const _MonthKey(),
+        ],
       ),
     );
   }
@@ -994,8 +1073,6 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
                       const SizedBox(height: 16),
                       calendar,
                       const SizedBox(height: 16),
-                      const _LegendCard(),
-                      const SizedBox(height: 16),
                       _dayDetailCard(context),
                     ],
                   );
@@ -1015,8 +1092,6 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
                           ),
                           const SizedBox(height: 20),
                           calendar,
-                          const SizedBox(height: 16),
-                          const _LegendCard(),
                         ],
                       ),
                     ),
