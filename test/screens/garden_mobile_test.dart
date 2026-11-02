@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'package:attendance_register/models/attendance_breakdown.dart';
+import 'package:attendance_register/providers/explain_provider.dart';
+import 'package:attendance_register/providers/ui_state_provider.dart';
 import 'package:attendance_register/models/attendance_record.dart';
 import 'package:attendance_register/models/office_location.dart';
 import 'package:attendance_register/models/special_day.dart';
@@ -40,6 +44,107 @@ void main() {
     await db.reset();
     DatabaseService.overridePath = null;
   });
+
+  for (final switchOffice in [false, true]) {
+    testWidgets(
+      'Progress never reuses another ${switchOffice ? 'office' : 'month'}',
+      (tester) async {
+        tester.view.physicalSize = const Size(400, 1400);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        for (final name in ['First office', 'Second office']) {
+          await db.insertOfficeLocation(
+            OfficeLocation(name: name, address: '', latitude: 0, longitude: 0),
+          );
+        }
+        final pending = Completer<AttendanceBreakdown>();
+        BreakdownArgs? initial;
+        final container = ProviderContainer(
+          overrides: [
+            breakdownProvider.overrideWith((ref, args) {
+              initial ??= args;
+              if (args == initial) {
+                return Future.value(
+                  const AttendanceBreakdown(
+                    weekdays: 20,
+                    officeDays: 10,
+                    specialDayCounts: {},
+                    remainingEligibleDays: 10,
+                  ),
+                );
+              }
+              return pending.future;
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
+        await container.read(officeProvider.notifier).load();
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: gardenTheme(Brightness.light),
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(disableAnimations: true),
+                child: child!,
+              ),
+              home: const HomeScreen(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('50%'), findsOneWidget);
+        final gardenState = tester.state(find.byType(GardenArt));
+        final headingElement = tester.element(
+          find.text('Your month, gently growing.'),
+        );
+        final todayElement = tester.element(find.text('TODAY'));
+        final scrollPosition = tester
+            .state<ScrollableState>(find.byType(Scrollable).first)
+            .position;
+        final offset = scrollPosition.pixels;
+        if (switchOffice) {
+          container
+              .read(officeProvider.notifier)
+              .selectOffice(container.read(officeProvider).offices.last);
+        } else {
+          final now = container.read(calendarFocusProvider);
+          tester
+              .widget<TableCalendar>(find.byType(TableCalendar))
+              .onPageChanged!(DateTime(now.year, now.month - 1));
+        }
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(find.text('50%'), findsNothing);
+        if (!switchOffice) {
+          expect(tester.state(find.byType(GardenArt)), same(gardenState));
+          expect(
+            tester.element(find.text('Your month, gently growing.')),
+            same(headingElement),
+          );
+          expect(tester.element(find.text('TODAY')), same(todayElement));
+          expect(scrollPosition.pixels, offset);
+          expect(find.textContaining('Loading '), findsOneWidget);
+        }
+        pending.complete(
+          const AttendanceBreakdown(
+            weekdays: 20,
+            officeDays: 4,
+            specialDayCounts: {},
+            remainingEligibleDays: 10,
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('20%'), findsOneWidget);
+        if (!switchOffice) {
+          expect(tester.state(find.byType(GardenArt)), same(gardenState));
+          expect(tester.element(find.text('TODAY')), same(todayElement));
+        }
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
 
   for (final brightness in Brightness.values) {
     testWidgets(
@@ -434,9 +539,9 @@ void main() {
       expect(find.text('Checked in at 9:04 AM'), findsOneWidget);
       expect(find.textContaining('Melbourne Studio'), findsNothing);
       // The whole card opens today's editor.
-      await tester.ensureVisible(find.text('At the office'));
+      await tester.ensureVisible(find.byTooltip('Edit today'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('At the office'));
+      await tester.tap(find.byTooltip('Edit today'));
       await tester.pumpAndSettle();
       expect(
         find.text(DateFormat('EEEE, d MMMM').format(DateTime.now())),

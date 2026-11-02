@@ -39,6 +39,10 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  // Only the first load for an office gates the whole dashboard. Month changes
+  // must retain the mounted calendar, scroll position, flowers and Today card.
+  int? _displayedOfficeId;
+
   @override
   void initState() {
     super.initState();
@@ -162,16 +166,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (previous != next) _refreshAttendance();
     });
 
-    // Hold the dashboard back until today's status, the month's days and its
-    // progress have all loaded, then show everything at once. Otherwise each
-    // card pops in or changes size as its data arrives.
+    // Assemble the first view together, then load subsequent months in place.
     final office = officeState.selectedOffice;
     var ready = false;
     if (!officeState.loading && office != null) {
       final args = _homeMonthArgs(ref, office.id!);
       ref.listen(breakdownProvider(args), (_, next) {
         if (next.hasValue) {
-          ref.read(_lastMonthBreakdownProvider.notifier).set(next.value);
+          ref.read(_lastMonthBreakdownProvider.notifier).set(args, next.value!);
         }
       });
       final loadedOffice = ref.watch(
@@ -181,11 +183,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         specialDayProvider.select((s) => s.hasLoaded),
       );
       final breakdown = ref.watch(breakdownProvider(args));
-      final hadBreakdown = ref.watch(_lastMonthBreakdownProvider) != null;
-      ready =
+      final hadBreakdown = ref.watch(_lastMonthBreakdownProvider)?.args == args;
+      final initialDataReady =
           loadedOffice == office.id &&
           daysLoaded &&
           (breakdown.hasValue || breakdown.hasError || hadBreakdown);
+      if (_displayedOfficeId != office.id) {
+        _displayedOfficeId = initialDataReady ? office.id : null;
+      }
+      ready = _displayedOfficeId == office.id;
+    } else if (office == null) {
+      _displayedOfficeId = null;
     }
 
     // Desktop: a two-pane dashboard that fills the window. The navigation shell
@@ -255,16 +263,19 @@ BreakdownArgs _homeMonthArgs(WidgetRef ref, int officeId) {
   return (officeId: officeId, start: period.start, end: period.end);
 }
 
-/// The last month progress the home page showed, kept so returning to Home
-/// or swiping months shows the previous numbers instead of a spinner.
-class _LastMonthBreakdown extends Notifier<AttendanceBreakdown?> {
+/// Reuse progress only for the same office and reporting period.
+/// A different request must load its own numbers before being displayed.
+typedef _CachedBreakdown = ({BreakdownArgs args, AttendanceBreakdown value});
+
+class _LastMonthBreakdown extends Notifier<_CachedBreakdown?> {
   @override
-  AttendanceBreakdown? build() => null;
-  void set(AttendanceBreakdown? value) => state = value;
+  _CachedBreakdown? build() => null;
+  void set(BreakdownArgs args, AttendanceBreakdown value) =>
+      state = (args: args, value: value);
 }
 
 final _lastMonthBreakdownProvider =
-    NotifierProvider<_LastMonthBreakdown, AttendanceBreakdown?>(
+    NotifierProvider<_LastMonthBreakdown, _CachedBreakdown?>(
       _LastMonthBreakdown.new,
     );
 
@@ -402,10 +413,10 @@ class _Dashboard extends ConsumerWidget {
     final monthBreakdown = ref.watch(
       breakdownProvider(_homeMonthArgs(ref, selected.id!)),
     );
-    // While a newly swiped-to month loads, keep the last numbers on screen
-    // rather than flashing a spinner.
+    final cached = ref.watch(_lastMonthBreakdownProvider);
+    final args = _homeMonthArgs(ref, selected.id!);
     final shownBreakdown =
-        monthBreakdown.value ?? ref.watch(_lastMonthBreakdownProvider);
+        monthBreakdown.value ?? (cached?.args == args ? cached?.value : null);
 
     return RefreshIndicator(
       onRefresh: onRefresh,
@@ -483,7 +494,13 @@ class _Dashboard extends ConsumerWidget {
                       ),
                     )
                   : shownBreakdown == null
-                  ? const Card(margin: EdgeInsets.zero)
+                  ? Card(
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text('Loading ${monthPeriod.label} progress…'),
+                      ),
+                    )
                   : _MobileProgressCard(
                       breakdown: shownBreakdown,
                       target: settings.rtoTarget,
@@ -548,12 +565,7 @@ class _MobileTodayCard extends StatelessWidget {
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       // Checking in shrinks the card; ease that rather than jump.
-      child: AnimatedSize(
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
-        alignment: Alignment.topCenter,
+      child: _TodayResize(
         child: InkWell(
           // Once recorded, the whole card is the way to change today.
           onTap: recorded ? onEdit : null,
@@ -611,7 +623,7 @@ class _MobileTodayCard extends StatelessWidget {
                   final other = OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(padding: pad),
                     onPressed: onEdit,
-                    icon: const Icon(Icons.home_work_outlined, size: 18),
+                    icon: const Icon(Icons.cottage_outlined, size: 18),
                     label: const Text('Home or leave'),
                   );
                   return Column(
@@ -629,6 +641,12 @@ class _MobileTodayCard extends StatelessWidget {
                           const SizedBox(width: 12),
                           Expanded(child: heading),
                           if (roomy) ...[const SizedBox(width: 8), tag],
+                          if (recorded)
+                            IconButton(
+                              tooltip: 'Edit today',
+                              onPressed: onEdit,
+                              icon: const Icon(Icons.edit_outlined, size: 20),
+                            ),
                         ],
                       ),
                       if (!recorded) ...[
@@ -805,8 +823,18 @@ class _DayCell extends StatelessWidget {
         final bg = st.colorIn(context);
         return filled(bg, _numberColorOn(bg));
       }
-      // Sick / leave / WFH / holiday / misc — show the status icon.
-      return Center(child: Icon(st.icon, color: st.colorIn(context), size: 22));
+      // Sick / leave / WFH / holiday / misc: the status icon on a soft disc
+      // of its colour, the same size as an office day's filled circle.
+      final color = st.colorIn(context);
+      return Container(
+        margin: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.16),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Icon(st.icon, color: color, size: 20),
+      );
     }
 
     if (isToday) {
@@ -890,7 +918,15 @@ class _StatusSwatch extends StatelessWidget {
     } else if (s == DayStatus.attended) {
       mark = circle(s.colorIn(context));
     } else {
-      mark = Icon(s.icon, color: s.colorIn(context), size: 20);
+      final color = s.colorIn(context);
+      mark = Container(
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.16),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Icon(s.icon, color: color, size: 15),
+      );
     }
     return SizedBox.square(
       dimension: size,
@@ -1588,4 +1624,19 @@ class _StatusBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Avoid a zero-duration AnimatedSize laying itself out during reduced motion.
+class _TodayResize extends StatelessWidget {
+  const _TodayResize({required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => MediaQuery.disableAnimationsOf(context)
+      ? child
+      : AnimatedSize(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: child,
+        );
 }

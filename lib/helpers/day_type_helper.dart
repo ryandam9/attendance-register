@@ -36,7 +36,7 @@ extension DayTypeX on DayType {
     DayType.sickLeave => Icons.sick_outlined,
     DayType.annualLeave => Icons.luggage_outlined,
     DayType.carersLeave => Icons.volunteer_activism_outlined,
-    DayType.workFromHome => Icons.home_work_outlined,
+    DayType.workFromHome => Icons.cottage_outlined,
     DayType.miscLeave => Icons.cancel_outlined,
   };
 
@@ -100,7 +100,7 @@ extension DayStatusX on DayStatus {
     DayStatus.sickLeave => Icons.sick_outlined,
     DayStatus.annualLeave => Icons.luggage_outlined,
     DayStatus.carersLeave => Icons.volunteer_activism_outlined,
-    DayStatus.workFromHome => Icons.home_work_outlined,
+    DayStatus.workFromHome => Icons.cottage_outlined,
     DayStatus.miscLeave => Icons.cancel_outlined,
   };
 
