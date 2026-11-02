@@ -15,7 +15,11 @@ import 'package:attendance_register/services/database_service.dart';
 import 'package:attendance_register/themes/app_font.dart';
 import 'package:attendance_register/themes/garden_theme.dart';
 import 'package:attendance_register/widgets/quick_mark_sheet.dart';
+import 'dart:typed_data';
+
+import 'package:attendance_register/widgets/garden_art.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
@@ -60,9 +64,11 @@ void main() {
             child: MaterialApp(
               theme: gardenTheme(brightness),
               builder: (context, child) => MediaQuery(
-                data: MediaQuery.of(
-                  context,
-                ).copyWith(textScaler: const TextScaler.linear(2)),
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: const TextScaler.linear(2),
+                  // The garden sways forever; settle-based tests need it still.
+                  disableAnimations: true,
+                ),
                 child: child!,
               ),
               home: const HomeScreen(),
@@ -117,9 +123,11 @@ void main() {
           child: MaterialApp(
             theme: gardenTheme(brightness),
             builder: (context, child) => MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(textScaler: const TextScaler.linear(2)),
+              data: MediaQuery.of(context).copyWith(
+                textScaler: const TextScaler.linear(2),
+                // The garden sways forever; settle-based tests need it still.
+                disableAnimations: true,
+              ),
               child: child!,
             ),
             home: Builder(
@@ -239,9 +247,11 @@ void main() {
         child: MaterialApp(
           theme: gardenTheme(brightness),
           builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: const TextScaler.linear(2)),
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(2),
+              // The garden sways forever; settle-based tests need it still.
+              disableAnimations: true,
+            ),
             child: child!,
           ),
           home: screen,
@@ -379,9 +389,11 @@ void main() {
             child: MaterialApp(
               theme: gardenTheme(brightness),
               builder: (context, child) => MediaQuery(
-                data: MediaQuery.of(
-                  context,
-                ).copyWith(textScaler: const TextScaler.linear(2)),
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: const TextScaler.linear(2),
+                  // The garden sways forever; settle-based tests need it still.
+                  disableAnimations: true,
+                ),
                 child: child!,
               ),
               home: screen,
@@ -474,9 +486,11 @@ void main() {
           child: MaterialApp(
             theme: gardenTheme(Brightness.light, font),
             builder: (context, child) => MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(textScaler: const TextScaler.linear(2)),
+              data: MediaQuery.of(context).copyWith(
+                textScaler: const TextScaler.linear(2),
+                // The garden sways forever; settle-based tests need it still.
+                disableAnimations: true,
+              ),
               child: child!,
             ),
             home: const HomeScreen(),
@@ -494,6 +508,49 @@ void main() {
     });
   }
 
+  testWidgets('Garden flowers sway, and hold still for reduced motion', (
+    tester,
+  ) async {
+    Future<Uint8List> frame() async {
+      final boundary = tester.renderObject<RenderRepaintBoundary>(
+        find.descendant(
+          of: find.byType(GardenArt),
+          matching: find.byType(RepaintBoundary),
+        ),
+      );
+      final image = await tester.runAsync(() => boundary.toImage());
+      final bytes = await tester.runAsync(() => image!.toByteData());
+      return bytes!.buffer.asUint8List();
+    }
+
+    Future<void> pumpGarden({required bool reduceMotion}) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: gardenTheme(Brightness.light),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(disableAnimations: reduceMotion),
+            child: child!,
+          ),
+          home: const Scaffold(body: GardenArt()),
+        ),
+      );
+    }
+
+    await pumpGarden(reduceMotion: false);
+    final first = await frame();
+    await tester.pump(const Duration(milliseconds: 1500));
+    expect(await frame(), isNot(equals(first)));
+
+    await pumpGarden(reduceMotion: true);
+    await tester.pump();
+    final still = await frame();
+    await tester.pump(const Duration(milliseconds: 1500));
+    expect(await frame(), equals(still));
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Appearance preserves theme mode and hides legacy palettes', (
     tester,
   ) async {
@@ -504,6 +561,10 @@ void main() {
         container: container,
         child: MaterialApp(
           theme: gardenTheme(Brightness.light),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: child!,
+          ),
           home: const ThemeScreen(),
         ),
       ),
