@@ -179,6 +179,7 @@ void main() {
     Brightness brightness, {
     bool withData = true,
     bool withOffice = true,
+    bool checkedInToday = false,
   }) async {
     tester.view.physicalSize = const Size(320, 720);
     tester.view.devicePixelRatio = 1;
@@ -193,6 +194,16 @@ void main() {
               longitude: 0,
             ),
           );
+    if (checkedInToday && id != null) {
+      final now = DateTime.now();
+      await db.insertAttendanceRecord(
+        AttendanceRecord(
+          date: DateFormat('yyyy-MM-dd').format(now),
+          officeLocationId: id,
+          timestamp: DateTime(now.year, now.month, now.day, 9, 4),
+        ),
+      );
+    }
     if (withData && id != null) {
       final now = DateTime.now();
       final key = DateFormat('yyyy-MM-dd');
@@ -385,6 +396,30 @@ void main() {
         );
         expect(tester.takeException(), isNull, reason: heading);
       }
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  for (final brightness in Brightness.values) {
+    testWidgets('Recorded Today card fits 320px at 2x text: $brightness', (
+      tester,
+    ) async {
+      await pumpSmall(
+        tester,
+        const HomeScreen(),
+        brightness,
+        withData: false,
+        checkedInToday: true,
+      );
+      await tester.scrollUntilVisible(
+        find.text('At the office'),
+        150,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Recorded'), findsOneWidget);
+      expect(find.text('Melbourne Studio · 9:04 AM'), findsOneWidget);
+      expect(find.text('Edit today'), findsOneWidget);
+      expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     });
   }

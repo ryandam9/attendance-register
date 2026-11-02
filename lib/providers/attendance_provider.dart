@@ -40,6 +40,10 @@ class AttendanceState {
   /// otherwise report today as unrecorded and offer to check in again.
   final DayStatus? todayStatus;
 
+  /// When today's office check-in was recorded; null unless [todayStatus] is
+  /// attended.
+  final DateTime? todayCheckInTime;
+
   final bool loading;
 
   const AttendanceState({
@@ -53,6 +57,7 @@ class AttendanceState {
     this.monthlyExcludedCount = 0,
     this.yearlyExcludedCount = 0,
     this.todayStatus,
+    this.todayCheckInTime,
     this.loading = false,
   });
 
@@ -67,6 +72,7 @@ class AttendanceState {
     int? monthlyExcludedCount,
     int? yearlyExcludedCount,
     DayStatus? todayStatus,
+    DateTime? todayCheckInTime,
     bool? loading,
   }) {
     return AttendanceState(
@@ -81,6 +87,7 @@ class AttendanceState {
       monthlyExcludedCount: monthlyExcludedCount ?? this.monthlyExcludedCount,
       yearlyExcludedCount: yearlyExcludedCount ?? this.yearlyExcludedCount,
       todayStatus: todayStatus ?? this.todayStatus,
+      todayCheckInTime: todayCheckInTime ?? this.todayCheckInTime,
       loading: loading ?? this.loading,
     );
   }
@@ -183,6 +190,7 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
       monthlyExcludedCount: monthlyExcludedCount,
       yearlyExcludedCount: yearlyExcludedCount,
       todayStatus: todayStatus,
+      todayCheckInTime: todayRecord?.timestamp,
     );
   }
 

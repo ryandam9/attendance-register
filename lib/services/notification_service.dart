@@ -1,13 +1,7 @@
-import 'dart:io';
 import 'dart:ui' show Color;
 
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
-
-import '../themes/bird_art.dart';
-import 'database_service.dart';
 
 class AttendanceNotificationContent {
   const AttendanceNotificationContent({
@@ -15,6 +9,7 @@ class AttendanceNotificationContent {
     required this.body,
     required this.expandedBody,
     required this.date,
+    required this.shortDate,
     required this.office,
   });
 
@@ -22,6 +17,9 @@ class AttendanceNotificationContent {
   final String body;
   final String expandedBody;
   final String date;
+
+  /// Date without the year, for the iOS subtitle: "Mon, 16 Nov".
+  final String shortDate;
   final String office;
 }
 
@@ -50,6 +48,7 @@ AttendanceNotificationContent buildAttendanceNotificationContent({
     expandedBody:
         'Your attendance at $displayOffice was recorded.\n$date · $time',
     date: date,
+    shortDate: DateFormat('EEE, d MMM').format(timestamp),
     office: displayOffice,
   );
 }
@@ -88,27 +87,6 @@ class NotificationService {
     );
   }
 
-  /// Writes the selected theme's bird illustration to a temp file so Android
-  /// can use it as a small notification accent. It is deliberately not used as
-  /// a big picture: square bird artwork creates an oversized, mostly empty
-  /// expanded notification. Always best-effort; the notification still shows
-  /// if assets are unavailable in a background isolate.
-  Future<String?> _birdImagePath() async {
-    try {
-      final themeId =
-          await DatabaseService.instance.getSetting('theme_id') ?? 'bee_eater';
-      final asset = birdAssetForTheme(themeId);
-      if (asset == null) return null;
-      final bytes = await rootBundle.load(asset);
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/notif_bird_$themeId.png');
-      await file.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
-      return file.path;
-    } catch (_) {
-      return null;
-    }
-  }
-
   /// [id] should be unique per office (e.g. the office row id) so same-day
   /// check-ins at different offices don't overwrite each other's notification.
   ///
@@ -127,16 +105,10 @@ class NotificationService {
       timestamp: timestamp,
     );
 
-    // The selected theme's bird is a small accent, not expanded artwork.
-    final birdPath = await _birdImagePath();
-    final birdBitmap = birdPath == null
-        ? null
-        : FilePathAndroidBitmap(birdPath);
-
     // Apple platforms use the same concise hierarchy. Avoiding an image
     // attachment keeps their expanded notifications compact as well.
     final darwinDetails = DarwinNotificationDetails(
-      subtitle: '${content.date} · ${content.office}',
+      subtitle: '${content.shortDate} · ${content.office}',
       threadIdentifier: 'attendance-recorded',
     );
 
@@ -151,13 +123,15 @@ class NotificationService {
           channelDescription: 'Notifies when office attendance is recorded',
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
-          largeIcon: birdBitmap,
+          // A small garden flower beside the text; a bundled drawable, so it
+          // loads in the background isolate without touching Flutter assets.
+          largeIcon: const DrawableResourceAndroidBitmap('notification_flower'),
           styleInformation: BigTextStyleInformation(
             content.expandedBody,
             contentTitle: content.title,
           ),
           category: AndroidNotificationCategory.status,
-          color: const Color(0xFF16835A),
+          color: const Color(0xFF315741),
           onlyAlertOnce: true,
           ticker: 'Checked in at ${content.office}',
           when: timestamp.millisecondsSinceEpoch,

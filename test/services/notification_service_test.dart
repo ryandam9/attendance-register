@@ -18,6 +18,7 @@ void main() {
         'Your attendance at Melbourne Office was recorded.\n'
         'Fri, 19 Jun 2026 · 7:25 AM',
       );
+      expect(content.shortDate, 'Fri, 19 Jun');
     });
 
     test(

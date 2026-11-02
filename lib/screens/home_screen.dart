@@ -23,6 +23,7 @@ import '../services/holiday_service.dart';
 import '../themes/bird_art.dart';
 import '../widgets/garden_art.dart';
 import '../widgets/garden_header.dart';
+import '../widgets/garden_tag.dart';
 import '../widgets/check_in_celebration.dart';
 import '../widgets/quick_mark_sheet.dart';
 import '../widgets/responsive_body.dart';
@@ -394,6 +395,8 @@ class _Dashboard extends ConsumerWidget {
               // From today's own record, not the focused month's: paging the
               // calendar must not change what "Today" says.
               status: ap.todayStatus,
+              checkInTime: ap.todayCheckInTime,
+              officeName: selected.name,
               onCheckIn: onCheckIn,
               onEdit: () => onDayTapped(DateTime.now()),
             ),
@@ -480,11 +483,15 @@ class _Dashboard extends ConsumerWidget {
 
 class _MobileTodayCard extends StatelessWidget {
   final DayStatus? status;
+  final DateTime? checkInTime;
+  final String officeName;
   final Future<void> Function() onCheckIn;
   final VoidCallback onEdit;
 
   const _MobileTodayCard({
     required this.status,
+    required this.checkInTime,
+    required this.officeName,
     required this.onCheckIn,
     required this.onEdit,
   });
@@ -492,7 +499,23 @@ class _MobileTodayCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     final color = status?.colorIn(context) ?? cs.primary;
+    final recorded = status != null;
+    // Once today is recorded the card becomes a lasting confirmation:
+    // "At the office · Recorded", with where and when beneath.
+    final title = switch (status) {
+      null => 'Today is not recorded',
+      DayStatus.attended => 'At the office',
+      final s => s.label,
+    };
+    final subtitle = switch (status) {
+      null => 'Where are you working today?',
+      DayStatus.attended when checkInTime != null =>
+        '$officeName · ${DateFormat('h:mm a').format(checkInTime!)}',
+      DayStatus.attended => officeName,
+      _ => 'Today',
+    };
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -502,25 +525,38 @@ class _MobileTodayCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: color.withValues(alpha: 0.14),
-                  child: Icon(
-                    status?.icon ?? Icons.today_outlined,
-                    color: color,
-                  ),
+                GardenIconTile(
+                  color: color,
+                  icon: status == DayStatus.attended
+                      ? Icons.check
+                      : status?.icon ?? Icons.today_outlined,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Today',
-                        style: Theme.of(context).textTheme.labelMedium,
+                      // The tag sits beside the title, or wraps under it
+                      // when large text leaves no room.
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            title,
+                            style: text.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (recorded) const GardenTag('Recorded'),
+                        ],
                       ),
                       Text(
-                        status?.label ?? 'Not recorded yet',
-                        style: Theme.of(context).textTheme.titleMedium,
+                        subtitle,
+                        style: text.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -528,7 +564,7 @@ class _MobileTodayCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            if (status == null) ...[
+            if (!recorded) ...[
               FilledButton(
                 onPressed: onCheckIn,
                 child: const Text('Check in at the office'),
