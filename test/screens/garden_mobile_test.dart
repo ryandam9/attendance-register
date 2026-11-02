@@ -845,6 +845,55 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('Insights and History mark today from the title bar', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await db.insertOfficeLocation(
+      const OfficeLocation(
+        name: 'Melbourne Studio',
+        address: '',
+        latitude: 0,
+        longitude: 0,
+      ),
+    );
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    await container.read(officeProvider.notifier).load();
+    final today = DateFormat('EEEE, d MMMM').format(DateTime.now());
+
+    for (final screen in const [ExplainScreen(), HistoryScreen()]) {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: gardenTheme(Brightness.light),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(disableAnimations: true),
+              child: child!,
+            ),
+            home: screen,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final action = find.descendant(
+        of: find.byType(AppBar),
+        matching: find.byTooltip('Mark today'),
+      );
+      expect(action, findsOneWidget);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+      expect(find.textContaining(today), findsWidgets);
+      await tester.tapAt(const Offset(200, 20));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    }
+  });
+
   testWidgets('Appearance preserves theme mode and hides legacy palettes', (
     tester,
   ) async {

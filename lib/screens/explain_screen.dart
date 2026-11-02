@@ -17,6 +17,7 @@ import '../widgets/desktop_page.dart';
 import '../widgets/garden_header.dart';
 import '../widgets/garden_tag.dart';
 import '../widgets/no_office_placeholder.dart';
+import '../widgets/quick_mark_action.dart';
 import '../widgets/responsive_body.dart';
 import '../widgets/rto_arc_card.dart';
 
@@ -114,7 +115,10 @@ class _ExplainScreenState extends ConsumerState<ExplainScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Insights')),
+      appBar: AppBar(
+        title: const Text('Insights'),
+        actions: const [QuickMarkAction()],
+      ),
       body: ResponsiveBody(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
