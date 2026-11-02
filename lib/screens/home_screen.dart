@@ -450,80 +450,120 @@ class _MobileTodayCard extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final color = status?.colorIn(context) ?? cs.primary;
     final recorded = status != null;
-    // Once today is recorded the card becomes a lasting confirmation:
-    // "At the office · Recorded", with where and when beneath.
     final title = switch (status) {
-      null => 'Today is not recorded',
+      null => 'Where are you today?',
       DayStatus.attended => 'At the office',
       final s => s.label,
     };
     final subtitle = switch (status) {
-      null => 'Where are you working today?',
+      null => null,
       DayStatus.attended when checkInTime != null =>
         '$officeName · ${DateFormat('h:mm a').format(checkInTime!)}',
       DayStatus.attended => officeName,
-      _ => 'Today',
+      _ => 'Tap to change',
     };
+    final tag = recorded
+        ? const GardenTag('Recorded', icon: Icons.check)
+        : const GardenTag('Not recorded', muted: true);
+
     return Card(
       margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                GardenIconTile(
-                  color: color,
-                  icon: status == DayStatus.attended
-                      ? Icons.check
-                      : status?.icon ?? Icons.today_outlined,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // The tag sits beside the title, or wraps under it
-                      // when large text leaves no room.
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            title,
-                            style: text.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          if (recorded) const GardenTag('Recorded'),
-                        ],
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        // Once recorded, the whole card is the way to change today.
+        onTap: recorded ? onEdit : null,
+        child: Semantics(
+          button: recorded,
+          hint: recorded ? 'Edit today' : null,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // With large text on a narrow phone the tag drops under the
+                // title, and the two buttons stack.
+                final scale = MediaQuery.textScalerOf(context).scale(1);
+                final roomy = constraints.maxWidth / scale >= 260;
+                final heading = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      // The page header above already gives the date.
+                      'TODAY',
+                      style: text.labelSmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                        letterSpacing: 1.2,
+                        fontWeight: FontWeight.w600,
                       ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      title,
+                      style: text.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (subtitle != null)
                       Text(
                         subtitle,
                         style: text.bodySmall?.copyWith(
                           color: cs.onSurfaceVariant,
                         ),
                       ),
+                    if (!roomy) ...[const SizedBox(height: 6), tag],
+                  ],
+                );
+                // Tighter sides so both labels fit on one line side by side.
+                const pad = EdgeInsets.symmetric(horizontal: 12, vertical: 14);
+                final checkIn = FilledButton.icon(
+                  style: FilledButton.styleFrom(padding: pad),
+                  onPressed: onCheckIn,
+                  icon: const Icon(Icons.apartment, size: 18),
+                  label: const Text('Check in'),
+                );
+                final other = OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(padding: pad),
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.home_work_outlined, size: 18),
+                  label: const Text('Home or leave'),
+                );
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        GardenIconTile(
+                          color: color,
+                          icon: status == DayStatus.attended
+                              ? Icons.check
+                              : status?.icon ?? Icons.today_outlined,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(child: heading),
+                        if (roomy) ...[const SizedBox(width: 8), tag],
+                      ],
+                    ),
+                    if (!recorded) ...[
+                      const SizedBox(height: 14),
+                      if (roomy)
+                        Row(
+                          children: [
+                            Expanded(child: checkIn),
+                            const SizedBox(width: 8),
+                            Expanded(child: other),
+                          ],
+                        )
+                      else ...[
+                        checkIn,
+                        const SizedBox(height: 8),
+                        other,
+                      ],
                     ],
-                  ),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
-            const SizedBox(height: 12),
-            if (!recorded) ...[
-              FilledButton(
-                onPressed: onCheckIn,
-                child: const Text('Check in at the office'),
-              ),
-              TextButton(
-                onPressed: onEdit,
-                child: const Text('Work from home or mark leave'),
-              ),
-            ] else
-              TextButton(onPressed: onEdit, child: const Text('Edit today')),
-          ],
+          ),
         ),
       ),
     );

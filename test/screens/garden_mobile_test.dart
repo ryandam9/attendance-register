@@ -80,7 +80,7 @@ void main() {
         expect(find.text('Your month, gently growing.'), findsOneWidget);
         expect(tester.takeException(), isNull);
         await tester.scrollUntilVisible(
-          find.text('Check in at the office'),
+          find.text('Home or leave'),
           150,
           scrollable: find.byType(Scrollable).first,
         );
@@ -432,7 +432,16 @@ void main() {
       );
       expect(find.text('Recorded'), findsOneWidget);
       expect(find.text('Melbourne Studio · 9:04 AM'), findsOneWidget);
-      expect(find.text('Edit today'), findsOneWidget);
+      // The whole card opens today's editor.
+      await tester.ensureVisible(find.text('At the office'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('At the office'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(DateFormat('EEEE, d MMMM').format(DateTime.now())),
+        findsOneWidget,
+      );
+      expect(find.text('Update'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     });
