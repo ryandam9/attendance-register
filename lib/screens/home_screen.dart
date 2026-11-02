@@ -130,8 +130,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     final message = switch (result) {
-      CheckInResult.alreadyRecorded || CheckInResult.alreadyRecordedByAuto =>
-        'Today is already recorded for ${office.name}.',
+      CheckInResult.alreadyRecorded ||
+      CheckInResult.alreadyRecordedByAuto => 'Today is already recorded.',
       CheckInResult.specialDayConflict =>
         'Today already has a status. Edit it before checking in.',
       CheckInResult.weekend => weekendNotMarkableMessage,
@@ -183,7 +183,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(officeState.selectedOffice?.name ?? 'Attendance Register'),
+        // Today's date, in the same spaced capitals as the garden headers.
+        title: Text(
+          DateFormat('EEEE, d MMMM').format(DateTime.now()).toUpperCase(),
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            letterSpacing: 1.4,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
       body: ResponsiveBody(
         child: AnimatedSwitcher(
@@ -329,13 +336,6 @@ class _Dashboard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  DateFormat(
-                    'EEEE, d MMMM',
-                  ).format(DateTime.now()).toUpperCase(),
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-                const SizedBox(height: 12),
-                Text(
                   'Your month, gently growing.',
                   style: Theme.of(context).textTheme.headlineLarge,
                 ),
@@ -375,7 +375,6 @@ class _Dashboard extends ConsumerWidget {
               // calendar must not change what "Today" says.
               status: ap.todayStatus,
               checkInTime: ap.todayCheckInTime,
-              officeName: selected.name,
               onCheckIn: onCheckIn,
               onEdit: () => onDayTapped(DateTime.now()),
             ),
@@ -432,14 +431,12 @@ class _Dashboard extends ConsumerWidget {
 class _MobileTodayCard extends StatelessWidget {
   final DayStatus? status;
   final DateTime? checkInTime;
-  final String officeName;
   final Future<void> Function() onCheckIn;
   final VoidCallback onEdit;
 
   const _MobileTodayCard({
     required this.status,
     required this.checkInTime,
-    required this.officeName,
     required this.onCheckIn,
     required this.onEdit,
   });
@@ -458,8 +455,8 @@ class _MobileTodayCard extends StatelessWidget {
     final subtitle = switch (status) {
       null => null,
       DayStatus.attended when checkInTime != null =>
-        '$officeName · ${DateFormat('h:mm a').format(checkInTime!)}',
-      DayStatus.attended => officeName,
+        'Checked in at ${DateFormat('h:mm a').format(checkInTime!)}',
+      DayStatus.attended => null,
       _ => 'Tap to change',
     };
     final tag = recorded
@@ -1175,7 +1172,7 @@ class _DesktopDashboardState extends ConsumerState<_DesktopDashboard> {
               ),
               const SizedBox(height: 2),
               Text(
-                '${widget.selected.name} · ${monthPeriod.label}',
+                monthPeriod.label,
                 style: Theme.of(
                   context,
                 ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
