@@ -4,9 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../build_info.dart';
 import '../helpers/layout.dart';
-import '../providers/settings_provider.dart';
-import '../themes/bird_art.dart';
 import '../widgets/desktop_page.dart';
+import '../widgets/garden_art.dart';
+import '../widgets/garden_header.dart';
+import '../widgets/garden_tag.dart';
 import '../widgets/responsive_body.dart';
 
 /// What the app is, what it does, and exactly which build/commit is running.
@@ -47,16 +48,12 @@ class AboutScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final birdAsset = birdAssetForTheme(
-      ref.watch(settingsProvider.select((s) => s.themeId)),
-    );
     final body = ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        _Hero(birdAsset: birdAsset),
+        const _Hero(),
         const SizedBox(height: 18),
         _SectionCard(
-          icon: Icons.auto_awesome_outlined,
           title: 'What it does',
           child: Column(
             children: [
@@ -72,11 +69,7 @@ class AboutScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 16),
-        const _SectionCard(
-          icon: Icons.tag_outlined,
-          title: 'Build',
-          child: _BuildInfo(),
-        ),
+        const _SectionCard(title: 'Build', child: _BuildInfo()),
         const SizedBox(height: 16),
         const _FooterCard(),
       ],
@@ -119,127 +112,57 @@ class AboutScreen extends ConsumerWidget {
   }
 }
 
-/// Gradient hero header: app identity on a coloured, rounded, bordered panel.
+/// App identity: garden header, artwork, a one-line summary and version.
 class _Hero extends StatelessWidget {
-  final String? birdAsset;
-  const _Hero({required this.birdAsset});
+  const _Hero();
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final onHero = cs.onPrimary;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.55)!],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const GardenHeader(
+          eyebrow: 'Attendance Register',
+          title: 'Room for your workday.',
         ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
-        boxShadow: [
-          BoxShadow(
-            color: cs.primary.withValues(alpha: 0.25),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 84,
-            height: 84,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-            ),
-            padding: const EdgeInsets.all(12),
-            child: birdAsset != null
-                ? Image.asset(birdAsset!, fit: BoxFit.contain)
-                : Icon(Icons.event_available, size: 40, color: cs.primary),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Attendance Register',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: onHero,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: onHero.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              'Version ${BuildInfo.version}',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: onHero,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'A private office-attendance tracker: record your return-to-office '
-            'days automatically by location or by hand, and see how you track '
-            'against your target.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: onHero.withValues(alpha: 0.9),
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
+        const SizedBox(height: 20),
+        const GardenArt(),
+        const SizedBox(height: 16),
+        Text(
+          'A personal record of office days, home days and time away — '
+          'recorded automatically by location or by hand.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
+        ),
+        const SizedBox(height: 12),
+        const GardenTag('Version ${BuildInfo.version}'),
+      ],
     );
   }
 }
 
-/// A rounded, bordered card with an icon + title header and a body.
+/// A card with a plain title and a body.
 class _SectionCard extends StatelessWidget {
-  final IconData icon;
   final String title;
   final Widget child;
-  const _SectionCard({
-    required this.icon,
-    required this.title,
-    required this.child,
-  });
+  const _SectionCard({required this.title, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 20, color: cs.primary),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          child,
-        ],
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 14),
+            child,
+          ],
+        ),
       ),
     );
   }
@@ -261,15 +184,7 @@ class _FeatureRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: cs.primaryContainer.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, size: 20, color: cs.primary),
-        ),
+        GardenIconTile(color: cs.primary, icon: icon),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
@@ -389,10 +304,6 @@ class _FooterCard extends StatelessWidget {
           Text('Licensed under the Apache License 2.0', style: style),
           Text('Copyright 2026 ryandam9', style: style),
           Text('github.com/ryandam9/attendance-register', style: style),
-          Text(
-            'Bird colour palettes inspired by shandiya/feathers.',
-            style: style,
-          ),
           const SizedBox(height: 8),
           Text(
             'Built with AI assistance. Attendance calculations are documented '

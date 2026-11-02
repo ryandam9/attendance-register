@@ -7,6 +7,7 @@ import 'package:attendance_register/screens/day_entry_screen.dart';
 import 'package:attendance_register/screens/explain_screen.dart';
 import 'package:attendance_register/screens/history_screen.dart';
 import 'package:attendance_register/screens/home_screen.dart';
+import 'package:attendance_register/screens/settings_screen.dart';
 import 'package:attendance_register/screens/theme_screen.dart';
 import 'package:attendance_register/services/database_service.dart';
 import 'package:attendance_register/themes/garden_theme.dart';
@@ -288,6 +289,41 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  for (final brightness in Brightness.values) {
+    testWidgets('Settings and its pages fit 320px at 2x text: $brightness', (
+      tester,
+    ) async {
+      await pumpSmall(tester, const SettingsScreen(), brightness);
+      expect(find.text('Make yourself at home.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      for (final (row, heading) in const [
+        ('Offices', 'Your offices.'),
+        ('Reporting', 'Set your target.'),
+        ('Automatic check-in', 'Arrive and settle in.'),
+        ('Public holidays', 'Days to step away.'),
+        ('Data & privacy', 'Take your days with you.'),
+        ('About', 'Room for your workday.'),
+      ]) {
+        await tester.ensureVisible(find.text(row));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(row));
+        await tester.pumpAndSettle();
+        expect(find.text(heading), findsOneWidget, reason: row);
+        // Scroll the page to its end so every section is laid out.
+        await tester.fling(
+          find.byType(Scrollable).last,
+          const Offset(0, -3000),
+          3000,
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: row);
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+      }
       await tester.pumpWidget(const SizedBox());
     });
   }
