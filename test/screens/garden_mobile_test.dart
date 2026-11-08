@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:attendance_register/helpers/day_type_helper.dart';
 import 'package:attendance_register/models/attendance_breakdown.dart';
 import 'package:attendance_register/providers/explain_provider.dart';
 import 'package:attendance_register/providers/ui_state_provider.dart';
@@ -555,7 +556,10 @@ void main() {
         find.text(DateFormat('EEEE, d MMMM').format(DateTime.now())),
         findsOneWidget,
       );
-      expect(find.text('Update'), findsOneWidget);
+      // On a weekend the only change left is removing the entry.
+      if (!isWeekendDay(DateTime.now())) {
+        expect(find.text('Update'), findsOneWidget);
+      }
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     });
@@ -894,7 +898,13 @@ void main() {
       expect(action, findsOneWidget);
       await tester.tap(action);
       await tester.pumpAndSettle();
-      expect(find.textContaining(today), findsWidgets);
+      // An empty weekend can't be marked, so it explains that instead.
+      expect(
+        isWeekendDay(DateTime.now())
+            ? find.text(weekendNotMarkableMessage)
+            : find.textContaining(today),
+        findsWidgets,
+      );
       await tester.tapAt(const Offset(200, 20));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
