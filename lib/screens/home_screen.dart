@@ -1054,6 +1054,23 @@ void _showAllSymbols(BuildContext context) {
                 'Today, recorded',
                 'A ring around today\'s symbol',
               ),
+              row(
+                SizedBox.square(
+                  dimension: _StatusSwatch.size,
+                  child: Center(
+                    child: Text(
+                      '8',
+                      textScaler: TextScaler.noScaling,
+                      style: TextStyle(
+                        color: cs.onSurface.withValues(alpha: 0.32),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+                'Weekend',
+                'Not an office day, so it\'s faded',
+              ),
             ],
           ),
         ),
@@ -1094,6 +1111,10 @@ class _CalendarCard extends ConsumerWidget {
       return _DayCell(day: day, status: status, isToday: isToday);
     }
 
+    final weekendColor = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: 0.32);
+
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
@@ -1116,7 +1137,18 @@ class _CalendarCard extends ConsumerWidget {
               defaultBuilder: (context, day, _) => dayCell(day, isToday: false),
               todayBuilder: (context, day, _) => dayCell(day, isToday: true),
             ),
-            calendarStyle: const CalendarStyle(outsideDaysVisible: false),
+            // Weekends are never office days, so they're faded like disabled
+            // dates. Anything recorded on one still shows in full colour.
+            calendarStyle: CalendarStyle(
+              outsideDaysVisible: false,
+              weekendTextStyle: TextStyle(color: weekendColor),
+            ),
+            daysOfWeekStyle: DaysOfWeekStyle(
+              weekdayStyle: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              weekendStyle: TextStyle(color: weekendColor),
+            ),
             headerStyle: const HeaderStyle(
               formatButtonVisible: false,
               titleCentered: true,
