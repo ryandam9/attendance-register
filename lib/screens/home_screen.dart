@@ -838,9 +838,27 @@ class _DayCell extends StatelessWidget {
     }
 
     if (isToday) {
-      // Today keeps its real status visible; a primary ring marks it as today.
-      // With no status it's just the solid "today" circle.
-      if (s == null) return filled(cs.primary, cs.onPrimary);
+      // A primary ring always marks today: on its own before anything is
+      // recorded, then around the day's status.
+      if (s == null) {
+        // Just a ring, so today never looks like a filled office day.
+        return Container(
+          margin: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: cs.primary, width: 2),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            number,
+            style: TextStyle(
+              color: cs.primary,
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+            ),
+          ),
+        );
+      }
       return Stack(
         alignment: Alignment.center,
         children: [
@@ -877,12 +895,10 @@ Color _numberColorOn(Color fill) =>
     : const Color(0xFF1B2A12);
 
 /// A small copy of how [status] looks in the calendar, so the key matches the
-/// grid exactly. With no status it shows today's circle; with [ring] it shows
-/// the ring that marks today once it's recorded.
+/// grid exactly. With no status it shows the ring that marks today.
 class _StatusSwatch extends StatelessWidget {
   final DayStatus? status;
-  final bool ring;
-  const _StatusSwatch(this.status, {this.ring = false});
+  const _StatusSwatch(this.status);
 
   static const size = 24.0;
 
@@ -904,16 +920,22 @@ class _StatusSwatch extends StatelessWidget {
       ),
     );
     final Widget mark;
-    if (ring) {
+    if (s == null) {
       mark = Container(
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(color: cs.primary, width: 2),
         ),
-      );
-    } else if (s == null) {
-      mark = Container(
-        decoration: BoxDecoration(color: cs.primary, shape: BoxShape.circle),
+        alignment: Alignment.center,
+        child: Text(
+          '8',
+          textScaler: TextScaler.noScaling,
+          style: TextStyle(
+            color: cs.primary,
+            fontWeight: FontWeight.w800,
+            fontSize: 11,
+          ),
+        ),
       );
     } else if (s == DayStatus.attended) {
       mark = circle(s.colorIn(context));
@@ -1047,12 +1069,7 @@ void _showAllSymbols(BuildContext context) {
               row(
                 const _StatusSwatch(null),
                 'Today',
-                'Today, before anything is recorded',
-              ),
-              row(
-                const _StatusSwatch(null, ring: true),
-                'Today, recorded',
-                'A ring around today\'s symbol',
+                'A ring marks today, around its symbol once recorded',
               ),
               row(
                 SizedBox.square(
